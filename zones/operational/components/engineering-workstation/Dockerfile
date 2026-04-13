@@ -15,6 +15,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     openssh-client \
     python3 \
     python3-venv \
+    cron \
     net-tools \
     iputils-ping \
     nmap \

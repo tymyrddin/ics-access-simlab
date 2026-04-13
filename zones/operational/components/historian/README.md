@@ -4,7 +4,7 @@
 the installation, set the credentials, and left. Nobody has touched the schema
 since. Nobody has changed the password since. The web interface was added later
 by someone who needed remote access to reports and was in a hurry; the query
-parameter goes straight into the SQL string because the network was internal and
+parameter goes straight into the SQL string because the network was internal, and
 it was quicker. Ticket HEX-1847 (SQL injection in /report) was filed in 2019 and
 closed won't-fix. Ticket HEX-2291 (path traversal in /export) was never filed.
 The bug is documented in the on-disk notes as known behaviour.

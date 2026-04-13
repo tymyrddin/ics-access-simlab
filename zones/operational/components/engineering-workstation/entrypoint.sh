@@ -556,14 +556,129 @@ tar czf "$PROFILE/backups/PLC_Backup_2019.tar.gz" \
     -C "$BACKUP_TMP" PLC_Backup_2019/
 rm -rf "$BACKUP_TMP"
 
+# ── Historian ingest script ───────────────────────────────────────────────────
+# Polls turbine PLC input registers and pushes readings to the historian.
+# Only wired for uupl_ied — asset names must match what seed.py created.
+
+if [ "$ICS_PROCESS" = "uupl_ied" ]; then
+    cat > "$PROFILE/Tools/poll_and_ingest.py" << 'EOF'
+#!/usr/bin/env python3
+"""
+UU P&L Engineering Workstation — PLC poll and historian ingest.
+
+Reads turbine PLC input registers and posts each reading to the process
+historian at http://10.10.2.10:8080/ingest.
+
+Runs every minute from cron. Adds a small timing jitter before polling so
+readings do not land at exactly :00, and skips roughly one cycle in twenty
+to reflect the fact that nothing on a plant network is perfectly reliable.
+"""
+import base64
+import json
+import random
+import time
+import urllib.request
+from datetime import datetime, timezone
+
+from pymodbus.client import ModbusTcpClient
+
+PLC_IP        = "10.10.3.21"
+PLC_PORT      = 502
+HISTORIAN_URL = "http://10.10.2.10:8080/ingest"
+INGEST_USER   = "hist_read"
+INGEST_PASS   = "history2017"
+
+# (historian asset name, unit) indexed by PLC IR register number
+ASSETS = [
+    ("turbine_rpm",         "RPM"),
+    ("turbine_temperature", "C"),
+    ("turbine_pressure",    "bar"),
+    ("line_voltage_a",      "V"),
+    ("line_current_a",      "A"),
+    ("line_voltage_b",      "V"),
+    ("line_current_b",      "A"),
+    ("frequency_hz_x10",    "raw"),
+    ("meter_power_kw",      "kW"),
+]
+
+
+def _post(asset, value, unit, ts):
+    payload = json.dumps(
+        {"timestamp": ts, "asset": asset, "value": value, "unit": unit}
+    ).encode()
+    creds = base64.b64encode(f"{INGEST_USER}:{INGEST_PASS}".encode()).decode()
+    req = urllib.request.Request(
+        HISTORIAN_URL,
+        data=payload,
+        headers={
+            "Content-Type": "application/json",
+            "Authorization": f"Basic {creds}",
+        },
+        method="POST",
+    )
+    urllib.request.urlopen(req, timeout=5)
+
+
+def main():
+    # Jitter: wait 2-12 s before reading so timestamps are not clock-aligned.
+    time.sleep(random.uniform(2, 12))
+
+    # Skip roughly one cycle in twenty.
+    if random.random() < 0.05:
+        print("poll_and_ingest: skipped cycle")
+        return
+
+    try:
+        client = ModbusTcpClient(PLC_IP, port=PLC_PORT, timeout=3)
+        client.connect()
+        result = client.read_input_registers(0, len(ASSETS), slave=1)
+        client.close()
+        if result.isError():
+            print("poll_and_ingest: Modbus read error")
+            return
+        regs = result.registers
+    except Exception as e:
+        print(f"poll_and_ingest: connection failed: {e}")
+        return
+
+    ts = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
+    errors = 0
+    for i, (asset, unit) in enumerate(ASSETS):
+        try:
+            _post(asset, regs[i], unit, ts)
+        except Exception:
+            errors += 1
+
+    ingested = len(ASSETS) - errors
+    tag = "ok" if not errors else f"partial ({errors} ingest errors)"
+    print(
+        f"poll_and_ingest: rpm={regs[0]} temp={regs[1]} press={regs[2]} "
+        f"volt_a={regs[3]} curr_a={regs[4]} [{tag}, {ingested}/{len(ASSETS)} ingested]"
+    )
+
+
+if __name__ == "__main__":
+    main()
+EOF
+fi
+
 # ── Cron artifact ─────────────────────────────────────────────────────────────
 
-cat > /etc/cron.d/plc-poll << 'CRON'
+if [ "$ICS_PROCESS" = "uupl_ied" ]; then
+    cat > /etc/cron.d/plc-poll << 'CRON'
+# UU P&L — PLC monitor and historian ingest
+# Polls turbine PLC every minute; pushes readings to historian.
+* * * * * engineer /venv/bin/python3 /opt/win10/C/Users/engineer/Tools/poll_and_ingest.py \
+    >> /home/engineer/plc_poll.log 2>&1
+CRON
+else
+    cat > /etc/cron.d/plc-poll << 'CRON'
 # UU P&L — PLC availability monitor
 # Polls turbine PLC every 5 minutes, logs governor setpoint (HR[0])
 */5 * * * * engineer /venv/bin/python3 /opt/win10/C/Users/engineer/Tools/modbus_read.py \
     10.10.3.21 502 holding 0 1 >> /home/engineer/plc_poll.log 2>&1
 CRON
+fi
 
 # ── Permissions ───────────────────────────────────────────────────────────────
 
@@ -576,4 +691,5 @@ chmod 600 "$PROFILE/backups/PLC_Backup_2019.tar.gz"
 chmod 750 "$PROFILE/Tools/send_alarm.ps1"
 chmod 644 "$PROFILE/Tools/modbus_read.py" "$PROFILE/Tools/modbus_write.py"
 
+cron
 /usr/sbin/sshd -D

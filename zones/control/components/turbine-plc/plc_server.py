@@ -463,15 +463,28 @@ async def main():
     store.setValues(FC_CO, COIL_BREAKER_A, [1])
     store.setValues(FC_CO, COIL_BREAKER_B, [1])
 
-    # Periodic data push to actuator_fuel_valve (write PLC fuel command there too)
-    # Not strictly necessary — the PLC holding register IS the source of truth —
-    # but keeps the actuator container in sync for attackers who read it directly.
+    # Periodic data push to actuator_fuel_valve and actuator_cooling_pump.
+    # The PLC holding registers are the source of truth; these writes keep the
+    # actuator containers in sync so attackers who read them see the live values.
     async def push_fuel_valve():
         await asyncio.sleep(20.0)
         while True:
             try:
                 val = store.getValues(FC_HR, HR_FUEL_VALVE, count=1)[0]
                 c = AsyncModbusTcpClient(FUEL_VALVE_IP, port=502, timeout=2)
+                await c.connect()
+                await c.write_register(0, val, slave=1)
+                await c.close()
+            except Exception:
+                pass
+            await asyncio.sleep(1.0)
+
+    async def push_cooling_pump():
+        await asyncio.sleep(20.0)
+        while True:
+            try:
+                val = store.getValues(FC_HR, HR_COOLING, count=1)[0]
+                c = AsyncModbusTcpClient(COOLING_PUMP_IP, port=502, timeout=2)
                 await c.connect()
                 await c.write_register(0, val, slave=1)
                 await c.close()
@@ -491,6 +504,7 @@ async def main():
             governor_loop(store),
             actuator_sync_loop(store),
             push_fuel_valve(),
+            push_cooling_pump(),
             mqtt_publish_loop(store),
             dnp3_server.serve_forever(),
             iec104_server.serve_forever(),
