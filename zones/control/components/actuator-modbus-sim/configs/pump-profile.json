@@ -1,0 +1,12 @@
+{
+  "name": "pump",
+  "deviceResources": [
+    {
+      "name": "pump_speed",
+      "attributes": {
+        "primaryTable": "HOLDING_REGISTERS",
+        "startingAddress": 0
+      }
+    }
+  ]
+}

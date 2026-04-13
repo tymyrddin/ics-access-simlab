@@ -1,0 +1,304 @@
+# ICS-SimLab Extended — Environment Configuration
+# Unseen University Power & Light Co., Ankh-Morpork
+#
+# This file controls WHAT is deployed — topology, addressing, component variants.
+# It does not control how vulnerable things are. Vulnerabilities are properties
+# of the simulated systems, baked into their implementations.
+#
+# Usage:
+#   python orchestrator/generate.py [this-file]
+#   bash start.sh
+
+meta:
+  name: "UU P&L Operations Network"
+  description: >
+    Operational infrastructure of Unseen University Power & Light Co.,
+    Ankh-Morpork's primary utility provider. Infrastructure assembled over
+    decades. Documentation patchy. Cybersecurity posture: emergent.
+  version: "0.1.0"
+
+# ICS process running in the control zone.
+# Each option produces a different physical process, PLC/IED topology,
+# and sensor/actuator layout. Affects what data appears in the historian.
+ics_process: uupl_ied
+
+# Network addressing.
+# Change subnets here if they conflict with your host network.
+networks:
+  # Internet — the public network / city network.
+  # The jump host is always on this. Future: adversary-side endpoints, external probes.
+  # A misconfigured RTU that ends up here is an RTU-level problem, not a network flag.
+  internet:
+    subnet: 10.10.0.0/24
+    docker_name: ics_internet
+  enterprise:
+    subnet: 10.10.1.0/24
+    docker_name: ics_enterprise
+  operational:
+    subnet: 10.10.2.0/24
+    docker_name: ics_operational
+  control:
+    subnet: 10.10.3.0/24
+    docker_name: ics_control
+  # WAN — the OT/RTU network.
+  # RTUs are on this because they use public cellular IPs with no private APN and no VPN.
+  # SCADA polls RTUs outbound over this network.
+  # Enterprise cannot reach WAN directly.
+  wan:
+    subnet: 10.10.4.0/24
+    docker_name: ics_wan
+  dmz:
+    subnet: 10.10.5.0/24
+    docker_name: ics_dmz
+
+# Enterprise Zone
+# Two machines. Adversaries enter via SSH from the jump host.
+# Machine characteristics are determined by their implementations, not this file.
+enterprise_zone:
+
+  legacy_workstation:
+    hostname: hex-legacy-1
+    ip: 10.10.1.10
+    # Implementation variant. Different variants = different era / vendor.
+    # Each has its own realistic configuration and service stack.
+    implementation: win95-era
+
+  enterprise_workstation:
+    hostname: bursar-desk
+    ip: 10.10.1.20
+    ops_ip: 10.10.2.100   # this machine sits on both networks (IT/OT boundary)
+    implementation: enterprise-generic
+
+# Operational Zone
+operational_zone:
+
+  historian:
+    hostname: uupl-historian
+    ip: 10.10.2.10
+    implementation: historian-v1
+    # What ICS data to populate at startup.
+    # Must match ics_process above so the data makes sense.
+    data_source: "{{ ics_process }}"
+
+  scada_server:
+    hostname: distribution-scada
+    ip: 10.10.2.20
+    implementation: scada-lts
+    # historian_ip not used by scada-lts (Scada-LTS has its own MySQL DB)
+
+  # stunnel-gateway: TLS termination proxy between SCADA and control zone PLCs.
+  # Dual-homed: accepts TLS on ops network, forwards plain Modbus on control network.
+  # Attack path: compromise SCADA → steal /run/stunnel-certs/client.key (world-readable)
+  #              → authenticate directly to gateway → write PLC registers via Modbus.
+  stunnel_gateway:
+    hostname: uupl-modbus-gw
+    ops_ip:  10.10.2.50   # operational-facing (SCADA connects here)
+    ctrl_ip: 10.10.3.50   # control-facing (forwards to PLCs)
+    implementation: stunnel-gateway
+    forward_to: "10.10.3.21:502"   # turbine_plc
+
+  engineering_workstation:
+    hostname: uupl-eng-ws
+    ip: 10.10.2.30
+    ctrl_ip: 10.10.3.100   # this machine sits on both networks (ops/control boundary)
+    implementation: engineering-workstation-generic
+    # The engineering workstation needs to know what it manages.
+    # This drives what's in its config files, tool setup, etc.
+    ics_process: "{{ ics_process }}"
+    control_network_subnet: "{{ networks.control.subnet }}"
+
+jump_host:
+  hostname: unseen-gate
+  internet_ip: 10.10.0.5   # public-facing (ics_internet) — attacker machine only
+  ssh_host_port: 2222       # local dev: avoids conflict with host sshd on port 22
+                            # Hetzner: change to 22 (setup.sh moves host sshd to 2222)
+
+  # auth_mode controls how participants authenticate to the attacker machine.
+  #
+  #   key      (default) — pubkey only; keys mounted from adversary-keys at runtime.
+  #                        Use for self-hosted / Hetzner deployments.
+  #                        ./ctl ssh [user] handles key selection automatically.
+  #
+  #   password           — password auth; credentials set from accounts below.
+  #                        Use for Root-Me and other platforms that publish
+  #                        connection strings (e.g. "ssh ponder@ctf01.root-me.org").
+  #                        No key exchange or adversary-keys file needed.
+  #
+  auth_mode: key
+
+  # accounts: only used when auth_mode: password.
+  # These credentials are published in the room info on the CTF platform.
+  # accounts:
+  #   ponder:    ponder
+  #   hex:       hex
+  #   ridcully:  wizzard
+  #   librarian: books
+  #   dean:      dean
+
+# Internet Zone — other nodes on the public network
+# admin_home simulates a remote administrator's machine with VPN access to enterprise.
+# The dual-homing IS the VPN tunnel; the .vpn/uupl-vpn.conf on board is cosmetic loot.
+internet_zone:
+  admin_home:
+    hostname: wizzards-retreat
+    internet_ip: 10.10.0.10
+    enterprise_ip: 10.10.1.3
+    implementation: admin-home
+
+# Control Zone
+# Each device has its own container. The turbine_plc owns the physics simulation;
+# everything else reads from or writes to its Modbus registers.
+# engineering-workstation (ctrl_ip: 10.10.3.100) is managed by operational_zone.
+control_zone:
+
+  devices:
+    - name: hmi_main
+      hostname: uupl-hmi
+      ip: 10.10.3.10
+      implementation: scada-lts-ctrl
+      env:
+        PLC_IP: "10.10.3.21"   # informational — Scada-LTS polls via stunnel on localhost:5020
+
+    - name: turbine_plc
+      hostname: hex-turbine-plc
+      ip: 10.10.3.21
+      implementation: turbine-plc
+      env:
+        ACTUATOR_FUEL_VALVE_IP:   "10.10.3.51"
+        ACTUATOR_COOLING_PUMP_IP: "10.10.3.52"
+        ACTUATOR_BREAKER_A_IP:    "10.10.3.53"
+        ACTUATOR_BREAKER_B_IP:    "10.10.3.54"
+        MQTT_BROKER_IP:           "10.10.3.60"
+
+    - name: ied_relay_a
+      hostname: uupl-relay-a
+      ip: 10.10.3.31
+      implementation: ied-relay
+      env:
+        RELAY_ID:   "a"
+        FEEDER:     "Dolly Sisters"
+        PLC_IP:     "10.10.3.21"
+        BREAKER_IP: "10.10.3.53"
+        VOLTAGE_REG: "3"
+        CURRENT_REG: "4"
+        MQTT_BROKER_IP: "10.10.3.60"
+
+    - name: ied_relay_b
+      hostname: uupl-relay-b
+      ip: 10.10.3.32
+      implementation: ied-relay
+      env:
+        RELAY_ID:   "b"
+        FEEDER:     "Nap Hill"
+        PLC_IP:     "10.10.3.21"
+        BREAKER_IP: "10.10.3.54"
+        VOLTAGE_REG: "5"
+        CURRENT_REG: "6"
+        MQTT_BROKER_IP: "10.10.3.60"
+
+    - name: ied_meter_main
+      hostname: uupl-meter
+      ip: 10.10.3.33
+      implementation: ied-meter
+      env:
+        PLC_IP: "10.10.3.21"
+
+    - name: actuator_fuel_valve
+      hostname: uupl-fuel-valve
+      ip: 10.10.3.51
+      implementation: actuator-modbus-sim
+      env:
+        ACTUATOR_NAME: "fuel_valve"
+        ACTUATOR_TYPE: "valve"
+
+    - name: actuator_cooling_pump
+      hostname: uupl-cooling-pump
+      ip: 10.10.3.52
+      implementation: actuator-modbus-sim
+      env:
+        ACTUATOR_NAME: "cooling_pump"
+        ACTUATOR_TYPE: "pump"
+
+    - name: actuator_breaker_a
+      hostname: uupl-breaker-a
+      ip: 10.10.3.53
+      implementation: actuator-modbus-sim
+      env:
+        ACTUATOR_NAME: "breaker_a"
+        ACTUATOR_TYPE: "breaker"
+        FEEDER: "Dolly Sisters"
+
+    - name: actuator_breaker_b
+      hostname: uupl-breaker-b
+      ip: 10.10.3.54
+      implementation: actuator-modbus-sim
+      env:
+        ACTUATOR_NAME: "breaker_b"
+        ACTUATOR_TYPE: "breaker"
+        FEEDER: "Nap Hill"
+
+    - name: mosquitto_broker
+      hostname: uupl-mqtt
+      ip: 10.10.3.60
+      implementation: mosquitto-broker
+
+# Field Devices Zone — DEFERRED
+# City RTUs, smart grid end devices, and substation equipment are built later,
+# with per-vendor/per-firmware implementations. Do not add stubs here.
+# field_devices_zone: (deferred)
+
+# DMZ Zone — Guild Quarter
+# Between internet and enterprise. Externally-facing attack surface.
+# Devices simulate realistic boundary infrastructure with intentional misconfigurations.
+dmz_zone:
+  devices:
+    - name: umati_gateway
+      hostname: guild-exchange
+      ip: 10.10.5.10
+      implementation: umati-gateway
+
+    - name: neuron_gateway
+      hostname: sorting-office
+      ip: 10.10.5.11
+      implementation: neuron-gateway
+
+    - name: mqtt_dmz
+      hostname: clacks-relay
+      ip: 10.10.5.12
+      implementation: mqtt-dmz
+
+    - name: opcua_server
+      hostname: guild-register
+      ip: 10.10.5.13
+      implementation: opcua-server
+
+    - name: iec104_rtu
+      hostname: substation-rtu
+      ip: 10.10.5.14
+      implementation: iec104-rtu
+
+    - name: ssh_bastion
+      hostname: contractors-gate
+      ip: 10.10.5.20
+      enterprise_ip: 10.10.1.30
+      implementation: ssh-bastion-vuln
+
+    - name: sftp_drop
+      hostname: dispatch-box
+      ip: 10.10.5.21
+      implementation: sftp-drop
+
+    - name: ntp_server
+      hostname: guild-clock
+      ip: 10.10.5.30
+      implementation: ntp-server
+
+    - name: dns_forwarder
+      hostname: city-directory
+      ip: 10.10.5.31
+      implementation: dns-forwarder
+
+    - name: syslog_relay
+      hostname: scribes-post
+      ip: 10.10.5.32
+      implementation: syslog-relay

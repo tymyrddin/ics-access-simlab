@@ -1,0 +1,74 @@
+# Inter-zone firewall policy — DOCKER-USER chain
+#
+# Placeholders are resolved from ctf-config.yaml by orchestrator/generate.py.
+# See generate.py:generate_firewall_sh() for the symbol-to-address mapping.
+# Rules are evaluated top to bottom. Run 'make generate' after editing.
+#
+# ics_internet — public network. Jump host is dual-homed here and on enterprise.
+#   Future adversary-side endpoints and external probes live here.
+#   A misconfigured RTU that appears here is an RTU-level problem, not a flag.
+# ics_wan     — OT/RTU network. RTUs have cellular IPs, no private APN, no VPN.
+#   SCADA polls RTUs outbound from operational into this network.
+
+iptables -A DOCKER-USER -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT
+
+# Internet → internal zones: no direct path
+# Exception: admin_home ({admin_home_ip}) is dual-homed internet+enterprise,
+#   simulating an established VPN tunnel. All other internet hosts remain blocked.
+# Note: if internet_zone is absent from config, admin_home_ip resolves to
+#   0.0.0.0/32 which is a valid but no-op ACCEPT rule.
+iptables -A DOCKER-USER -s {admin_home_ip} -d {enterprise} -j ACCEPT
+iptables -A DOCKER-USER -s {internet} -d {enterprise} -j DROP
+iptables -A DOCKER-USER -s {internet} -d {operational} -j DROP
+iptables -A DOCKER-USER -s {internet} -d {control} -j DROP
+iptables -A DOCKER-USER -s {internet} -d {wan} -j DROP
+
+# Enterprise → Operational: historian web, SCADA web, SSH to engineering workstation
+iptables -A DOCKER-USER -s {enterprise} -d {historian} -p tcp --dport 8080 -j ACCEPT
+iptables -A DOCKER-USER -s {enterprise} -d {scada} -p tcp --dport 8080 -j ACCEPT
+iptables -A DOCKER-USER -s {enterprise} -d {eng_ws} -p tcp --dport 22 -j ACCEPT
+iptables -A DOCKER-USER -s {enterprise} -d {operational} -j DROP
+
+# Enterprise → Control / WAN: no direct path
+iptables -A DOCKER-USER -s {enterprise} -d {control} -j DROP
+iptables -A DOCKER-USER -s {enterprise} -d {wan} -j DROP
+
+# Operational → Control: Modbus from engineering workstation only
+iptables -A DOCKER-USER -s {eng_ws} -d {control} -p tcp --dport 502 -j ACCEPT
+iptables -A DOCKER-USER -s {operational} -d {control} -j DROP
+
+# Operational → WAN (city RTUs): Modbus + SNMP from SCADA and engineering workstation
+iptables -A DOCKER-USER -s {scada} -d {wan} -p tcp --dport 502 -j ACCEPT
+iptables -A DOCKER-USER -s {eng_ws} -d {wan} -p tcp --dport 502 -j ACCEPT
+iptables -A DOCKER-USER -s {scada} -d {wan} -p udp --dport 161 -j ACCEPT
+iptables -A DOCKER-USER -s {eng_ws} -d {wan} -p udp --dport 161 -j ACCEPT
+iptables -A DOCKER-USER -s {operational} -d {wan} -j DROP
+
+# Control zone does not initiate outbound connections
+iptables -A DOCKER-USER -s {control} -d {enterprise} -j DROP
+iptables -A DOCKER-USER -s {control} -d {operational} -j DROP
+
+# WAN — RTUs do not initiate outbound connections
+iptables -A DOCKER-USER -s {wan} -d {internet} -j DROP
+iptables -A DOCKER-USER -s {wan} -d {enterprise} -j DROP
+iptables -A DOCKER-USER -s {wan} -d {operational} -j DROP
+iptables -A DOCKER-USER -s {wan} -d {control} -j DROP
+
+# DMZ ({dmz}) — Guild Quarter boundary between internet and enterprise.
+# Internet → DMZ: open — this IS the externally-facing attack surface.
+iptables -A DOCKER-USER -s {internet} -d {dmz} -j ACCEPT
+
+# DMZ → enterprise: ssh-bastion ({ssh_bastion}) only — simulates contractor pivot path.
+iptables -A DOCKER-USER -s {ssh_bastion} -d {enterprise} -j ACCEPT
+iptables -A DOCKER-USER -s {dmz} -d {enterprise} -j DROP
+
+# DMZ → operational: historian and SCADA web only (data broker read access)
+iptables -A DOCKER-USER -s {dmz} -d {historian} -p tcp --dport 8080 -j ACCEPT
+iptables -A DOCKER-USER -s {dmz} -d {scada} -p tcp --dport 8080 -j ACCEPT
+iptables -A DOCKER-USER -s {dmz} -d {operational} -j DROP
+
+# DMZ → control / WAN: no path
+iptables -A DOCKER-USER -s {dmz} -d {control} -j DROP
+iptables -A DOCKER-USER -s {dmz} -d {wan} -j DROP
+
+iptables -A DOCKER-USER -j RETURN

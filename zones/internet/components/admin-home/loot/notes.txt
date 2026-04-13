@@ -1,0 +1,20 @@
+Network access notes — DO NOT leave on shared systems
+======================================================
+
+VPN must be up before accessing internal resources:
+  wg-quick up ~/.vpn/uupl-vpn.conf
+
+Engineering workstation: 10.10.2.30
+  ssh -i ~/.ssh-keys/uupl_eng_key engineer@10.10.2.30
+
+Historian web: http://10.10.2.10:8080
+  (ask Stibbons for credentials if you need them)
+
+SCADA web: http://10.10.2.20:8080
+  admin/admin — yes really, IT said they'd fix it in the next maintenance window
+
+Legacy system: 10.10.1.10
+  FTP anonymous read works, SMB share is open
+  The old engineer logbook is somewhere in there
+
+Remember to disconnect VPN when done.

@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>REL-200{{ relay_id|upper }} — {{ feeder }} Feeder</title>
+<meta http-equiv="refresh" content="5">
+<style>
+body { font-family: monospace; background: #1a1a1a; color: #ccc; padding: 20px; }
+h1 { color: #ff9900; }
+table { border-collapse: collapse; margin: 10px 0; }
+td, th { border: 1px solid #444; padding: 6px 12px; }
+th { background: #333; color: #ff9900; }
+.tripped { color: #ff4444; font-weight: bold; }
+.normal  { color: #44ff44; }
+.warn    { color: #ffaa00; }
+form input { background: #333; color: #ccc; border: 1px solid #555; padding: 4px; }
+form input[type=submit] { background: #555; cursor: pointer; margin-top: 8px; }
+.trip-btn { background: #800; color: #fff; border: 1px solid #f00; padding: 6px 12px; cursor: pointer; }
+.section { margin: 20px 0; }
+</style>
+</head>
+<body>
+<h1>UU P&amp;L Protective Relay — {{ feeder }} Feeder</h1>
+<p>REL-200{{ relay_id|upper }} &nbsp;|&nbsp; Hex Computing Division &nbsp;|&nbsp; firmware 2.0.1</p>
+
+{% set tripped = store.getValues(1, 0, count=1)[0] %}
+{% set voltage = store.getValues(4, 0, count=1)[0] %}
+{% set current = store.getValues(4, 1, count=1)[0] %}
+{% set freq    = store.getValues(4, 2, count=1)[0] %}
+{% set rpm     = store.getValues(4, 3, count=1)[0] %}
+{% set uv      = store.getValues(3, 0, count=1)[0] %}
+{% set oc      = store.getValues(3, 1, count=1)[0] %}
+{% set os      = store.getValues(3, 2, count=1)[0] %}
+
+<div class="section">
+<h2>Relay Status</h2>
+<table>
+  <tr><th>Parameter</th><th>Value</th><th>Status</th></tr>
+  <tr>
+    <td>Relay State</td>
+    <td>{{ "TRIPPED" if tripped else "CLOSED" }}</td>
+    <td class="{{ 'tripped' if tripped else 'normal' }}">{{ "ALARM" if tripped else "OK" }}</td>
+  </tr>
+  <tr>
+    <td>Line Voltage</td><td>{{ voltage }} V</td>
+    <td class="{{ 'tripped' if voltage < uv and current > 5 else 'normal' }}">
+      {{ "UNDER" if voltage < uv and current > 5 else "OK" }}
+    </td>
+  </tr>
+  <tr>
+    <td>Line Current</td><td>{{ current }} A</td>
+    <td class="{{ 'tripped' if current > oc else 'normal' }}">
+      {{ "OVER" if current > oc else "OK" }}
+    </td>
+  </tr>
+  <tr><td>Frequency</td><td>{{ "%.1f"|format(freq / 10.0) }} Hz</td><td>—</td></tr>
+  <tr>
+    <td>Turbine RPM</td><td>{{ rpm }}</td>
+    <td class="{{ 'tripped' if rpm > os else 'normal' }}">
+      {{ "OVER" if rpm > os else "OK" }}
+    </td>
+  </tr>
+</table>
+</div>
+
+{% if not auth %}
+<div class="section">
+<h2>Login</h2>
+<form method="post" action="/login">
+  <input name="username" placeholder="username" size="12">
+  <input name="password" type="password" placeholder="password" size="12">
+  <input type="submit" value="Login">
+</form>
+</div>
+{% else %}
+<div class="section">
+<h2>Protection Settings</h2>
+<form method="post" action="/config">
+  <table>
+    <tr><th>Setting</th><th>Current</th><th>New Value</th></tr>
+    <tr><td>Undervoltage threshold (V)</td><td>{{ uv }}</td>
+        <td><input name="uv_thresh" value="{{ uv }}" size="6"></td></tr>
+    <tr><td>Overcurrent threshold (A)</td><td>{{ oc }}</td>
+        <td><input name="oc_thresh" value="{{ oc }}" size="6"></td></tr>
+    <tr><td>Overspeed threshold (RPM)</td><td>{{ os }}</td>
+        <td><input name="os_thresh" value="{{ os }}" size="6"></td></tr>
+  </table>
+  <input type="submit" value="Apply">
+</form>
+</div>
+
+<div class="section">
+<form method="post" action="/trip">
+  <button class="trip-btn" type="submit"
+    onclick="return confirm('Force trip {{ feeder }} feeder breaker?')">
+    FORCE TRIP
+  </button>
+</form>
+<a href="/logout">logout</a>
+</div>
+{% endif %}
+
+{% if trip_log %}
+<div class="section">
+<h2>Trip Log (last 10)</h2>
+<table>
+  <tr><th>Time</th><th>Cause</th><th>Voltage</th><th>Current</th><th>RPM</th></tr>
+  {% for e in trip_log|reverse %}
+  <tr>
+    <td>{{ e.time }}</td><td class="tripped">{{ e.cause }}</td>
+    <td>{{ e.voltage }} V</td><td>{{ e.current }} A</td><td>{{ e.rpm }}</td>
+  </tr>
+  {% endfor %}
+</table>
+</div>
+{% endif %}
+
+</body>
+</html>

@@ -1,0 +1,26 @@
+{
+  "name": "breaker",
+  "deviceResources": [
+    {
+      "name": "breaker_state",
+      "attributes": {
+        "primaryTable": "COILS",
+        "startingAddress": 0
+      }
+    },
+    {
+      "name": "trip_command",
+      "attributes": {
+        "primaryTable": "COILS",
+        "startingAddress": 1
+      }
+    },
+    {
+      "name": "close_command",
+      "attributes": {
+        "primaryTable": "COILS",
+        "startingAddress": 2
+      }
+    }
+  ]
+}

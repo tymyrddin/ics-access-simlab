@@ -1,0 +1,57 @@
+UU P&L Hex Turbine -- Standard Operating Procedures
+Hex Computing Division, Control Systems Team
+Last reviewed: 2019-11-12 / P. Stibbons
+
+==============================================================
+PROCEDURE: Turbine Start-up
+==============================================================
+
+1. Confirm all protective relay trips are RESET on HMI (10.10.3.10)
+2. Open throttle valve incrementally (actuator at 10.10.3.51)
+3. Allow RPM to stabilise above 2900 before closing distribution breakers
+4. Monitor Dolly Sisters feeder (relay A, 10.10.3.31)
+   and Nap Hill feeder (relay B, 10.10.3.32)
+5. Report stable generation to Sgt Colon on ops floor (ext 105)
+
+==============================================================
+PROCEDURE: Emergency Shutdown
+==============================================================
+
+1. Set Modbus coil 0 = TRUE on hex_turbine_controller (10.10.3.21)
+   OR use the physical emergency stop button on HMI panel
+2. Confirm breakers A and B open (actuators 10.10.3.53 and 10.10.3.54)
+3. Notify Ponder Stibbons (ext 201) immediately after any emergency stop
+4. Do not restart without written authorisation from the Archchancellor
+   (ext 100 -- define "emergency" carefully before calling)
+
+==============================================================
+PROCEDURE: Monthly Report Generation
+==============================================================
+
+1. Log in to historian web interface: http://10.10.2.10:8080
+   Credentials: historian / Historian2015
+2. Run report query for asset "turbine_main", date range 1st to last of month
+3. Export CSV, forward to bursar-desk workstation
+   Alternatively: use pull_monthly_report.sh on bursar-desk (Desktop folder)
+
+==============================================================
+PROCEDURE: IED Relay Reset (after trip)
+==============================================================
+
+1. Identify which relay tripped from HMI event log
+2. Check for physical fault on the affected feeder before resetting
+3. Reset via Modbus:
+     relay A (Dolly Sisters): ip=10.10.3.31, unit_id=2
+     relay B (Nap Hill):      ip=10.10.3.32, unit_id=3
+   Use modbus_read.py on ENG-WS-01 (10.10.2.30) to verify state first
+4. If relay B trips again immediately, check voltage threshold -- known issue,
+   see engineering logbook on hex-legacy-1 private share
+
+==============================================================
+CONTACTS
+==============================================================
+
+Ponder Stibbons   ext 201   all technical matters
+Sgt Colon         ext 105   operations floor; also knows modem numbers
+The Librarian     server room; do not disturb without bananas
+Archchancellor    ext 100   emergencies only

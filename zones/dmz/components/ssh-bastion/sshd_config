@@ -1,0 +1,8 @@
+Port 22
+PermitRootLogin yes
+PasswordAuthentication yes
+AllowAgentForwarding yes
+X11Forwarding no
+PrintMotd no
+AcceptEnv LANG LC_*
+Subsystem sftp /usr/lib/openssh/sftp-server

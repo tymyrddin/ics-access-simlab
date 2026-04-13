@@ -1,0 +1,9 @@
+# adversary-keys — one line per participant: username pubkey [comment]
+# Copy to adversary-keys (gitignored) and add real public keys before deploying.
+# For local dev, ./ctl up will add your own key for user 'ponder' automatically.
+#
+# ponder    ssh-ed25519 AAAA... participant1@team
+# hex       ssh-ed25519 AAAA... participant2@team
+# ridcully  ssh-ed25519 AAAA... participant3@team
+# librarian ssh-ed25519 AAAA... participant4@team
+# dean      ssh-ed25519 AAAA... participant5@team

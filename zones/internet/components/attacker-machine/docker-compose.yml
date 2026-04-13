@@ -1,0 +1,19 @@
+services:
+  attacker-machine:
+    build:
+      context: .
+    container_name: attacker-machine
+    hostname: ponders-machine
+    restart: unless-stopped
+    networks:
+      ics_internet:
+        ipv4_address: 10.10.0.5
+    ports:
+    - '2222:22'
+    volumes:
+    - ./adversary-keys:/run/adversary-keys:ro
+    - ./adversary-readme.txt:/run/adversary-readme.txt:ro
+networks:
+  ics_internet:
+    external: true
+    name: ics_internet

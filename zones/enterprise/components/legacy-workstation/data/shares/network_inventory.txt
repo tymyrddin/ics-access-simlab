@@ -1,0 +1,45 @@
+UU P&L Network Inventory — Hex Computing Division
+Last updated: Q3 1999 (Ponder Stibbons)
+
+=== NETWORK SEGMENTS ===
+
+Operations Floor (Building B Basement)
+  Gateway:        192.168.1.1
+  Workstations:   192.168.1.10-30
+  Printers:       192.168.1.40-45
+
+Engineering (Building A, Level 2)
+  Gateway:        10.0.1.1
+  ENG-WS-01:      10.0.1.20   (Ponder Stibbons — DO NOT REBOOT WITHOUT WARNING)
+  ENG-WS-02:      10.0.1.21   (Spare — often borrowed by Archchancellor)
+
+Turbine Control (Basement Sub-Level 3)
+  NOTE: Separate network, air-gapped in theory.
+  Access via ENG-WS-01 only. Password in engineering logbook.
+
+Distribution SCADA (Offsite, Dolly Sisters relay hut)
+  Dial-in: see Sgt Colon for modem number
+
+=== SERVERS ===
+
+UUPL-SRV-01   File server / domain controller
+              \\uupl-srv-01\operations$ (Administrator, hex123)
+
+HISTORIAN-01  Process data logger
+              Running since 1997. Do not restart without notifying Ponder.
+              Web interface: http://10.10.2.10:8080
+              Database password: see plc-access.conf on ENG-WS-01
+
+=== KNOWN ISSUES ===
+
+- Turbine controller PLC does not respond to Modbus after power cycle.
+  Workaround: wait 90 seconds before polling.
+- Historian web interface returns SQL errors on reports with apostrophes in
+  the asset name. Known issue, vendor says it's a "cosmetic limitation."
+- FTP server on this machine (hex-legacy-1) has no write access. Use SMB share.
+
+=== CONTACTS ===
+
+Ponder Stibbons  ext 201  (all technical matters)
+HEX              (do not call directly; route queries through Ponder)
+Archchancellor   ext 100  (emergencies only; define "emergency" carefully)

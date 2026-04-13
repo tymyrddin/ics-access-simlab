@@ -1,0 +1,12 @@
+{
+  "name": "valve",
+  "deviceResources": [
+    {
+      "name": "valve_position",
+      "attributes": {
+        "primaryTable": "HOLDING_REGISTERS",
+        "startingAddress": 0
+      }
+    }
+  ]
+}

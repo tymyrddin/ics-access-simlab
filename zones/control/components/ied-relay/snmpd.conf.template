@@ -1,0 +1,14 @@
+# UU P&L Protective Relay IED — SNMP agent
+# Default community strings. Write access via "private" is a known issue;
+# "there has been no operational requirement to change it."
+
+rocommunity  public
+rwcommunity  private
+
+sysDescr     REL-200{{RELAY_ID}} Protective Relay, Hex Computing Division, firmware 2.0.1
+sysContact   Ponder Stibbons <ponder@unseen.edu>
+sysLocation  {{FEEDER}} Feeder, Unseen University Power Plant
+sysName      uupl-relay-{{RELAY_ID}}
+
+master off
+agentAddress udp:161

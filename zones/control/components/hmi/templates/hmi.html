@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>UU P&L Hex Turbine HMI</title>
+<meta http-equiv="refresh" content="3">
+<style>
+body { font-family: monospace; background: #0d0d0d; color: #ccc; padding: 20px; }
+h1 { color: #ff9900; letter-spacing: 2px; }
+.panel { border: 1px solid #444; padding: 16px; margin: 12px 0; background: #1a1a1a; }
+.gauge { display: inline-block; width: 180px; margin: 8px; text-align: center; }
+.gauge .val { font-size: 2em; font-weight: bold; }
+.normal  { color: #44ff44; }
+.warn    { color: #ffaa00; }
+.alarm   { color: #ff4444; }
+.tripped { color: #ff4444; }
+.closed  { color: #44ff44; }
+table { border-collapse: collapse; }
+td, th { border: 1px solid #333; padding: 5px 12px; }
+th { background: #222; color: #ff9900; }
+input[type=number], input[type=text] { background: #222; color: #ccc; border: 1px solid #555; padding: 4px 8px; width: 80px; }
+input[type=submit], button { background: #333; color: #ccc; border: 1px solid #555; padding: 5px 14px; cursor: pointer; margin: 4px; }
+.estop-btn { background: #800; color: #fff; border: 2px solid #f00; font-weight: bold; font-size: 1.1em; }
+.reset-btn { background: #080; color: #fff; border: 2px solid #0f0; }
+.status-bar { background: #111; border: 1px solid #333; padding: 8px; font-size: 1.1em; margin-bottom: 12px; }
+</style>
+</head>
+<body>
+<h1>UU P&amp;L — HEX TURBINE CONTROL SYSTEM</h1>
+<p style="color:#888">Hex Computing Division HMI v2.3.1 &nbsp;|&nbsp; PLC: {{ plc_ip }} &nbsp;|&nbsp; <a href="#" style="color:#888">SSH: operator@10.10.3.10</a></p>
+
+{% set estop     = co[0] if co|length > 0 else 0 %}
+{% set alm_speed = co[1] if co|length > 1 else 0 %}
+{% set alm_temp  = co[2] if co|length > 2 else 0 %}
+{% set alm_press = co[3] if co|length > 3 else 0 %}
+{% set alm_volt  = co[4] if co|length > 4 else 0 %}
+{% set bkr_a     = co[5] if co|length > 5 else 1 %}
+{% set bkr_b     = co[6] if co|length > 6 else 1 %}
+
+<div class="status-bar">
+  TURBINE:
+  {% if estop %}
+    <span class="alarm">&#9632; EMERGENCY STOP ACTIVE</span>
+  {% elif alm_speed or alm_temp or alm_press or alm_volt %}
+    <span class="warn">&#9650; ALARM</span>
+  {% else %}
+    <span class="normal">&#9679; RUNNING NORMAL</span>
+  {% endif %}
+  &nbsp;&nbsp;
+  {% if alm_speed %}<span class="alarm">[OVERSPEED]</span>{% endif %}
+  {% if alm_temp  %}<span class="alarm">[OVERTEMP]</span>{% endif %}
+  {% if alm_press %}<span class="alarm">[OVERPRESSURE]</span>{% endif %}
+  {% if alm_volt  %}<span class="alarm">[UNDERVOLTAGE]</span>{% endif %}
+</div>
+
+<div class="panel">
+  <h2>Process Values</h2>
+  <div class="gauge">
+    <div>SPEED</div>
+    <div class="val {{ 'alarm' if alm_speed else ('warn' if ir[0] < 2800 else 'normal') }}">{{ ir[0] if ir|length > 0 else '---' }}</div>
+    <div>RPM</div>
+  </div>
+  <div class="gauge">
+    <div>TEMPERATURE</div>
+    <div class="val {{ 'alarm' if alm_temp else 'normal' }}">{{ ir[1] if ir|length > 1 else '---' }}</div>
+    <div>°C</div>
+  </div>
+  <div class="gauge">
+    <div>PRESSURE</div>
+    <div class="val {{ 'alarm' if alm_press else 'normal' }}">{{ ir[2] if ir|length > 2 else '---' }}</div>
+    <div>bar</div>
+  </div>
+  <div class="gauge">
+    <div>FREQUENCY</div>
+    <div class="val normal">{{ "%.1f"|format((ir[7] if ir|length > 7 else 0) / 10.0) }}</div>
+    <div>Hz</div>
+  </div>
+  <div class="gauge">
+    <div>OUTPUT</div>
+    <div class="val normal">{{ ir[8] if ir|length > 8 else '---' }}</div>
+    <div>kW</div>
+  </div>
+  <div class="gauge">
+    <div>VIBRATION</div>
+    <div class="val {{ 'warn' if (ir[10] if ir|length > 10 else 0) > 30 else 'normal' }}">{{ "%.1f"|format((ir[10] if ir|length > 10 else 0) / 10.0) }}</div>
+    <div>mm/s</div>
+  </div>
+</div>
+
+<div class="panel">
+  <h2>Distribution</h2>
+  <table>
+    <tr><th>Feeder</th><th>Voltage</th><th>Current</th><th>Breaker</th></tr>
+    <tr>
+      <td>Dolly Sisters (A)</td>
+      <td>{{ ir[3] if ir|length > 3 else '---' }} V</td>
+      <td>{{ ir[4] if ir|length > 4 else '---' }} A</td>
+      <td class="{{ 'closed' if bkr_a else 'tripped' }}">{{ 'CLOSED' if bkr_a else 'OPEN' }}</td>
+    </tr>
+    <tr>
+      <td>Nap Hill (B)</td>
+      <td>{{ ir[5] if ir|length > 5 else '---' }} V</td>
+      <td>{{ ir[6] if ir|length > 6 else '---' }} A</td>
+      <td class="{{ 'closed' if bkr_b else 'tripped' }}">{{ 'CLOSED' if bkr_b else 'OPEN' }}</td>
+    </tr>
+  </table>
+</div>
+
+{% if not auth %}
+<div class="panel">
+  <h2>Operator Login</h2>
+  <form method="post" action="/login">
+    <input name="username" value="operator" size="10">
+    <input name="password" type="password" placeholder="password" size="10">
+    <input type="submit" value="Login">
+  </form>
+</div>
+{% else %}
+<div class="panel">
+  <h2>Controls</h2>
+  <table>
+    <tr>
+      <td>Governor Setpoint</td>
+      <td>
+        <form method="post" action="/setpoint" style="display:inline">
+          <input type="number" name="value" value="{{ hr[0] if hr|length > 0 else 3000 }}" min="0" max="3600">
+          <input type="submit" value="Set RPM">
+        </form>
+      </td>
+      <td>Current: {{ hr[0] if hr|length > 0 else '---' }} RPM</td>
+    </tr>
+    <tr>
+      <td>Fuel Valve</td>
+      <td colspan="2">{{ hr[1] if hr|length > 1 else '---' }}% (controlled by governor)</td>
+    </tr>
+    <tr>
+      <td>Cooling Pump</td>
+      <td colspan="2">{{ hr[2] if hr|length > 2 else '---' }}%</td>
+    </tr>
+  </table>
+  <br>
+  <form method="post" action="/estop" style="display:inline">
+    <button class="estop-btn" type="submit"
+      onclick="return confirm('ACTIVATE EMERGENCY STOP?')">&#9632; EMERGENCY STOP</button>
+  </form>
+  <form method="post" action="/reset" style="display:inline">
+    <button class="reset-btn" type="submit">&#9654; RESET</button>
+  </form>
+  &nbsp; <a href="/logout" style="color:#888">logout</a>
+</div>
+{% endif %}
+
+</body>
+</html>
