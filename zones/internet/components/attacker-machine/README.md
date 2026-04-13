@@ -19,15 +19,15 @@ ssh ponder@localhost -p 2222
 
 ## Auth modes
 
-Set `jump_host.auth_mode` in `ctf-config.yaml`.
+Set `attacker_machine.auth_mode` in `ctf-config.yaml`.
 
 `key` (default): public key only. Keys read from `adversary-keys` at runtime. `./ctl up` generates `lab-key` / `lab-key.pub` if the file does not exist. Pre-populate `adversary-keys` with participant keys before a Hetzner deployment.
 
-`password`: credentials from `jump_host.accounts`. Used for Root-Me and platforms that publish connection strings. No key file needed.
+`password`: credentials from `attacker_machine.accounts`. Used for Root-Me and platforms that publish connection strings. No key file needed.
 
 ## Port
 
-`jump_host.ssh_host_port` in config. Default 2222 (avoids clash with host sshd). Set to 22 on Hetzner after running `setup.sh`, which moves the host sshd to port 2222.
+`attacker_machine.ssh_host_port` in config. Default 2222 (avoids clash with host sshd). Set to 22 on Hetzner after running `setup.sh`, which moves the host sshd to port 2222.
 
 ## Adding tools
 

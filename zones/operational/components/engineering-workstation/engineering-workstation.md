@@ -1,6 +1,6 @@
-# Engineering workstation: ENG-WS01
+# Engineering workstation
 
-## Device description
+## Device description ENG-WS01
 
 The UU P&L engineering workstation is the primary access point for PLC
 configuration, relay threshold management, and firmware deployment across the

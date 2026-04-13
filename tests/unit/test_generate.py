@@ -34,7 +34,7 @@ def operational_output_path():
 
 
 @pytest.fixture(scope="module")
-def jump_host_output_path():
+def attacker_machine_output_path():
     return REPO_ROOT / "zones" / "internet" / "docker-compose.yml"
 
 
@@ -174,17 +174,13 @@ def test_generate_firewall_sh(config):
 def test_generate_adversary_readme(config):
     """README renders without unresolved placeholders.
 
-    The README no longer lists internal IPs (jump-host is now an attacker machine
-    with no enterprise NIC). Just verify there are no bare braces left.
+    The README no longer lists internal IPs (attacker machine has no enterprise NIC).
+    Just verify there are no bare braces left.
     """
     readme = gen.generate_adversary_readme(config)
     assert "{" not in readme, f"unresolved placeholder(s) remain in readme:\n{readme}"
     assert len(readme.strip()) > 0, "adversary readme is empty"
 
-
-# ---------------------------------------------------------------------------
-# Jump host compose
-# ---------------------------------------------------------------------------
 
 # ---------------------------------------------------------------------------
 # DMZ compose
@@ -222,12 +218,12 @@ def test_generate_dmz_compose(config, dmz_output_path):
 
 
 # ---------------------------------------------------------------------------
-# Jump host compose
+# Attacker machine compose
 # ---------------------------------------------------------------------------
 
-def test_generate_jump_host_compose(config, jump_host_output_path):
+def test_generate_attacker_machine_compose(config, attacker_machine_output_path):
     """Attacker machine is in the internet zone compose, internet-only, correct IP and ports."""
-    compose = gen.generate_internet_zone_compose(config, jump_host_output_path)
+    compose = gen.generate_internet_zone_compose(config, attacker_machine_output_path)
     services = compose["services"]
 
     assert "attacker-machine" in services, "attacker-machine missing from internet zone compose"
@@ -235,13 +231,13 @@ def test_generate_jump_host_compose(config, jump_host_output_path):
 
     inet_net = gen._net(config, "internet")
     ent_net  = gen._net(config, "enterprise")
-    jh_internet_ip = config["jump_host"]["internet_ip"]
+    jh_internet_ip = config["attacker_machine"]["internet_ip"]
 
     assert inet_net in jh["networks"], "attacker-machine missing internet network"
     assert jh["networks"][inet_net]["ipv4_address"] == jh_internet_ip
     assert ent_net not in jh["networks"], "attacker-machine must NOT be on enterprise network"
 
-    ssh_host_port = config["jump_host"].get("ssh_host_port", 22)
+    ssh_host_port = config["attacker_machine"].get("ssh_host_port", 22)
     assert f"{ssh_host_port}:22" in jh["ports"], "attacker-machine SSH port mapping missing"
 
     volumes_str = " ".join(jh.get("volumes", []))

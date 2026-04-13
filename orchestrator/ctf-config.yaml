@@ -26,7 +26,7 @@ ics_process: uupl_ied
 # Change subnets here if they conflict with your host network.
 networks:
   # Internet — the public network / city network.
-  # The jump host is always on this. Future: adversary-side endpoints, external probes.
+  # The attacker machine is always on this. Future: adversary-side endpoints, external probes.
   # A misconfigured RTU that ends up here is an RTU-level problem, not a network flag.
   internet:
     subnet: 10.10.0.0/24
@@ -52,7 +52,7 @@ networks:
     docker_name: ics_dmz
 
 # Enterprise Zone
-# Two machines. Adversaries enter via SSH from the jump host.
+# Two machines. Adversaries enter via SSH from the attacker machine.
 # Machine characteristics are determined by their implementations, not this file.
 enterprise_zone:
 
@@ -107,7 +107,7 @@ operational_zone:
     ics_process: "{{ ics_process }}"
     control_network_subnet: "{{ networks.control.subnet }}"
 
-jump_host:
+attacker_machine:
   hostname: unseen-gate
   internet_ip: 10.10.0.5   # public-facing (ics_internet) — attacker machine only
   ssh_host_port: 2222       # local dev: avoids conflict with host sshd on port 22

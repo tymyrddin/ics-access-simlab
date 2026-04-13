@@ -1,4 +1,4 @@
-# ICS-SimLab
+# ICS access and persistence SimLab
 
 A multi-zone Industrial Control System simulation built for realistic red team exercises and CTF scenarios. The
 environment models the operational infrastructure of Unseen University Power & Light Co., Ankh-Morpork's primary
@@ -50,7 +50,7 @@ On first `./ctl up`, a dedicated ed25519 keypair (`lab-key` / `lab-key.pub`) is 
 registered for user `ponder`. Use `./ctl ssh [user]` to connect — it selects the lab key automatically, so
 participants with many keys in their SSH agent won't hit authentication failures.
 
-`lab-key` is gitignored. **On a shared or cloud host, restrict repo directory permissions** so other local users
+`lab-key` is gitignored. On a shared or cloud host, restrict repo directory permissions so other local users
 cannot read it (`chmod 700 .` or equivalent).
 
 ### All `./ctl` commands
@@ -75,23 +75,23 @@ CONFIG=orchestrator/configs/smart-grid.yaml ./ctl up
 
 The attacker machine supports two auth modes, set via `auth_mode` in `ctf-config.yaml`:
 
-| Mode | Use case | How it works |
-|------|----------|--------------|
-| `key` (default) | Self-hosted, Hetzner, local dev | Pubkey auth. Keys from `adversary-keys`. `./ctl ssh` selects the right key automatically. |
-| `password` | Root-Me and platforms that publish connection strings | Password auth. Credentials set from `accounts:` in config, no key file needed. |
+| Mode            | Use case                                              | How it works                                                                              |
+|-----------------|-------------------------------------------------------|-------------------------------------------------------------------------------------------|
+| `key` (default) | Self-hosted, Hetzner, local dev                       | Pubkey auth. Keys from `adversary-keys`. `./ctl ssh` selects the right key automatically. |
+| `password`      | Root-Me and platforms that publish connection strings | Password auth. Credentials set from `accounts:` in config, no key file needed.            |
 
-**Key mode** (default — local dev and Hetzner):
+Key mode (default, local dev and Hetzner):
 ```yaml
-jump_host:
+attacker_machine:
   auth_mode: key
 ```
 `./ctl up` generates a dedicated `lab-key` / `lab-key.pub` and registers it for `ponder`.
 Connect with `./ctl ssh ponder`. For Hetzner, pre-populate `adversary-keys` with participant
 public keys before deploying.
 
-**Password mode** (Root-Me):
+Password mode (Root-Me):
 ```yaml
-jump_host:
+attacker_machine:
   auth_mode: password
   accounts:
     ponder:   ponder
@@ -180,12 +180,12 @@ own keys; `./ctl ssh` falls back to regular SSH when no `lab-key` is present.
 
 Restrict repo directory permissions so the deploy user's private key is not world-readable:
 ```bash
-chmod 700 /path/to/ics-simlab
+chmod 700 /path/to/ics-access-simlab
 ```
 
 Set SSH port to 22 in `ctf-config.yaml` (default is 2222 for local dev):
 ```yaml
-jump_host:
+attacker_machine:
   ssh_host_port: 22
 ```
 
@@ -218,16 +218,4 @@ make test
 Edit `orchestrator/ctf-config.yaml` to change topology, addressing, or component variants, then run `./ctl up`.
 Compose files are always regenerated from the config — don't edit them directly.
 
-See [docs/architecture.md](docs/architecture.md) for the full system design and [PLAN.md](docs/PLAN.md) for the
-current development roadmap.
 
-## Thank you
-
-This project was inspired by [Curtin ICS-SimLab](https://github.com/JaxsonBrownie/ICS-SimLab), a Docker-based ICS
-simulation framework developed at Curtin University and presented at the First International Workshop on Secure
-Industrial Control Systems and Industrial IoT (IEEE, 2025). The original work by J. Brown, D. S. Pham, S. Soh,
-F. Motalebi, S. Eswaran, and M. Almashor demonstrated the core concept of containerised ICS environments with
-Hardware-in-the-Loop physical process models.
-
-This repository is a ground-up reimplementation: all containers, orchestration, network topology, vulnerability design,
-and theming are original. No code from the original ICS-SimLab is included.

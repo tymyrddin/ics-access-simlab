@@ -771,8 +771,8 @@ def generate_internet_zone_compose(config: dict, output_path: Path) -> dict:
     services = {}
     networks_used = {inet_net}
 
-    # Attacker machine — always present (defined under jump_host in config)
-    jh = config["jump_host"]
+    # Attacker machine — always present (defined under attacker_machine in config)
+    jh = config["attacker_machine"]
     ssh_host_port = jh.get("ssh_host_port", 22)
     auth_mode = jh.get("auth_mode", "key")
     attacker_dir = ZONES_DIR / "internet" / "components" / "attacker-machine"
@@ -831,7 +831,7 @@ def generate_internet_zone_compose(config: dict, output_path: Path) -> dict:
 
 
 # ---------------------------------------------------------------------------
-# Jump host
+# Attacker machine
 # ---------------------------------------------------------------------------
 
 def generate_adversary_readme(config: dict) -> str:
@@ -845,7 +845,7 @@ def generate_adversary_readme(config: dict) -> str:
 
 def generate_jump_host_compose(config: dict, output_path: Path) -> dict:
     inet_net = _net(config, "internet")
-    jh = config["jump_host"]
+    jh = config["attacker_machine"]
     ssh_host_port = jh.get("ssh_host_port", 22)
     return {
         "services": {

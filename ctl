@@ -30,7 +30,7 @@ _ssh_port() {
     python3 -c "
 import yaml
 c = yaml.safe_load(open('$CONFIG'))
-print(c['jump_host'].get('ssh_host_port', 22))
+print(c['attacker_machine'].get('ssh_host_port', 22))
 " 2>/dev/null || echo 2222
 }
 
@@ -38,7 +38,7 @@ _auth_mode() {
     python3 -c "
 import yaml
 c = yaml.safe_load(open('$CONFIG'))
-print(c.get('jump_host', {}).get('auth_mode', 'key'))
+print(c.get('attacker_machine', {}).get('auth_mode', 'key'))
 " 2>/dev/null || echo key
 }
 

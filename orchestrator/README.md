@@ -9,7 +9,7 @@ orchestrator/
   ctf-config.yaml         single source of truth for topology and addressing
   generate.py             code generator
   firewall-rules.txt      iptables policy template (placeholders resolved by generate.py)
-  adversary-readme.txt    jump host README template (placeholders resolved by generate.py)
+  adversary-readme.txt    attacker machine README template (placeholders resolved by generate.py)
 ```
 
 ---
@@ -24,7 +24,7 @@ enterprise_zone           legacy-workstation, enterprise-workstation
 operational_zone          historian, scada-server, engineering-workstation
 control_zone              device list for the IED network (patched into configuration.json)
 field_devices_zone        city RTUs on ics_wan (the OT/RTU network)
-jump_host                 hostname, internet IP, and enterprise IP for the jump host
+attacker_machine          hostname, internet IP, SSH port, and auth mode for the attacker machine
 ```
 
 ---
@@ -47,10 +47,9 @@ All five are created by the shared `infrastructure/networks/docker-compose.yml`
 stack and declared `external` in every zone compose file. Zone stacks attach
 to them, never recreate them.
 
-`ics_internet` is the public network / internet. The jump host is always
-dual-homed here (`internet_ip`) and on enterprise (`ip`). Future adversary-side
-endpoints live here. If a specific RTU appears here too, that is an RTU-level
-misconfiguration: not a flag.
+`ics_internet` is the public network / internet. The attacker machine is always
+here (`internet_ip`), internet-only. Future adversary-side endpoints live here too.
+If a specific RTU appears here, that is an RTU-level misconfiguration, not a flag.
 
 `ics_wan` is the OT/RTU network. RTUs are on it because they use public
 cellular IPs with no private APN and no VPN. SCADA polls them outbound from
@@ -82,7 +81,7 @@ The Curtin built-ins live in `curtin-ics-simlab/config/`.
 
 ## enterprise_zone
 
-Two machines. Adversaries reach this zone first from the jump host.
+Two machines. Adversaries can reach this zone by pivoting from the attacker machine via wizzards-retreat.
 
 ### legacy_workstation
 
@@ -257,22 +256,19 @@ Add entries to expand the distribution network; each gets its own container.
 
 ---
 
-## jump_host
+## attacker_machine
 
 ```yaml
-jump_host:
+attacker_machine:
   hostname: unseen-gate
   internet_ip: 10.10.0.5
-  ip: 10.10.1.5
+  ssh_host_port: 2222
+  auth_mode: key
 ```
 
-The sole public entry point. A container dual-homed on `ics_internet` (`internet_ip`)
-and `ics_enterprise` (`ip`). The `ics_internet` interface is where external SSH
-connections arrive; `ics_enterprise` is the pivot point into the enterprise zone.
-Five
-adversary accounts (`moist`, `teatime`, `carrot`, `angua`, `vimes`). Key-only
-SSH. Compose file and adversary README are generated into
-`infrastructure/jump-host/`.
+The public entry point. A container on `ics_internet` only (`internet_ip`).
+Five adversary accounts (`ponder`, `hex`, `ridcully`, `librarian`, `dean`).
+Compose file generated into `zones/internet/`.
 
 ---
 
@@ -322,7 +318,7 @@ without opening the whole operational subnet.
 ```
 RELATED,ESTABLISHED → ACCEPT           (stateful: return traffic is always allowed)
 
-internet → enterprise                  DROP     (jump host bridges via dual-homing, not routing)
+internet → enterprise                  DROP     (wizzards-retreat bridges via dual-homing, not routing)
 internet → operational                 DROP
 internet → control                     DROP
 internet → wan                         DROP
@@ -372,8 +368,8 @@ gitignored.
 
 ## adversary-readme.txt
 
-Template for the file placed in each adversary's home directory on the jump
-host. Resolved by `generate.py:generate_adversary_readme()` using the same
+Template for the file placed in each adversary's home directory on the attacker
+machine. Resolved by `generate.py:generate_adversary_readme()` using the same
 `{placeholder}` substitution as the firewall rules.
 
 | Placeholder | Resolves to |
@@ -382,10 +378,8 @@ host. Resolved by `generate.py:generate_adversary_readme()` using the same
 | `{legacy_ws_ip}` | `enterprise_zone.legacy_workstation.ip` |
 | `{ent_ws_ip}` | `enterprise_zone.enterprise_workstation.ip` |
 
-The resolved file is written to `infrastructure/jump-host/adversary-readme.txt`
-(gitignored) and mounted read-only into the jump host container at runtime.
-
----
+The resolved file is written to `zones/internet/components/attacker-machine/adversary-readme.txt`
+(gitignored) and mounted read-only into the attacker machine container at runtime.
 
 ## Adding a new component variant
 

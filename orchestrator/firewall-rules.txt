@@ -4,7 +4,8 @@
 # See generate.py:generate_firewall_sh() for the symbol-to-address mapping.
 # Rules are evaluated top to bottom. Run 'make generate' after editing.
 #
-# ics_internet — public network. Jump host is dual-homed here and on enterprise.
+# ics_internet — public network. Attacker machine (unseen-gate) is internet-only.
+#   wizzards-retreat is dual-homed here and on enterprise (simulates VPN).
 #   Future adversary-side endpoints and external probes live here.
 #   A misconfigured RTU that appears here is an RTU-level problem, not a flag.
 # ics_wan     — OT/RTU network. RTUs have cellular IPs, no private APN, no VPN.

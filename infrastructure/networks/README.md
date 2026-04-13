@@ -15,7 +15,7 @@ This reads the `networks:` block from `ctf-config.yaml` and writes
 
 | Network           | Subnet       | Purpose                                          |
 |-------------------|--------------|--------------------------------------------------|
-| `ics_internet`    | 10.10.0.0/24 | Internet / public network (jump host lives here) |
+| `ics_internet`    | 10.10.0.0/24 | Internet / public network (attacker machine lives here) |
 | `ics_enterprise`  | 10.10.1.0/24 | Enterprise zone internal                         |
 | `ics_operational` | 10.10.2.0/24 | Operational zone internal                        |
 | `ics_control`     | 10.10.3.0/24 | Control zone (ICS-SimLab)                        |

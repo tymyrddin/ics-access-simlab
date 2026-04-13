@@ -22,7 +22,7 @@ REQUIRED_TOP_LEVEL_KEYS = [
     "enterprise_zone",
     "operational_zone",
     "control_zone",
-    "jump_host",
+    "attacker_machine",
 ]
 
 
