@@ -72,7 +72,6 @@ ics_wan (10.10.4.0/24)                          OT/RTU network (city cellular, n
 - Routers [ ]: Per-zone router containers. No impact on subnets or Docker networks. Add after current phase is stable and tested.
 - Field devices zone [ ]: WAN zone (ics_wan 10.10.4.0/24). City RTUs, smart grid end devices, substation equipment. Deferred; per-vendor/per-firmware implementations when the time comes.
 
-
 ## Attack chains
 
 ### Phase 1: access and persistence

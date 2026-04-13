@@ -1,4 +1,4 @@
-# Architecture: multi-domain configuration
+# Multi-domain configuration
 
 ## The core
 
@@ -48,12 +48,12 @@ ics-simlab/
 The UU P&L scenario runs two Scada-LTS instances that model the Purdue Model
 boundary between supervisory control (L2) and operations management (L3).
 
-**Control SCADA** (`uupl-hmi`, 10.10.3.10, ics_control)
+*Control SCADA* (`uupl-hmi`, 10.10.3.10, ics_control)
 Operators use this to view and change the physical process. It talks to field
 devices via Modbus — routed through the stunnel TLS gateway before it reaches
 the PLC. Mistakes here move metal. Default creds `admin/admin`; never changed.
 
-**Operations SCADA** (`distribution-scada`, 10.10.2.20, ics_operational)
+*Operations SCADA* (`distribution-scada`, 10.10.2.20, ics_operational)
 Management and engineering use this to observe trends, generate reports, and
 optimise schedules. It talks to the historian REST API — read-only aggregated
 data. Mistakes here produce bad reports. Default creds `admin/admin`; never
@@ -94,4 +94,4 @@ config by directory name rather than assuming a single `ctf-config.yaml`.
 
 The orchestrator and Makefile currently expect a single `ctf-config.yaml` path. When a second
 domain config is created, the first change needed is a `CONFIG=` parameter on `make generate`
-so that each domain can be built independently from its own config directory.
+so that each domain can be built independently of its own config directory.
