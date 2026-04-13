@@ -30,6 +30,10 @@ up the upload directory with write permissions.
 No chroot jail is configured. The `anonymous` user can browse the container
 filesystem with an SFTP client.
 
+rsyslog is running inside the container and forwards syslog events (including
+sshd auth successes, failures, and SFTP session open/close) to `scribes-post`
+(10.10.5.32:514) over UDP. No TLS.
+
 ## Connections
 
 - `ics_dmz`: 10.10.5.21

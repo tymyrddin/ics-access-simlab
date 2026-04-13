@@ -1,0 +1,52 @@
+{
+  "Iec104Simulation": {
+    "CycleTimeMs": 10000,
+    "DataPointConfiguration": {
+      "Measures": [
+        {
+          "Id": "feeder_a_voltage",
+          "Ca": "20",
+          "Oa": "1",
+          "TypeId": 13,
+          "InitValue": "10.8"
+        },
+        {
+          "Id": "feeder_b_voltage",
+          "Ca": "20",
+          "Oa": "2",
+          "TypeId": 13,
+          "InitValue": "11.1"
+        },
+        {
+          "Id": "load_current",
+          "Ca": "20",
+          "Oa": "3",
+          "TypeId": 13,
+          "InitValue": "340.0"
+        },
+        {
+          "Id": "frequency",
+          "Ca": "20",
+          "Oa": "4",
+          "TypeId": 13,
+          "InitValue": "49.98"
+        },
+        {
+          "Id": "breaker_a_state",
+          "Ca": "20",
+          "Oa": "5",
+          "TypeId": 1,
+          "InitValue": "true"
+        },
+        {
+          "Id": "breaker_b_state",
+          "Ca": "20",
+          "Oa": "6",
+          "TypeId": 1,
+          "InitValue": "true"
+        }
+      ],
+      "Commands": []
+    }
+  }
+}

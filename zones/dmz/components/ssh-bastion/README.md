@@ -40,6 +40,10 @@ on glibc-based Linux systems. The vulnerability is present in this image.
 Exploitation is timing-dependent and not guaranteed to be reliable; the simpler
 attack path is the `root` / `uupl2015` credential.
 
+rsyslog is running inside the container and forwards all syslog events (including
+sshd auth successes, failures, and session open/close) to `scribes-post`
+(10.10.5.32:514) over UDP. No TLS.
+
 Exposed port: 22/tcp.
 
 ## Connections

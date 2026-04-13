@@ -26,9 +26,15 @@ Documentation: https://deepwiki.com/umati/umatiGateway/5.1-docker-deployment
 
 Exposed port: 8080/tcp (web management UI, no authentication).
 
-The gateway is not pre-configured with any OPC-UA connections in this scenario.
-Connections are added and managed via the web UI. Any OPC-UA server reachable
-from the DMZ can be added.
+The gateway is pre-configured with an OPC-UA connection to `guild-register`
+(10.10.5.13:4840), SecurityMode None, anonymous authentication. The connection
+is visible in the web UI at `/OPCConnection` with status "Idle": the gateway
+is configured to connect but has not initiated the connection at startup.
+An MQTT northbound output to `clacks-relay` (10.10.5.12:1883) is also configured.
+
+The original image binds to `127.0.0.1:7079` (a known quirk of this build).
+The Dockerfile patches this by COPYing a custom `umatiGatewayConfig.xml` that
+sets the WebUI address to `0.0.0.0:8080`.
 
 ## Connections
 
@@ -49,9 +55,9 @@ accepts all configuration requests without authentication. An attacker can add
 OPC-UA server connections, configure MQTT output, and read the gateway's current
 configuration.
 
-Reconnaissance via UI: the connections page lists all configured OPC-UA servers
-with their endpoints, security modes, and browsed node trees. This reveals the
-internal address topology of any servers the gateway is connected to.
+Reconnaissance via UI: the connections page shows the configured OPC-UA server
+endpoint (`opc.tcp://10.10.5.13:4840`) and a "Connect" button. No authentication
+is needed to read this or to trigger a connection.
 
 Data injection: by adding a connection to the DMZ MQTT broker
 (`clacks-relay`, 10.10.5.12) and publishing arbitrary node values, an attacker
@@ -62,9 +68,15 @@ can inject data into any downstream consumer that reads from the broker.
 The authentication fix is in the upstream codebase beyond the `pr-375` tag.
 To use the patched version, replace the image tag with the post-fix release.
 
-To add pre-configured connections: the gateway stores its configuration in a
-volume or in-container state; connections can be seeded at build time if the
-upstream image supports a config file at a known path.
+To change the pre-configured OPC server: edit `umatiGatewayConfig.xml` and
+update the `serverendpoint` attribute on the `<OPCConnection>` element.
+
+To change the MQTT northbound target: edit the `serverendpoint` on `<MqttProvider>`
+and `<PubSubProvider>` in the same file.
+
+To enable the OPC connection at startup: set `startOPCConnection="True"` in
+`<StartConfiguration>`. The app crashes at startup if the OPC server is
+unreachable, so this only works when guild-register is already running.
 
 ## Hardening suggestions
 
@@ -88,12 +100,14 @@ From the internet zone (`unseen-gate` at 10.10.0.5, which has internet→dmz
 firewall access):
 
 1. `curl http://10.10.5.10:8080/` confirms the UI is accessible.
-2. Browse the management UI and add an OPC-UA connection to `guild-register`
-   (10.10.5.13:4840), the thin-edge OPC-UA demo server.
-3. Read all browsable nodes: confirm pump state, call methods (`stopPump`) via
-   the gateway's method-call UI if available.
-4. Add an MQTT output connection to `clacks-relay` (10.10.5.12:1883) and
-   configure the gateway to publish OPC-UA node values to a chosen topic.
+2. Browse to `/OPCConnection`: the configured endpoint (`opc.tcp://10.10.5.13:4840`)
+   is visible. Click "Connect" to initiate the connection, or note the address and
+   attack `guild-register` directly.
+3. With the OPC connection active, the gateway browses and exposes the OPC node
+   tree. Call methods or read values through the gateway UI, or connect directly
+   to guild-register:4840 using an OPC-UA client (anonymous, SecurityMode None).
+4. The MQTT northbound is pre-configured to `clacks-relay`. Once the OPC
+   connection is active, the gateway publishes node values there.
 
 ## Known oddities
 
@@ -108,6 +122,7 @@ operational or control zones are blocked by the firewall.
 ## In brief
 
 umatiGateway, pre-fix. Web management UI on port 8080, no authentication
-(CVE-2025-27615). Can be configured to connect to any reachable OPC-UA server
-and publish its data to MQTT. Reconnaissance, lateral movement, and data
-injection, all from a browser.
+(CVE-2025-27615). OPC connection to guild-register:4840 pre-configured; MQTT
+northbound to clacks-relay:1883 pre-configured. The attacker reads the configured
+endpoint from the UI, connects with one click, and can browse the OPC node tree
+or attack guild-register directly.

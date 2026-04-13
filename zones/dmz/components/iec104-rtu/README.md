@@ -24,8 +24,21 @@ Exposed ports:
 - 2404/tcp: IEC-60870-5-104 protocol endpoint
 - 8080/tcp: REST management API (no authentication)
 
-The simulator starts with a default set of datapoints. These can be queried,
-modified, and extended via the REST API at any time.
+The simulator is pre-seeded with UUPL substation datapoints representing the
+Dolly Sisters and Nap Hill feeder segment. All values are internally consistent:
+
+| Id | TypeId | Initial value | Description |
+|---|---|---|---|
+| feeder_a_voltage | M_ME_NC_1 (13) | 10.8 | Feeder A voltage, kV |
+| feeder_b_voltage | M_ME_NC_1 (13) | 11.1 | Feeder B voltage, kV |
+| load_current | M_ME_NC_1 (13) | 340.0 | Load current, A |
+| frequency | M_ME_NC_1 (13) | 49.98 | Grid frequency, Hz |
+| breaker_a_state | M_SP_NA_1 (1) | true | Feeder A breaker: closed |
+| breaker_b_state | M_SP_NA_1 (1) | true | Feeder B breaker: closed |
+
+The correlation matters for the attack: setting feeder voltage to 0 while the
+breaker state stays true creates an operationally impossible reading. A trained
+operator or protection system may notice the inconsistency.
 
 ## Connections
 
@@ -86,10 +99,11 @@ curl -X POST http://10.10.5.14:8080/datapoints/1 \
 From the internet zone or from within the DMZ:
 
 1. `curl http://10.10.5.14:8080/datapoints` lists all datapoints with their
-   current values and types.
-2. Identify a measurement datapoint (e.g. line voltage or current).
-3. `POST` a falsified value: the RTU will now report this value to any IEC-104
-   master that polls it.
+   current values and types (Common Address 20, Object Addresses 1-6).
+2. Falsify a voltage reading while leaving the corresponding breaker state intact:
+   the inconsistency looks like a sensor fault or relay misoperation to an operator.
+3. `POST` a falsified value via the REST API: the RTU reports the injected value
+   to any IEC-104 master polling port 2404.
 4. If a SCADA system or control centre polls this RTU, it receives the injected
    reading and may act on it (protection relay response, alarm, automated switch
    action).

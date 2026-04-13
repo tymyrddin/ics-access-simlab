@@ -169,6 +169,9 @@ control_zone:
         ACTUATOR_BREAKER_A_IP:    "10.10.3.53"
         ACTUATOR_BREAKER_B_IP:    "10.10.3.54"
         MQTT_BROKER_IP:           "10.10.3.60"
+      sidecars:
+        - name: turbine_opcua
+          implementation: opcua-sidecar
 
     - name: ied_relay_a
       hostname: uupl-relay-a
@@ -261,6 +264,7 @@ dmz_zone:
       hostname: sorting-office
       ip: 10.10.5.11
       implementation: neuron-gateway
+      syslog_logging: true
 
     - name: mqtt_dmz
       hostname: clacks-relay

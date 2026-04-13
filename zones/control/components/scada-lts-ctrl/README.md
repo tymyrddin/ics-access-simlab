@@ -41,9 +41,9 @@ stunnel client forwards over TLS to the gateway.
 
 ## Protocols
 
-HTTP: port 8080 (Scada-LTS web UI and REST API).
-Modbus-TCP: local port 5020 (stunnel client endpoint).
-TLS (stunnel): outbound to gateway:8502.
+- HTTP: port 8080 (Scada-LTS web UI and REST API).
+- Modbus-TCP: local port 5020 (stunnel client endpoint).
+- TLS (stunnel): outbound to gateway:8502.
 
 ## Built-in vulnerabilities
 

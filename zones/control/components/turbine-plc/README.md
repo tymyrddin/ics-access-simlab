@@ -29,11 +29,12 @@ Packages: `pymodbus 3.6.9`, `paho-mqtt 1.6.1`, `snmpd`.
 The PLC is a Python asyncio application running four protocol listeners and two
 control loops simultaneously.
 
-Exposed ports:
+Exposed ports (on 10.10.3.21):
 - 502/tcp: Modbus TCP (no authentication)
 - 20000/tcp: DNP3 (minimal outstation, responds to Read FC)
-- 2404/tcp: IEC-104 (Type 9 periodic measurements)
+- 2404/tcp: IEC-104 (Type 9 periodic measurements, live register data)
 - 161/udp: SNMP (community `public` read, `private` read-write)
+- 4840/tcp: OPC-UA (sidecar `turbine_opcua`, SecurityMode None, anonymous auth)
 
 Modbus register map:
 
@@ -69,7 +70,8 @@ MQTT: publishes telemetry to `uupl/turbine/telemetry` on the broker at
 
 Modbus TCP: port 502.
 DNP3: port 20000.
-IEC-104: port 2404.
+IEC-104: port 2404 (live turbine data: RPM, temperature, voltage, frequency).
+OPC-UA: port 4840 (sidecar, see `opcua-sidecar/README.md`).
 SNMP: UDP port 161.
 MQTT: outbound to port 1883 on broker.
 

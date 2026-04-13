@@ -54,6 +54,7 @@ COMPONENT_DIRS = {
     "mosquitto-broker":        ZONES_DIR / "control" / "components" / "mosquitto-broker",
     "stunnel-gateway":         ZONES_DIR / "control" / "components" / "stunnel-gateway",
     "scada-lts-ctrl":          ZONES_DIR / "control" / "components" / "scada-lts-ctrl",
+    "opcua-sidecar":           ZONES_DIR / "control" / "components" / "opcua-sidecar",
     # field devices (deferred — vendor-specific builds)
     # dmz zone
     "umati-gateway":    ZONES_DIR / "dmz" / "components" / "umati-gateway",
@@ -605,6 +606,26 @@ def generate_control_compose(config: dict, output_path: Path) -> dict:
 
         services[svc_name] = svc
 
+        # Sidecars: share parent network namespace (no ip) or get their own IP.
+        for sidecar in dev.get("sidecars", []):
+            sc_impl = sidecar["implementation"]
+            _check_impl(sc_impl)
+            sc_name = sidecar["name"].replace("_", "-")
+            sc_svc = {
+                "build": {"context": _rel(COMPONENT_DIRS[sc_impl], base_dir)},
+                "container_name": sidecar["name"],
+                "restart": "unless-stopped",
+            }
+            if "ip" in sidecar:
+                sc_svc["hostname"] = sidecar.get("hostname", sidecar["name"])
+                sc_svc["networks"] = {ctrl_net: {"ipv4_address": sidecar["ip"]}}
+            else:
+                sc_svc["network_mode"] = f"service:{svc_name}"
+                sc_svc["depends_on"] = [svc_name]
+            if sidecar.get("env"):
+                sc_svc["environment"] = sidecar["env"]
+            services[sc_name] = sc_svc
+
     compose = {
         "services": services,
         "networks": {ctrl_net: _external_net(ctrl_net)},
@@ -649,6 +670,16 @@ def generate_dmz_compose(config: dict, output_path: Path) -> dict:
         }
         if dev.get("env"):
             svc["environment"] = dev["env"]
+
+        if dev.get("syslog_logging"):
+            svc["logging"] = {
+                "driver": "syslog",
+                "options": {
+                    "syslog-address": "udp://10.10.5.32:514",
+                    "tag": dev.get("hostname", dev["name"]),
+                },
+            }
+            svc.setdefault("depends_on", []).append("syslog-relay")
 
         services[svc_name] = svc
 

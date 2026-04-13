@@ -1,0 +1,6 @@
+PyYAML==6.0.3
+pytest==9.0.3
+Pygments==2.20.0
+pluggy==1.6.0
+packaging==26.0
+iniconfig==2.3.0

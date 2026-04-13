@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<umatiGatewayConfig version="2.0" logLevel="Debug">
+  <!-- startOPCConnection and startMqttProvider are False so the app starts
+       without requiring live network access to the other DMZ services.
+       The attacker sees the configured endpoints via the no-auth web UI
+       and can trigger a connection from there (CVE-2025-27615). -->
+  <StartConfiguration startWebUI="True" startOPCConnection="False" startMqttProvider="False" startPubSubProvider="False"/>
+  <WebUI url="http://0.0.0.0:8080"></WebUI>
+  <OPCConnection serverendpoint="opc.tcp://10.10.5.13:4840" authentication="None" user="" password="" ReadExtraLibs="False" resolveBinariesOnly="false" certPath="" certPassword=""/>
+  <MqttProvider serverendpoint="mqtt://10.10.5.12:1883" user="" password="" clientId="umati-guild-exchange" prefix="umati/v2" includeStructuredComponents="False" upperCaseRange="False" publishInterval="5000" serverCertificatePath="" customCaCertificatePath="">
+    <PublishedNodes>
+      <PublishedNode type="Numeric" namespaceurl="http://example.com/BasicMachineTool/" nodeId="66382" baseType="" />
+    </PublishedNodes>
+    <CustomEncodings/>
+    <IgnoredPlaceholderTags/>
+  </MqttProvider>
+  <PubSubProvider serverendpoint="mqtt://10.10.5.12:1883" user="" password="" clientId="umati-guild-exchange" prefix="umati/v3" allowUntrustedCertificates="false" publishInterval="10000" metaDataUpdateTime="10000" jsonEncoding="LEGACY">
+    <PublishedNodes>
+      <PublishedNode type="Numeric" namespaceurl="http://example.com/BasicMachineTool/" nodeId="66382" baseType="" />
+    </PublishedNodes>
+  </PubSubProvider>
+</umatiGatewayConfig>
