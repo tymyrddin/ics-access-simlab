@@ -1,0 +1,113 @@
+name: Documentation Improvement
+description: Suggest improvements to documentation, examples, or scenario guides
+title: "[DOCS]: "
+labels: ["documentation"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Good documentation means Ponder does not have to explain the same thing in every PR review. If you found something confusing, others will too.
+
+        *"The difference between 'obvious' and 'documented' is the difference between a working lab and an afternoon of staring at docker logs."*
+
+  - type: dropdown
+    id: doc_type
+    attributes:
+      label: Documentation Type
+      description: What kind of documentation needs improvement?
+      options:
+        - README or getting started
+        - Topology or architecture documentation
+        - Configuration guide (ctf-config.yaml)
+        - Zone or device documentation
+        - CTF scenario walkthrough or hints
+        - Contribution guidelines
+        - Other (explain below)
+    validations:
+      required: true
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: What's Missing or Unclear?
+      description: What documentation issue did you encounter?
+      placeholder: |
+        docs/PLAN.md does not explain how to add a new zone to ctf-config.yaml.
+        I had to read generate.py to understand what keys are required.
+    validations:
+      required: true
+
+  - type: textarea
+    id: location
+    attributes:
+      label: Affected Documentation
+      description: Which files or sections need improvement?
+      placeholder: |
+        - docs/PLAN.md (adding new zones section, missing)
+        - orchestrator/ctf-config.yaml (key descriptions incomplete)
+        - No example of wiring a new device into an existing zone
+    validations:
+      required: true
+
+  - type: textarea
+    id: suggestion
+    attributes:
+      label: Suggested Improvement
+      description: What needs to be added, changed, or clarified?
+      placeholder: |
+        Add a section to docs/PLAN.md showing:
+        1. Minimum required keys for a new zone in ctf-config.yaml
+        2. How generate.py maps config to compose output
+        3. Example: adding a second historian to ics_operational
+
+  - type: textarea
+    id: audience
+    attributes:
+      label: Target Audience
+      description: Who would benefit from this documentation?
+      placeholder: |
+        - CTF participants trying to understand the network topology
+        - Contributors adding new devices or zones
+        - Instructors adapting the platform for their own exercises
+    validations:
+      required: true
+
+  - type: dropdown
+    id: priority
+    attributes:
+      label: Priority
+      description: How significant is this documentation gap?
+      options:
+        - High (blocking contributors or new users)
+        - Medium (causes confusion but workarounds exist)
+        - Low (nice to have, not urgent)
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: contribution
+    attributes:
+      label: Contribution Intent
+      options:
+        - label: I can write this documentation myself with guidance
+        - label: I can provide technical details for someone else to document
+        - label: I am identifying the gap but cannot write it myself
+
+  - type: textarea
+    id: examples
+    attributes:
+      label: Examples or References
+      description: Good examples from other projects, or a rough draft of what you would add
+      placeholder: |
+        Rough draft:
+        ```markdown
+        ## Adding a new device to an existing zone
+
+        1. Add the device block to ctf-config.yaml under the relevant zone...
+        ```
+
+  - type: textarea
+    id: additional
+    attributes:
+      label: Additional Context
+      description: Anything else relevant? Related documentation, common questions, etc.

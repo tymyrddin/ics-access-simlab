@@ -1,0 +1,104 @@
+name: Bug Report
+description: Report a bug in the platform (something that works in other repos and refuses to here)
+title: "[BUG]: "
+labels: ["bug", "documentation", "duplicate", "enhancement", "good first issue", "help wanted", "invalid", "question", "wontfix"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for reporting a bug. Please provide enough detail that someone else can reproduce it.
+
+        *"If you tell me 'it doesn't work', I will send you to explain it to the Archchancellor. Be specific."*
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Bug Description
+      description: What went wrong? Be specific.
+      placeholder: "The historian container exits immediately after ./ctl up, logs show port 5000 already in use..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected Behaviour
+      description: What should have happened?
+      placeholder: "Historian container stays running and accepts ingest requests on port 5000..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Steps to Reproduce
+      description: How can someone else trigger this bug?
+      placeholder: |
+        1. Clone repo and run: ./ctl up
+        2. Run: docker ps -a | grep historian
+        3. Observe container in Exited state
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant Logs
+      description: Include error messages, stack traces, or relevant log output
+      placeholder: |
+        Paste logs here (check docker logs <container> or ./ctl output)
+      render: shell
+
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: What system are you running on?
+      value: |
+        - OS: [e.g., Ubuntu 24.04]
+        - Docker version: [e.g., 27.3.1]
+        - Docker Compose version: [e.g., 2.29.7]
+        - Platform version: [e.g., commit hash or branch]
+    validations:
+      required: true
+
+  - type: textarea
+    id: config
+    attributes:
+      label: Configuration
+      description: Any non-standard configuration? (Modified ctf-config.yaml, custom zones, etc.)
+      placeholder: "Using modified ctf-config.yaml with the DMZ zone disabled..."
+
+  - type: dropdown
+    id: impact
+    attributes:
+      label: Impact
+      description: How severe is this bug?
+      options:
+        - Critical (platform does not start or crashes immediately)
+        - High (major feature broken)
+        - Medium (feature works but with issues)
+        - Low (minor issue or cosmetic)
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: checklist
+    attributes:
+      label: Pre-submission Checklist
+      description: Before submitting, verify these items
+      options:
+        - label: I searched existing issues and this is not a duplicate
+          required: true
+        - label: I am using the latest version from the main branch
+          required: true
+        - label: I have included enough detail to reproduce the bug
+          required: true
+        - label: I have checked docker logs for relevant error messages
+          required: false
+
+  - type: textarea
+    id: additional
+    attributes:
+      label: Additional Context
+      description: Anything else relevant? Screenshots, related issues, potential causes?

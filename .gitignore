@@ -30,6 +30,10 @@ zones/internet/components/attacker-machine/adversary-keys
 # Re-run ./ctl generate to regenerate. Never commit private keys.
 certs/
 
+# CTF walkthroughs — kept private
+books/
+books/*
+
 # captured traffic — too large for git
 data/pcap/
 .idea/

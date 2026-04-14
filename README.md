@@ -175,4 +175,68 @@ make test
 Edit `orchestrator/ctf-config.yaml` to change topology, addressing, or component variants, then run `./ctl up`.
 Compose files are always regenerated from the config — don't edit them directly.
 
+## Contributing
+
+Contributions welcome:
+
+- New device types (IEDs, PMUs, relays)
+- Protocol implementations
+- Physics models (thermal, hydraulic, electrical)
+- Security rules and detection logic
+- Scenario libraries
+
+Before adding tests, read [tests/README.md](tests/README.md) for dependency ordering.
+Respect the layering: *fix the architecture, not the test*.
+
+## Disclaimer
+
+This simulator is for *authorised security research, education, and testing only*.
+Use it to develop and validate PoCs in a safe environment before engaging with real systems
+under proper authorisation.
+
+The authors take no responsibility for misuse. If you're testing real ICS/SCADA systems,
+make sure you have explicit written permission and understand the physical consequences.
+
+## License and usage
+
+This project is licensed under the [Polyform Noncommercial Licence](LICENSE).
+
+You are welcome to use this software for:
+
+- Learning and experimentation
+- Academic or independent research
+- Defensive security research
+- Developing and validating proof-of-concepts
+- Incident response exercises
+- Non-commercial red/blue team simulations
+
+You may not use this software for:
+
+- Paid workshops or training
+- Consultancy or advisory services
+- Internal corporate training
+- Commercial product development
+
+If you want to use this project in a paid or commercial context, a commercial licence is required.  
+See [COMMERCIAL-LICENSE.md](COMMERCIAL-LICENSE.md) for details.
+
+This project is actively developed and maintained to support realistic security research and training.  
+The licence ensures that:
+
+- Security research remains accessible
+- Defensive knowledge can spread
+- Commercial exploitation is fair and sustainable
+
+If you are unsure whether your use case is commercial, ask. [Ambiguity is solvable](https://tymyrddin.dev/contact/); silence is not.
+
+## References
+
+- [UU P&L Company Overview](https://red.tymyrddin.dev/docs/power/territory/company)
+- [ICS Components Guide](https://red.tymyrddin.dev/docs/power/territory/components)
+- [Testing Strategy](tests/README.md)
+
+---
+
+*"The thing about electricity is, once it's out of the bottle, you can't put it back."* ~ Archchancellor Ridcully (probably)
+
 
