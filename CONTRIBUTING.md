@@ -236,6 +236,6 @@ Thank you for your contribution.
 
 Licence: by submitting a contribution, you agree to licence your work under the project's Polyform Noncommercial Licence, and grant the maintainers rights to use it under both noncommercial and commercial licences.
 
-Code of conduct: professional, respectful, focused on the work. See [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md).
+Code of conduct: professional, respectful, focused on the work. See [CODE-OF-CONDUCT.md](CODE-OF-CONDUCT.md).
 
 Last Updated: April 2026
