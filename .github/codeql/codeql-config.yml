@@ -1,0 +1,11 @@
+name: "platform-only-config"
+
+paths:
+  - orchestrator
+  - tests
+
+paths-ignore:
+  - zones/**
+  - books/**
+  - docs/**
+  - infrastructure/**

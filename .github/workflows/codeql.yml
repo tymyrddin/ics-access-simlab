@@ -1,0 +1,50 @@
+name: "CodeQL (platform only)"
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["main"]
+  schedule:
+    # Monday 03:00 UTC
+    - cron: "0 3 * * 1"
+
+jobs:
+  analyze:
+    name: Analyze platform code
+    runs-on: ubuntu-latest
+
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
+
+    strategy:
+      fail-fast: false
+      matrix:
+        # Python only: the orchestrator and test suite are the platform.
+        # No JavaScript exists in this repo.
+        language: ["python"]
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: ${{ matrix.language }}
+          # .github/codeql/codeql-config.yml is the actual enforcement layer.
+          # zones/ contains intentionally vulnerable simulations: SQL injection,
+          # path traversal, unauthenticated endpoints, and world-readable keys
+          # are features there, not findings. Scanning them would produce a wall
+          # of expected results and bury any real platform issue.
+          config-file: ./.github/codeql/codeql-config.yml
+
+      - name: Autobuild
+        uses: github/codeql-action/autobuild@v3
+
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v3
+        with:
+          category: "/language:${{ matrix.language }}"
