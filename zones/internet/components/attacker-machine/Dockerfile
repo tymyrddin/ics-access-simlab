@@ -16,6 +16,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     tcpdump \
     socat \
     ftp \
+    nfs-common \
+    rpcbind \
+    netbase \
     && rm -rf /var/lib/apt/lists/*
 
 # Python attacker libs in a venv (bookworm enforces PEP 668)

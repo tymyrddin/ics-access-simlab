@@ -4,10 +4,12 @@
 
 ## What is installed
 
-- nmap, curl, wget, smbclient, hydra, tcpdump, socat, ftp
+- nmap, curl, wget, smbclient, hydra, tcpdump, socat, ftp, showmount, mount (nfs-common)
 - Python venv at `/opt/attacker-env` with pymodbus 3.6.9, paramiko, impacket
 - Five accounts: `ponder`, `hex`, `ridcully`, `librarian`, `dean`
 - Mission briefing at `/run/adversary-readme.txt`
+
+The container runs `privileged: true` so that the kernel NFS client can issue `mount(2)` syscalls. Without this, mounting NFS shares from inside the container is blocked even with `SYS_ADMIN`.
 
 ## Connecting
 

@@ -9,6 +9,6 @@ Their network is not directly reachable from here.
 Other things are on this network. Check your ~/loot directory.
 
 Tools available on this host:
-  nmap, hydra, smbclient, ftp, socat, tcpdump, curl, wget
+  nmap, hydra, smbclient, ftp, socat, tcpdump, curl, wget, showmount, mount
   Python: /opt/attacker-env/bin/python3
     libs: pymodbus, paramiko, impacket

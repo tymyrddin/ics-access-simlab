@@ -50,21 +50,25 @@ On first `./ctl up`, a dedicated ed25519 keypair (`lab-key` / `lab-key.pub`) is 
 registered for user `ponder`. Use `./ctl ssh [user]` to connect: it selects the lab key automatically, so
 participants with many keys in their SSH agent won't hit authentication failures.
 
-`lab-key` is gitignored. On a shared or cloud host, restrict repo directory permissions so other local users
-cannot read it (`chmod 700 .` or equivalent).
+`lab-key` is the operator key, never distributed to participants. For Hetzner deployments, run
+`./ctl cohort-keys` to generate a separate participant keypair and distribute `cohort-key` to the cohort.
+
+Both keypairs are gitignored. On a shared or cloud host, restrict repo directory permissions so other local
+users cannot read them (`chmod 700 .` or equivalent).
 
 ### All `./ctl` commands
 
-| Command            | What it does                                            |
-|--------------------|---------------------------------------------------------|
-| `./ctl up`         | Generate + start all zones, print SSH command           |
-| `./ctl down`       | Stop and remove all containers                          |
-| `./ctl ssh [user]` | SSH into unseen-gate (default user: `ponder`)           |
-| `./ctl firewall`   | Apply inter-zone iptables rules (sudo)                  |
-| `./ctl verify`     | Print verification commands for the current scenario    |
-| `./ctl generate`   | Regenerate compose files without starting               |
-| `./ctl clean`      | `down` + remove generated files                         |
-| `./ctl purge`      | `clean` + remove all images + prune build cache         |
+| Command                  | What it does                                            |
+|--------------------------|---------------------------------------------------------|
+| `./ctl up`               | Generate + start all zones, print SSH command           |
+| `./ctl down`             | Stop and remove all containers                          |
+| `./ctl ssh [user]`       | SSH into unseen-gate (default user: `ponder`)           |
+| `./ctl cohort-keys`      | Generate a participant keypair for Hetzner deployments  |
+| `./ctl firewall`         | Apply inter-zone iptables rules (sudo)                  |
+| `./ctl verify`           | Print verification commands for the current scenario    |
+| `./ctl generate`         | Regenerate compose files without starting               |
+| `./ctl clean`            | `down` + remove generated files                         |
+| `./ctl purge`            | `clean` + remove all images + prune build cache         |
 
 To use an alternate config:
 ```bash
@@ -85,9 +89,9 @@ Key mode (default, local dev and Hetzner):
 attacker_machine:
   auth_mode: key
 ```
-`./ctl up` generates a dedicated `lab-key` / `lab-key.pub` and registers it for `ponder`.
-Connect with `./ctl ssh ponder`. For Hetzner, pre-populate `adversary-keys` with participant
-public keys before deploying.
+`./ctl up` generates a dedicated `lab-key` / `lab-key.pub` and registers it for `ponder` (operator access).
+Connect with `./ctl ssh ponder`. For Hetzner, run `./ctl cohort-keys` to generate a separate participant
+keypair and distribute `cohort-key` to the cohort before deploying.
 
 Password mode (Root-Me):
 ```yaml
@@ -140,15 +144,14 @@ bash zones/internet/components/attacker-machine/setup.sh
 ```
 This moves the host sshd to port 2222. Reconnect on 2222 for all future host admin.
 
-Add participant keys before deploying:
+Generate a participant keypair before deploying:
 ```bash
-# Create adversary-keys, one line per participant: username pubkey [comment]
-# Valid usernames: ponder  hex  ridcully  librarian  dean
-vi zones/internet/components/attacker-machine/adversary-keys
+./ctl cohort-keys
 ```
-
-If `adversary-keys` is pre-populated, `./ctl up` will not overwrite it. Participants connect using their
-own keys; `./ctl ssh` falls back to regular SSH when no `lab-key` is present.
+This creates `cohort-key` / `cohort-key.pub` in the repo root and writes the public key into
+`adversary-keys` for all five accounts. Distribute `cohort-key` (the private key) to participants
+via the briefing doc or a secure channel. Running `./ctl cohort-keys` again generates a fresh
+keypair and replaces the previous one cleanly, useful between cohorts.
 
 Restrict repo directory permissions so the deploy user's private key is not world-readable:
 ```bash

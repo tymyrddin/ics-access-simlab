@@ -27,7 +27,7 @@ Guild Quarter path.
 
 Three routes:
 
-1. Compromise `wizzards-retreat` (SSH brute force, HTTP endpoint, or OSINT from `unseen-gate`) and use its enterprise NIC to reach 10.10.1.x.
+1. Compromise `wizzards-retreat` (SSH brute force, NFS, or OSINT from `unseen-gate`) and use its enterprise NIC to reach 10.10.1.x.
 2. Move into the DMZ (10.10.5.x) and work through the Guild Quarter devices from there.
 3. The DMZ SSH bastion (`contractors-gate`, 10.10.5.20) has a second NIC in enterprise. Compromise it and the enterprise zone opens.
 

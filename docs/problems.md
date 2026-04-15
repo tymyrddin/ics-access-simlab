@@ -21,3 +21,10 @@ Tend to appear after submission, hardly ever before.
 | git, make, bash | For setup                         |
 
 Fewer runtime dependencies increase acceptance probability.
+
+## Way out :-)
+
+```commandline
+docker rm -f $(docker ps -aq) 2>/dev/null
+docker system prune -a --volumes -f
+```

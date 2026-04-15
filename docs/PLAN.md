@@ -54,7 +54,7 @@ ics_wan (10.10.4.0/24)                          OT/RTU network (city cellular, n
 ### Internet zone
 
 - Step 1 [x]: attacker machine (`unseen-gate`). No enterprise NIC. Tooling: smbclient, hydra, tcpdump, socat, ftp, pymodbus, paramiko, impacket. Loot planted in each adversary home dir.
-- Step 2 [x]: admin@home (`wizzards-retreat`). Three compromise paths: SSH brute force (rincewind/wizzard), HTTP Flask `/status` (admin/admin), OSINT from prior-recon.txt. Loot: VPN config, engineer SSH key, notes.
+- Step 2 [x]: admin@home (`wizzards-retreat`). Three compromise paths: SSH brute force (rincewind/wizzard), NFS anonymous mount (`/work`, world-readable, notes.txt), OSINT from prior-recon.txt. Loot on NFS: notes.txt. Full loot after SSH: VPN config, engineer SSH key, notes. NFS-Ganesha user-space NFSv3; container runs privileged for tmpfs staging (OverlayFS workaround).
 
 ### Control zone
 

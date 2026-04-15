@@ -85,10 +85,12 @@ for u in ponder hex ridcully librarian dean; do
 # Recon notes — prior engagement fragment
 # Do not leave on shared systems.
 10.10.0.5  ponders-machine  open: 22/tcp
-10.10.0.10 wizzards-retreat open: 22/tcp 80/tcp
+10.10.0.10 wizzards-retreat open: 22/tcp 111/tcp 2049/tcp
 -- last updated by previous team
 RECON
     chown -R "${u}:${u}" "/home/${u}/loot"
 done
 
+mkdir -p /run/rpcbind
+rpcbind -w
 exec /usr/sbin/sshd -D

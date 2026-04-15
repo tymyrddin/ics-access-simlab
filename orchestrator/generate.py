@@ -836,6 +836,7 @@ def generate_internet_zone_compose(config: dict, output_path: Path) -> dict:
             0, f"./{attacker_rel}/adversary-keys:/run/adversary-keys:ro"
         )
 
+    svc["privileged"] = True  # required to issue mount(2) from inside the container
     services["attacker-machine"] = svc
 
     # Additional internet-zone nodes (admin_home, etc.)
@@ -848,6 +849,7 @@ def generate_internet_zone_compose(config: dict, output_path: Path) -> dict:
             "container_name": "admin-home",
             "hostname": ah["hostname"],
             "restart": "unless-stopped",
+            "privileged": True,  # tmpfs mount inside container (OverlayFS has no name_to_handle_at)
             "networks": {
                 inet_net: {"ipv4_address": ah["internet_ip"]},
                 ent_net:  {"ipv4_address": ah["enterprise_ip"]},

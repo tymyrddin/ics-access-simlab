@@ -69,14 +69,14 @@ _ensure_keys() {
         echo "[ctl] Generated lab-key / lab-key.pub (gitignored)"
     fi
 
-    # Populate adversary-keys from lab key if the file is absent or empty.
-    # For Hetzner/shared deployments, pre-populate adversary-keys from
-    # adversary-keys.example before running ./ctl up — this step is skipped
-    # if the file already has content.
-    if [ ! -s "$keys" ]; then
-        echo "ponder $(cat lab-key.pub)" > "$keys"
-        echo "[ctl] Wrote lab-key.pub → adversary-keys for user 'ponder'"
-        echo "[ctl] For shared deployments: edit adversary-keys directly (see adversary-keys.example)"
+    # Always ensure the lab key is present for ponder — idempotent.
+    # Checks key content, not file emptiness, so cohort or other entries are preserved.
+    # For Hetzner deployments, run ./ctl cohort-keys to generate participant keys.
+    local pubkey
+    pubkey=$(cat lab-key.pub)
+    if ! grep -qF "$pubkey" "$keys" 2>/dev/null; then
+        printf 'ponder %s\n' "$pubkey" >> "$keys"
+        echo "[ctl] Added lab-key.pub to adversary-keys for user 'ponder'"
     fi
 }
 
@@ -148,6 +148,32 @@ case "$CMD" in
     fi
     ;;
 
+  cohort-keys)
+    KEYS="zones/internet/components/attacker-machine/adversary-keys"
+
+    ssh-keygen -t ed25519 -f "$REPO/cohort-key" -N "" -C "ics-simlab-cohort-key" -q
+    echo "[ctl] Generated cohort-key / cohort-key.pub (gitignored)"
+
+    COHORT_PUB=$(cat "$REPO/cohort-key.pub")
+
+    # Rebuild adversary-keys: operator entry (lab-key) + fresh cohort entry per account.
+    # Running again replaces the previous cohort key cleanly.
+    : > "$KEYS"
+    if [ -f "$REPO/lab-key.pub" ]; then
+        printf 'ponder %s\n' "$(cat "$REPO/lab-key.pub")" >> "$KEYS"
+    fi
+    for u in ponder hex ridcully librarian dean; do
+        printf '%s %s\n' "$u" "$COHORT_PUB" >> "$KEYS"
+    done
+
+    echo "[ctl] adversary-keys rebuilt: operator (lab-key) + cohort key for all accounts"
+    echo ""
+    echo "  Distribute to participants:  $REPO/cohort-key"
+    echo "  SSH command:  ssh -i cohort-key <user>@<server-ip>"
+    echo ""
+    echo "  cohort-key is gitignored. Regenerate before each new cohort: ./ctl cohort-keys"
+    ;;
+
   firewall)
     echo "[ctl] Applying firewall rules (sudo) ..."
     sudo bash infrastructure/firewall.sh
@@ -211,7 +237,7 @@ EOF
     rm -f zones/internet/components/attacker-machine/docker-compose.yml
     rm -f zones/internet/components/attacker-machine/adversary-readme.txt
     echo "[ctl] Clean."
-    echo "[ctl] Note: lab-key and adversary-keys preserved — run './ctl purge' to remove them."
+    echo "[ctl] Note: lab-key, cohort-key, and adversary-keys preserved — run './ctl purge' to remove them."
     ;;
 
   purge)
@@ -225,8 +251,8 @@ EOF
     echo "[ctl] Pruning Docker build cache ..."
     docker builder prune -f
     "$0" clean
-    echo "[ctl] Removing lab keypair and adversary-keys ..."
-    rm -f lab-key lab-key.pub
+    echo "[ctl] Removing lab keypair, cohort keypair, and adversary-keys ..."
+    rm -f lab-key lab-key.pub cohort-key cohort-key.pub
     rm -f zones/internet/components/attacker-machine/adversary-keys
     ;;
 
@@ -234,14 +260,15 @@ EOF
     cat <<EOF
 Usage: ./ctl <command>
 
-  up        generate + start everything, print SSH command
-  down      stop and remove all containers
-  ssh       SSH into unseen-gate  (./ctl ssh [user], default: ponder)
-  firewall  apply inter-zone iptables rules (needs sudo)
-  verify    print Step 2 verification commands
-  generate  regenerate compose files without starting
-  clean     down + remove generated files
-  purge     clean + remove all images
+  up            generate + start everything, print SSH command
+  down          stop and remove all containers
+  ssh           SSH into unseen-gate  (./ctl ssh [user], default: ponder)
+  cohort-keys   generate a participant keypair for Hetzner deployments
+  firewall      apply inter-zone iptables rules (needs sudo)
+  verify        print Step 2 verification commands
+  generate      regenerate compose files without starting
+  clean         down + remove generated files
+  purge         clean + remove all images
 
   CONFIG=orchestrator/configs/smart-grid.yaml ./ctl up
 EOF
