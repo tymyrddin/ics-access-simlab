@@ -19,6 +19,10 @@ set -euo pipefail
 REPO="$(cd "$(dirname "$0")" && pwd)"
 cd "$REPO"
 
+# BuildKit attaches OCI provenance attestations to every image by default.
+# This requires fetching metadata from the registry and hangs in lab environments.
+export BUILDX_NO_DEFAULT_ATTESTATIONS=1
+
 CONFIG="${CONFIG:-orchestrator/ctf-config.yaml}"
 CMD="${1:-help}"
 
@@ -105,6 +109,9 @@ case "$CMD" in
     echo "[ctl] Starting control zone ..."
     docker compose -f zones/control/docker-compose.yml up -d
 
+    echo "[ctl] Starting DMZ zone ..."
+    _compose_up zones/dmz/docker-compose.yml
+
     echo "[ctl] Starting internet zone (unseen-gate + wizzards-retreat) ..."
     _compose_up zones/internet/docker-compose.yml
 
@@ -127,11 +134,14 @@ case "$CMD" in
   down)
     echo "[ctl] Stopping internet zone ..."
     _compose_down zones/internet/docker-compose.yml
+    echo "[ctl] Stopping DMZ zone ..."
+    _compose_down zones/dmz/docker-compose.yml
     echo "[ctl] Stopping zones ..."
     _compose_down zones/control/docker-compose.yml
     _compose_down zones/operational/docker-compose.yml
     _compose_down zones/enterprise/docker-compose.yml
     _compose_down infrastructure/networks/docker-compose.yml
+    docker network prune -f
     ;;
 
   ssh)

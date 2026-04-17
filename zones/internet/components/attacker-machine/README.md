@@ -4,12 +4,14 @@
 
 ## What is installed
 
-- nmap, curl, wget, smbclient, hydra, tcpdump, socat, ftp, showmount, mount (nfs-common)
+- nmap, curl, wget, smbclient, hydra, tcpdump, socat, ftp, showmount, sudo mount (nfs-common), ip
 - Python venv at `/opt/attacker-env` with pymodbus 3.6.9, paramiko, impacket
 - Five accounts: `ponder`, `hex`, `ridcully`, `librarian`, `dean`
 - Mission briefing at `/run/adversary-readme.txt`
 
 The container runs `privileged: true` so that the kernel NFS client can issue `mount(2)` syscalls. Without this, mounting NFS shares from inside the container is blocked even with `SYS_ADMIN`.
+
+Adversary accounts are non-root. A passwordless `sudo` rule covers `/usr/bin/mount` and `/usr/bin/umount`, so participants use `sudo mount` rather than switching to root. No password is prompted.
 
 ## Connecting
 

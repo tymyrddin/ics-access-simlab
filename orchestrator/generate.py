@@ -725,6 +725,40 @@ def generate_firewall_sh(config: dict) -> str:
             "0.0.0.0/32"
         ),
     }
+    # Docker assigns .1 on each bridge network to the host machine.
+    # Without INPUT rules to block it, nmap scans from CTF containers reach the
+    # host and reveal its hostname, open ports, and other meta-information.
+    # Rules live in a named chain (ICS_HIDE_GW) that is flushed on every run,
+    # so repeated invocations never accumulate stale entries.
+    # Old direct INPUT rules from prior versions are deleted first.
+    cleanup = ""
+    for net_cfg in config["networks"].values():
+        subnet = net_cfg["subnet"]
+        prefix = subnet.rsplit(".", 1)[0]
+        gw = prefix + ".1"
+        cleanup += f"iptables -D INPUT -s {subnet} -d {gw} -j DROP 2>/dev/null || true\n"
+        cleanup += f"iptables -D INPUT -s {subnet} -d {gw} -p tcp --syn -j DROP 2>/dev/null || true\n"
+        cleanup += f"iptables -D INPUT -s {subnet} -d {gw} -p icmp -j DROP 2>/dev/null || true\n"
+
+    gw_rules = (
+        "# Remove any old direct INPUT rules accumulated from prior firewall runs.\n"
+        + cleanup
+        + "\n"
+        "# Hide Docker bridge gateway IPs from CTF containers (INPUT chain).\n"
+        "# Named chain is flushed on every run so rules never accumulate.\n"
+        "iptables -N ICS_HIDE_GW 2>/dev/null || true\n"
+        "iptables -F ICS_HIDE_GW\n"
+        "iptables -C INPUT -j ICS_HIDE_GW 2>/dev/null "
+        "|| iptables -I INPUT 1 -j ICS_HIDE_GW\n"
+    )
+    for net_cfg in config["networks"].values():
+        subnet = net_cfg["subnet"]
+        prefix = subnet.rsplit(".", 1)[0]
+        gw = prefix + ".1"
+        gw_rules += f"iptables -A ICS_HIDE_GW -s {subnet} -d {gw} -p tcp --syn -j DROP\n"
+        gw_rules += f"iptables -A ICS_HIDE_GW -s {subnet} -d {gw} -p icmp -j DROP\n"
+    gw_rules += "\n"
+
     # Strip comment header lines from the rules file — the generated script
     # has its own header; the txt file comments are for human editors only.
     raw = FIREWALL_RULES.read_text()
@@ -748,6 +782,7 @@ def generate_firewall_sh(config: dict) -> str:
         "\n"
         "iptables -F DOCKER-USER\n"
         "\n"
+        + gw_rules
         + rules
         + '\necho "[firewall] Inter-zone rules applied."\n'
     )
@@ -798,6 +833,7 @@ def generate_internet_zone_compose(config: dict, output_path: Path) -> dict:
     """
     inet_net = _net(config, "internet")
     ent_net  = _net(config, "enterprise")
+    ops_net  = _net(config, "operational")
     base_dir = output_path.parent
     services = {}
     networks_used = {inet_net}
@@ -844,18 +880,26 @@ def generate_internet_zone_compose(config: dict, output_path: Path) -> dict:
     ah = iz.get("admin_home")
     if ah:
         _check_impl(ah["implementation"])
+        ah_networks = {
+            inet_net: {"ipv4_address": ah["internet_ip"]},
+            ent_net:  {"ipv4_address": ah["enterprise_ip"]},
+        }
+        if "operational_ip" in ah:
+            ah_networks[ops_net] = {"ipv4_address": ah["operational_ip"]}
+            networks_used.add(ops_net)
         services["admin-home"] = {
             "build": {"context": _rel(COMPONENT_DIRS[ah["implementation"]], base_dir)},
             "container_name": "admin-home",
             "hostname": ah["hostname"],
             "restart": "unless-stopped",
             "privileged": True,  # tmpfs mount inside container (OverlayFS has no name_to_handle_at)
-            "networks": {
-                inet_net: {"ipv4_address": ah["internet_ip"]},
-                ent_net:  {"ipv4_address": ah["enterprise_ip"]},
-            },
+            "networks": ah_networks,
         }
         networks_used.add(ent_net)
+        # attacker-machine (NFS client) must stop before admin-home (NFS server).
+        # Compose down reverses depends_on order, so declaring attacker depends on
+        # admin-home means attacker stops first.
+        services["attacker-machine"]["depends_on"] = ["admin-home"]
 
     return {
         "services": services,

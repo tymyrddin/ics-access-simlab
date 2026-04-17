@@ -668,15 +668,13 @@ if [ "$ICS_PROCESS" = "uupl_ied" ]; then
     cat > /etc/cron.d/plc-poll << 'CRON'
 # UU P&L — PLC monitor and historian ingest
 # Polls turbine PLC every minute; pushes readings to historian.
-* * * * * engineer /venv/bin/python3 /opt/win10/C/Users/engineer/Tools/poll_and_ingest.py \
-    >> /home/engineer/plc_poll.log 2>&1
+* * * * * engineer /venv/bin/python3 /opt/win10/C/Users/engineer/Tools/poll_and_ingest.py >> /opt/win10/C/Users/engineer/plc_poll.log 2>&1
 CRON
 else
     cat > /etc/cron.d/plc-poll << 'CRON'
 # UU P&L — PLC availability monitor
 # Polls turbine PLC every 5 minutes, logs governor setpoint (HR[0])
-*/5 * * * * engineer /venv/bin/python3 /opt/win10/C/Users/engineer/Tools/modbus_read.py \
-    10.10.3.21 502 holding 0 1 >> /home/engineer/plc_poll.log 2>&1
+*/5 * * * * engineer /venv/bin/python3 /opt/win10/C/Users/engineer/Tools/modbus_read.py 10.10.3.21 502 holding 0 1 >> /opt/win10/C/Users/engineer/plc_poll.log 2>&1
 CRON
 fi
 

@@ -232,6 +232,8 @@ cmd_python() {
     /venv/bin/python3 "$real" "$@"
 }
 
+cmd_ip() { /sbin/ip "$@"; }
+
 cmd_ssh()  { /usr/bin/ssh -o StrictHostKeyChecking=no "$@"; }
 cmd_curl() { /usr/bin/curl "$@"; }
 cmd_nmap() { /usr/bin/nmap "$@"; }
@@ -318,6 +320,7 @@ while true; do
         hostname)                   cmd_hostname ;;
         ipconfig)                   cmd_ipconfig ;;
         netstat)                    cmd_netstat ;;
+        ip)                         cmd_ip $rest ;;
         ping)                       cmd_ping $rest ;;
         net)    read -r sub _ <<< "$rest"; cmd_net "$sub" ;;
         ssh)                        cmd_ssh $rest ;;
@@ -326,6 +329,7 @@ while true; do
         nmap)                       cmd_nmap $rest ;;
         nc)                         cmd_nc $rest ;;
         python|python3)             cmd_python $rest ;;
+        *.py)                       cmd_python "$cmd" $rest ;;
         help|get-help)              cmd_help ;;
         exit|quit|logout)           printf '\n'; exit 0 ;;
         "")                         true ;;

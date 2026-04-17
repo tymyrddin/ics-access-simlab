@@ -17,6 +17,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     python3-venv \
     cron \
     net-tools \
+    iproute2 \
     iputils-ping \
     nmap \
     curl \
@@ -26,7 +27,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 RUN python3 -m venv /venv
 ENV PATH="/venv/bin:$PATH"
 
-RUN pip install --no-cache-dir pymodbus==3.6.8
+RUN pip install --no-cache-dir pymodbus==3.6.8 paho-mqtt
 
 COPY entrypoint.sh /entrypoint.sh
 COPY win10ltsc_shell.sh /usr/local/bin/win10ltsc_shell.sh

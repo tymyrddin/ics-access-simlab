@@ -1,8 +1,7 @@
 Network access notes — DO NOT leave on shared systems
 ======================================================
 
-VPN must be up before accessing internal resources:
-  wg-quick up ~/.vpn/uupl-vpn.conf
+VPN connects automatically on login. Config: ~/.vpn/uupl-vpn.conf
 
 Engineering workstation: 10.10.2.30
   ssh -i ~/.ssh-keys/uupl_eng_key engineer@10.10.2.30
