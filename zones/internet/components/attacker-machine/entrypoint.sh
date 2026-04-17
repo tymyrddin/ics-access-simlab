@@ -93,4 +93,20 @@ done
 
 mkdir -p /run/rpcbind
 rpcbind -w
-exec /usr/sbin/sshd -D
+
+/usr/sbin/sshd -D &
+SSHD_PID=$!
+
+# On SIGTERM/SIGINT, lazy-unmount any NFS mounts before sshd exits.
+# umount -l detaches immediately regardless of server state, which unblocks
+# any processes stuck in uninterruptible sleep waiting for a gone NFS server.
+# Without this, Docker cannot stop the container after an NFS mount goes stale.
+_shutdown() {
+    awk '$3 ~ /^nfs/ { print $2 }' /proc/mounts 2>/dev/null \
+        | xargs -r umount -l 2>/dev/null || true
+    kill -TERM "$SSHD_PID" 2>/dev/null || true
+    wait "$SSHD_PID" 2>/dev/null || true
+}
+trap _shutdown TERM INT
+
+wait "$SSHD_PID"

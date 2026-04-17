@@ -14,5 +14,8 @@ chmod 644 /nfs-export/*
 
 mkdir -p /run/rpcbind
 rpcbind -w
-sleep 0.3
+for i in $(seq 1 20); do
+    rpcinfo -p 127.0.0.1 >/dev/null 2>&1 && break
+    sleep 0.2
+done
 exec ganesha.nfsd -f /etc/ganesha/ganesha.conf -L /dev/stdout -N NIV_EVENT -F

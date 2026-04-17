@@ -19,7 +19,16 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     nfs-common \
     rpcbind \
     netbase \
+    iproute2 \
+    sudo \
     && rm -rf /var/lib/apt/lists/*
+
+# /usr/sbin (showmount, mount.nfs) is not in non-root PATH on Debian bookworm
+RUN echo 'export PATH="$PATH:/usr/sbin:/sbin"' > /etc/profile.d/sbin-path.sh
+
+# CTF players need to mount NFS shares; sudo lets them do it without a root shell
+RUN echo "ALL ALL=(root) NOPASSWD: /usr/bin/mount, /usr/bin/umount" \
+    > /etc/sudoers.d/ctf-mount && chmod 440 /etc/sudoers.d/ctf-mount
 
 # Python attacker libs in a venv (bookworm enforces PEP 668)
 RUN python3 -m venv /opt/attacker-env && \
