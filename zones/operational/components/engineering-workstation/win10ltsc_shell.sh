@@ -218,18 +218,31 @@ cmd_net() {
 }
 
 cmd_python() {
-    if [[ $# -eq 0 ]]; then
+    local args="${1:-}"
+    if [[ -z "$args" ]]; then
         echo "Python 3.11.2 (default)"
         echo "Type 'exit()' or Ctrl+D to quit."
         return
     fi
-    local script="$1"; shift
+    # Handle -c "code" — strip one layer of surrounding quotes if present
+    if [[ "$args" == "-c "* || "$args" == "-c	"* ]]; then
+        local code="${args#-c }"
+        code="${code#-c	}"
+        if [[ "$code" == '"'*'"' ]]; then code="${code#\"}"; code="${code%\"}"; fi
+        if [[ "$code" == "'"*"'" ]]; then code="${code#\'}"; code="${code%\'}"; fi
+        /venv/bin/python3 -c "$code"
+        return
+    fi
+    # File mode: first word is the script path, remainder are args
+    local script="${args%% *}"
+    local script_args=""
+    [[ "$args" == *" "* ]] && script_args="${args#* }"
     local real; real="$(_real "$script")"
     if [[ ! -f "$real" ]]; then
         printf "python: can't open file '%s': [Errno 2] No such file or directory\n" "$script"
         return
     fi
-    /venv/bin/python3 "$real" "$@"
+    /venv/bin/python3 "$real" $script_args
 }
 
 cmd_ip() { /sbin/ip "$@"; }
@@ -302,6 +315,8 @@ cat << 'LOGON'
 LOGON
 
 # ── main loop ─────────────────────────────────────────────────────────────────
+# Ctrl+C kills the foreground command but returns to the prompt, not the host.
+trap '' INT
 
 while true; do
     printf 'PS %s> ' "$(_disp)"
@@ -328,8 +343,8 @@ while true; do
         invoke-webrequest|iwr)      cmd_iwr $rest ;;
         nmap)                       cmd_nmap $rest ;;
         nc)                         cmd_nc $rest ;;
-        python|python3)             cmd_python $rest ;;
-        *.py)                       cmd_python "$cmd" $rest ;;
+        python|python3)             cmd_python "$rest" ;;
+        *.py)                       cmd_python "$cmd $rest" ;;
         help|get-help)              cmd_help ;;
         exit|quit|logout)           printf '\n'; exit 0 ;;
         "")                         true ;;
