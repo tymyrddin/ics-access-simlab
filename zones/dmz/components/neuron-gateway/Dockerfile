@@ -8,6 +8,7 @@ FROM emqx/neuron:2.11.5
 # Attack path: admin/uupl2015 -> add Modbus south device -> bridge to turbine_plc:502
 #              -> subscribe to clacks-relay -> exfil PLC data over internet.
 
+RUN apt-get update && apt-get install -y --no-install-recommends iproute2 && rm -rf /var/lib/apt/lists/*
 COPY bootstrap.sh /bootstrap.sh
 RUN chmod +x /bootstrap.sh
 EXPOSE 7000

@@ -252,6 +252,13 @@ cmd_curl() { /usr/bin/curl "$@"; }
 cmd_nmap() { /usr/bin/nmap "$@"; }
 cmd_nc()   { /usr/bin/nc "$@"; }
 
+# Bash functions used by eval "$line" dispatch — handle quoted args correctly
+ssh()  { /usr/bin/ssh -o StrictHostKeyChecking=no "$@"; }
+curl() { /usr/bin/curl "$@"; printf '\n'; }
+wget() { /usr/bin/wget "$@"; printf '\n'; }
+nmap() { /usr/bin/nmap "$@"; }
+nc()   { /usr/bin/nc "$@"; }
+
 cmd_iwr() {
     local uri="" outfile=""
     while [[ $# -gt 0 ]]; do
@@ -315,13 +322,37 @@ cat << 'LOGON'
 LOGON
 
 # ── main loop ─────────────────────────────────────────────────────────────────
-# Ctrl+C kills the foreground command but returns to the prompt, not the host.
-trap '' INT
+# Ctrl+C kills the foreground command and returns to the prompt.
+# trap ':' INT (not '') keeps children using the default SIGINT disposition,
+# so nmap / python die normally. The shell itself runs ':' and stays alive.
+trap ':' INT
 
 while true; do
     printf 'PS %s> ' "$(_disp)"
-    IFS= read -r line || break
+    IFS= read -r line
+    case $? in
+        0) ;;                              # normal input
+        1) break ;;                        # EOF / Ctrl-D — exit shell
+        *) printf '\n'; continue ;;        # signal-interrupted read — re-prompt
+    esac
     line="${line//$'\r'/}"
+    line="${line%"${line##*[^ ]}"}"   # strip trailing spaces
+
+    # Line continuation: trailing backslash joins the next line
+    while [[ "$line" == *\\ ]]; do
+        line="${line%\\}"
+        IFS= read -r cont || break
+        cont="${cont//$'\r'/}"
+        cont="${cont%"${cont##*[^ ]}"}"
+        line="${line}${cont}"
+    done
+
+    # Variable assignment: $VAR=value or $VAR=$(...)
+    if [[ "$line" =~ ^\$[A-Za-z_][A-Za-z0-9_]*= ]]; then
+        eval "${line:1}" 2>/dev/null || true
+        continue
+    fi
+
     line="${line#.\\}"; line="${line#./}"
     read -r cmd rest <<< "$line"
 
@@ -338,11 +369,12 @@ while true; do
         ip)                         cmd_ip $rest ;;
         ping)                       cmd_ping $rest ;;
         net)    read -r sub _ <<< "$rest"; cmd_net "$sub" ;;
-        ssh)                        cmd_ssh $rest ;;
-        curl|wget)                  cmd_curl $rest ;;
-        invoke-webrequest|iwr)      cmd_iwr $rest ;;
-        nmap)                       cmd_nmap $rest ;;
-        nc)                         cmd_nc $rest ;;
+        ssh)                        eval "$line" ;;
+        curl|wget)                  eval "$line" ;;
+        socat)                      eval "$line" ;;
+        invoke-webrequest|iwr)      eval cmd_iwr "$rest" ;;
+        nmap)                       eval "$line" ;;
+        nc)                         eval "$line" ;;
         python|python3)             cmd_python "$rest" ;;
         *.py)                       cmd_python "$cmd $rest" ;;
         help|get-help)              cmd_help ;;

@@ -11,7 +11,7 @@ FROM scadalts/scadalts:release-2.8.1
 USER root
 
 RUN apt-get update \
- && apt-get install -y --no-install-recommends stunnel4 \
+ && apt-get install -y --no-install-recommends iproute2 stunnel4 \
  && rm -rf /var/lib/apt/lists/*
 
 COPY stunnel-client.conf /run/stunnel-client/stunnel-client.conf

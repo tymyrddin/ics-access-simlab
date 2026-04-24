@@ -8,5 +8,12 @@ FROM ghcr.io/umati/umatigateway:pr-375
 # directly or triggers the connection from the UI.
 # Attack path: :8080 (no auth) → read OPC server list → guild-register:4840
 #              → browse OPC object tree → call control methods (SecurityMode=None).
+USER root
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends iproute2 gosu \
+    && rm -rf /var/lib/apt/lists/*
 COPY umatiGatewayConfig.xml /app/umatiGatewayConfig.xml
+COPY entrypoint.sh /dmz-entrypoint.sh
+RUN chmod +x /dmz-entrypoint.sh
 EXPOSE 8080
+ENTRYPOINT ["/dmz-entrypoint.sh"]

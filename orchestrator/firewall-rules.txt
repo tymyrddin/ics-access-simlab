@@ -1,75 +1,78 @@
-# Inter-zone firewall policy — DOCKER-USER chain
+# Inter-zone routing policy — reference only
 #
-# Placeholders are resolved from ctf-config.yaml by orchestrator/generate.py.
-# See generate.py:generate_firewall_sh() for the symbol-to-address mapping.
-# Rules are evaluated top to bottom. Run 'make generate' after editing.
+# Zone enforcement is handled by the five router containers in
+# infrastructure/routers/. Each router sits at a trust boundary, is dual-homed
+# across exactly two zone networks, and applies iptables FORWARD rules within
+# its own network namespace. No host-level forwarding is involved.
 #
-# ics_internet — public network. Attacker machine (unseen-gate) is internet-only.
+# generate.py still produces infrastructure/firewall.sh. That script now only
+# applies the ICS_HIDE_GW chain, which drops traffic destined for Docker bridge
+# gateway IPs (10.10.x.1). Without it, nmap scans from CTF containers reach the
+# host and reveal its hostname, open ports, and other infrastructure detail.
+#
+# Zone policy below is kept for reference. It documents intent, matches the ACL
+# scripts generated for each router, and can be restored as a backstop if the
+# router layer is ever replaced or removed.
+#
+# ics_internet: attacker machine (unseen-gate) is internet-only.
 #   wizzards-retreat is dual-homed here and on enterprise (simulates VPN).
-#   Future adversary-side endpoints and external probes live here.
-#   A misconfigured RTU that appears here is an RTU-level problem, not a flag.
-# ics_wan     — OT/RTU network. RTUs have cellular IPs, no private APN, no VPN.
+# ics_wan: OT/RTU network. RTUs have cellular IPs, no private APN, no VPN.
 #   SCADA polls RTUs outbound from operational into this network.
-
-iptables -A DOCKER-USER -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT
-
-# Internet → internal zones: no direct path
-# Exception: admin_home ({admin_home_ip}) is dual-homed internet+enterprise,
-#   simulating an established VPN tunnel. All other internet hosts remain blocked.
-# Note: if internet_zone is absent from config, admin_home_ip resolves to
-#   0.0.0.0/32 which is a valid but no-op ACCEPT rule.
-iptables -A DOCKER-USER -s {admin_home_ip} -d {enterprise} -j ACCEPT
-iptables -A DOCKER-USER -s {internet} -d {enterprise} -j DROP
-iptables -A DOCKER-USER -s {internet} -d {operational} -j DROP
-iptables -A DOCKER-USER -s {internet} -d {control} -j DROP
-iptables -A DOCKER-USER -s {internet} -d {wan} -j DROP
-
-# Enterprise → Operational: historian web, SCADA web, SSH to engineering workstation
-iptables -A DOCKER-USER -s {enterprise} -d {historian} -p tcp --dport 8080 -j ACCEPT
-iptables -A DOCKER-USER -s {enterprise} -d {scada} -p tcp --dport 8080 -j ACCEPT
-iptables -A DOCKER-USER -s {enterprise} -d {eng_ws} -p tcp --dport 22 -j ACCEPT
-iptables -A DOCKER-USER -s {enterprise} -d {operational} -j DROP
-
-# Enterprise → Control / WAN: no direct path
-iptables -A DOCKER-USER -s {enterprise} -d {control} -j DROP
-iptables -A DOCKER-USER -s {enterprise} -d {wan} -j DROP
-
-# Operational → Control: Modbus from engineering workstation only
-iptables -A DOCKER-USER -s {eng_ws} -d {control} -p tcp --dport 502 -j ACCEPT
-iptables -A DOCKER-USER -s {operational} -d {control} -j DROP
-
-# Operational → WAN (city RTUs): Modbus + SNMP from SCADA and engineering workstation
-iptables -A DOCKER-USER -s {scada} -d {wan} -p tcp --dport 502 -j ACCEPT
-iptables -A DOCKER-USER -s {eng_ws} -d {wan} -p tcp --dport 502 -j ACCEPT
-iptables -A DOCKER-USER -s {scada} -d {wan} -p udp --dport 161 -j ACCEPT
-iptables -A DOCKER-USER -s {eng_ws} -d {wan} -p udp --dport 161 -j ACCEPT
-iptables -A DOCKER-USER -s {operational} -d {wan} -j DROP
-
-# Control zone does not initiate outbound connections
-iptables -A DOCKER-USER -s {control} -d {enterprise} -j DROP
-iptables -A DOCKER-USER -s {control} -d {operational} -j DROP
-
-# WAN — RTUs do not initiate outbound connections
-iptables -A DOCKER-USER -s {wan} -d {internet} -j DROP
-iptables -A DOCKER-USER -s {wan} -d {enterprise} -j DROP
-iptables -A DOCKER-USER -s {wan} -d {operational} -j DROP
-iptables -A DOCKER-USER -s {wan} -d {control} -j DROP
-
-# DMZ ({dmz}) — Guild Quarter boundary between internet and enterprise.
-# Internet → DMZ: open — this IS the externally-facing attack surface.
-iptables -A DOCKER-USER -s {internet} -d {dmz} -j ACCEPT
-
-# DMZ → enterprise: ssh-bastion ({ssh_bastion}) only — simulates contractor pivot path.
-iptables -A DOCKER-USER -s {ssh_bastion} -d {enterprise} -j ACCEPT
-iptables -A DOCKER-USER -s {dmz} -d {enterprise} -j DROP
-
-# DMZ → operational: historian and SCADA web only (data broker read access)
-iptables -A DOCKER-USER -s {dmz} -d {historian} -p tcp --dport 8080 -j ACCEPT
-iptables -A DOCKER-USER -s {dmz} -d {scada} -p tcp --dport 8080 -j ACCEPT
-iptables -A DOCKER-USER -s {dmz} -d {operational} -j DROP
-
-# DMZ → control / WAN: no path
-iptables -A DOCKER-USER -s {dmz} -d {control} -j DROP
-iptables -A DOCKER-USER -s {dmz} -d {wan} -j DROP
-
-iptables -A DOCKER-USER -j RETURN
+#
+# iptables -A DOCKER-USER -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT
+#
+# Internet to internal zones: no direct path.
+# Exception: admin_home is dual-homed internet+enterprise (established VPN tunnel).
+# iptables -A DOCKER-USER -s {admin_home_ip} -d {enterprise} -j ACCEPT
+# iptables -A DOCKER-USER -s {internet} -d {enterprise} -j DROP
+# iptables -A DOCKER-USER -s {internet} -d {operational} -j DROP
+# iptables -A DOCKER-USER -s {internet} -d {control} -j DROP
+# iptables -A DOCKER-USER -s {internet} -d {wan} -j DROP
+#
+# Enterprise to operational: historian web, SCADA web, SSH to engineering workstation.
+# iptables -A DOCKER-USER -s {enterprise} -d {historian} -p tcp --dport 8080 -j ACCEPT
+# iptables -A DOCKER-USER -s {enterprise} -d {scada} -p tcp --dport 8080 -j ACCEPT
+# iptables -A DOCKER-USER -s {enterprise} -d {eng_ws} -p tcp --dport 22 -j ACCEPT
+# iptables -A DOCKER-USER -s {enterprise} -d {operational} -j DROP
+# iptables -A DOCKER-USER -s {enterprise} -d {control} -j DROP
+# iptables -A DOCKER-USER -s {enterprise} -d {wan} -j DROP
+#
+# Operational to control: Modbus from engineering workstation only.
+# iptables -A DOCKER-USER -s {eng_ws} -d {control} -p tcp --dport 502 -j ACCEPT
+# iptables -A DOCKER-USER -s {operational} -d {control} -j DROP
+#
+# Operational to WAN: Modbus and SNMP from SCADA and engineering workstation.
+# iptables -A DOCKER-USER -s {scada} -d {wan} -p tcp --dport 502 -j ACCEPT
+# iptables -A DOCKER-USER -s {eng_ws} -d {wan} -p tcp --dport 502 -j ACCEPT
+# iptables -A DOCKER-USER -s {scada} -d {wan} -p udp --dport 161 -j ACCEPT
+# iptables -A DOCKER-USER -s {eng_ws} -d {wan} -p udp --dport 161 -j ACCEPT
+# iptables -A DOCKER-USER -s {operational} -d {wan} -j DROP
+#
+# Operational to DMZ: engineering workstation can reach DMZ devices.
+# iptables -A DOCKER-USER -s {eng_ws} -d {dmz} -j ACCEPT
+# iptables -A DOCKER-USER -s {operational} -d {dmz} -j DROP
+#
+# Control zone does not initiate outbound connections.
+# iptables -A DOCKER-USER -s {control} -d {enterprise} -j DROP
+# iptables -A DOCKER-USER -s {control} -d {operational} -j DROP
+# iptables -A DOCKER-USER -s {control} -d {dmz} -j DROP
+# iptables -A DOCKER-USER -s {control} -d {wan} -j DROP
+#
+# WAN: RTUs do not initiate outbound connections.
+# iptables -A DOCKER-USER -s {wan} -d {internet} -j DROP
+# iptables -A DOCKER-USER -s {wan} -d {enterprise} -j DROP
+# iptables -A DOCKER-USER -s {wan} -d {operational} -j DROP
+# iptables -A DOCKER-USER -s {wan} -d {control} -j DROP
+# iptables -A DOCKER-USER -s {wan} -d {dmz} -j DROP
+#
+# DMZ: internet-facing attack surface.
+# iptables -A DOCKER-USER -s {internet} -d {dmz} -j ACCEPT
+# iptables -A DOCKER-USER -s {ssh_bastion} -d {enterprise} -j ACCEPT
+# iptables -A DOCKER-USER -s {dmz} -d {enterprise} -j DROP
+# iptables -A DOCKER-USER -s {dmz} -d {historian} -p tcp --dport 8080 -j ACCEPT
+# iptables -A DOCKER-USER -s {dmz} -d {scada} -p tcp --dport 8080 -j ACCEPT
+# iptables -A DOCKER-USER -s {dmz} -d {operational} -j DROP
+# iptables -A DOCKER-USER -s {dmz} -d {control} -j DROP
+# iptables -A DOCKER-USER -s {dmz} -d {wan} -j DROP
+#
+# iptables -A DOCKER-USER -j RETURN

@@ -23,7 +23,7 @@ poisoned answers and serve them to clients.
 
 ## Container details
 
-Base image: `ubuntu/bind9:9.20-26.04_edge`. https://hub.docker.com/r/ubuntu/bind9
+Base image: `internetsystemsconsortium/bind9:9.20`. https://hub.docker.com/r/internetsystemsconsortium/bind9
 Exposed ports: 53/tcp and 53/udp.
 
 Named configuration:

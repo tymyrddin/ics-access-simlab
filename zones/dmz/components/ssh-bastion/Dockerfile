@@ -3,7 +3,7 @@ FROM debian:12.0
 # Primary attack surface: PermitRootLogin yes + weak root password.
 # rsyslog forwards auth events (login failures, sessions) to scribes-post at 10.10.5.32:514.
 RUN apt-get update && \
-    apt-get install -y --no-install-recommends openssh-server rsyslog && \
+    apt-get install -y --no-install-recommends iproute2 openssh-server rsyslog && \
     rm -rf /var/lib/apt/lists/* && \
     mkdir -p /run/sshd
 COPY sshd_config /etc/ssh/sshd_config

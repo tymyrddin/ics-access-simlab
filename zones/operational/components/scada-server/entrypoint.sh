@@ -197,6 +197,17 @@ EOF
 chown -R scada_admin:scada_admin /opt/winsvr
 chmod 600 "/opt/winsvr/C/SCADA/Config/scada.ini"
 
+_add_route() {
+    local dest="$1" gw="$2"
+    for _i in 1 2 3 4 5; do
+        ip route replace "$dest" via "$gw" 2>/dev/null && return 0
+        sleep 1
+    done
+    echo "[entrypoint] WARNING: could not add route $dest via $gw" >&2
+}
+_add_route 10.10.1.0/24 10.10.2.202
+_add_route 10.10.5.0/24 10.10.2.202
+
 # ── Start services ────────────────────────────────────────────────────────────
 
 /usr/sbin/sshd
