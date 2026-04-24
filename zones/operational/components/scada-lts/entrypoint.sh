@@ -16,6 +16,17 @@ chmod 644 "${CERT_DIR}/client.key"
 chmod 644 "${CERT_DIR}/client.crt"
 chmod 644 "${CERT_DIR}/ca.crt"
 
+_add_route() {
+    local dest="$1" gw="$2"
+    for _i in 1 2 3 4 5; do
+        ip route replace "$dest" via "$gw" 2>/dev/null && return 0
+        sleep 1
+    done
+    echo "[entrypoint] WARNING: could not add route $dest via $gw" >&2
+}
+_add_route 10.10.1.0/24 10.10.2.202
+_add_route 10.10.5.0/24 10.10.2.202
+
 echo "[scada-lts] Starting stunnel Modbus-TLS client → ${GATEWAY_HOST}:8502"
 stunnel "${CONF}"
 

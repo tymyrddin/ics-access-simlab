@@ -8,6 +8,17 @@
 
 set -e
 
+_add_route() {
+    local dest="$1" gw="$2"
+    for _i in 1 2 3 4 5; do
+        ip route replace "$dest" via "$gw" 2>/dev/null && return 0
+        sleep 1
+    done
+    echo "[entrypoint] WARNING: could not add route $dest via $gw" >&2
+}
+_add_route default         10.10.5.201   # enterprise/ops
+_add_route 10.10.0.0/24  10.10.5.200   # internet return path
+
 /usr/bin/entrypoint.sh &
 NEURON_PID=$!
 
@@ -24,7 +35,7 @@ done
 TOKEN=$(curl -s -X POST http://127.0.0.1:7000/api/v2/login \
     -H 'Content-Type: application/json' \
     -d '{"name":"admin","pass":"0000"}' \
-    | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('token',''))" 2>/dev/null \
+    | sed -n 's/.*"token": *"\([^"]*\)".*/\1/p' \
     || true)
 
 if [ -n "$TOKEN" ]; then

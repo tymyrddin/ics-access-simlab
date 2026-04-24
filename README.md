@@ -129,10 +129,15 @@ Key dual-homed hosts: `wizzards-retreat` (internet + enterprise), `bursar-desk`
 
 See [infrastructure/networks/README.md](infrastructure/networks/README.md) for full addressing.
 
-## Inter-zone firewall
+## Inter-zone routing
 
-`./ctl firewall` writes iptables rules to the host's `DOCKER-USER` chain after zones are up. This enforces
-inter-zone routing policy. Skip it on a local dev machine if you don't need isolation.
+Zone isolation is enforced by five router containers, one per trust boundary. Each router is dual-homed
+across two zone networks and applies iptables FORWARD rules within its own network namespace. No
+host-level configuration is required; the lab enforces zone policy with or without `./ctl firewall`.
+
+`./ctl firewall` applies the ICS_HIDE_GW chain, which hides Docker bridge gateway IPs (10.10.x.1) from
+CTF containers so nmap scans inside the lab do not reveal host metadata. It adds realism but is not
+required for correct routing or isolation.
 
 On Hetzner, `setup.sh` adds a sudoers rule so the deploy user can run `firewall.sh` without a full root shell.
 
@@ -264,7 +269,7 @@ Protocol simulators and gateways:
 Messaging and transport:
 [Eclipse Mosquitto](https://github.com/eclipse/mosquitto),
 [stunnel](https://hub.docker.com/r/dweomer/stunnel) (dweomer image),
-[BIND9](https://hub.docker.com/r/ubuntu/bind9) (Ubuntu image),
+[BIND9](https://hub.docker.com/r/internetsystemsconsortium/bind9) (ISC official image),
 [cturra/ntp](https://hub.docker.com/r/cturra/ntp),
 [atmoz/sftp](https://github.com/atmoz/sftp),
 [syslog-ng](https://github.com/syslog-ng/syslog-ng)

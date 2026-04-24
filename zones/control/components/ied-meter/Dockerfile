@@ -3,6 +3,7 @@ FROM python:3.11-slim
 WORKDIR /opt/meter
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
+        iproute2 \
         snmpd \
     && rm -rf /var/lib/apt/lists/*
 

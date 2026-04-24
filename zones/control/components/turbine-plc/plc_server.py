@@ -459,7 +459,8 @@ async def main():
     store   = _make_store()
     context = ModbusServerContext(slaves=store, single=True)
 
-    # Initialise breakers as closed
+    # Initialise breakers as closed, estop clear
+    store.setValues(FC_CO, COIL_ESTOP,    [0])
     store.setValues(FC_CO, COIL_BREAKER_A, [1])
     store.setValues(FC_CO, COIL_BREAKER_B, [1])
 

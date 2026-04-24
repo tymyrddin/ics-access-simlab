@@ -81,15 +81,22 @@ fi
 # Plant prior-recon artifact in each adversary home dir (both modes)
 for u in ponder hex ridcully librarian dean; do
     mkdir -p "/home/${u}/loot"
-    cat > "/home/${u}/loot/prior-recon.txt" << 'RECON'
-# Recon notes — prior engagement fragment
-# Do not leave on shared systems.
-10.10.0.5  ponders-machine  open: 22/tcp
-10.10.0.10 wizzards-retreat open: 22/tcp 111/tcp 2049/tcp
--- last updated by previous team
+    cat > "/home/${u}/loot/notes.txt" << 'RECON'
+10.10.0.5  unseen-gate      22/tcp
+10.10.0.10 wizzards-retreat 22/tcp 111/tcp 2049/tcp
 RECON
     chown -R "${u}:${u}" "/home/${u}/loot"
 done
+
+_add_route() {
+    local dest="$1" gw="$2"
+    for _i in 1 2 3 4 5; do
+        ip route replace "$dest" via "$gw" 2>/dev/null && return 0
+        sleep 1
+    done
+    echo "[entrypoint] WARNING: could not add route $dest via $gw" >&2
+}
+_add_route 10.10.5.0/24 10.10.0.200
 
 mkdir -p /run/rpcbind
 rpcbind -w

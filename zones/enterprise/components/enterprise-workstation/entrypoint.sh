@@ -157,4 +157,15 @@ chown -R bursardesk:bursardesk /home/bursardesk/.ssh
 chmod 700 /home/bursardesk/.ssh
 chmod 600 /home/bursardesk/.ssh/known_hosts
 
+_add_route() {
+    local dest="$1" gw="$2"
+    for _i in 1 2 3 4 5; do
+        ip route replace "$dest" via "$gw" 2>/dev/null && return 0
+        sleep 1
+    done
+    echo "[entrypoint] WARNING: could not add route $dest via $gw" >&2
+}
+# Dual-homed (enterprise + operational); only non-adjacent zones need explicit routes.
+_add_route 10.10.5.0/24 10.10.1.202
+
 /usr/sbin/sshd -D

@@ -12,6 +12,7 @@ start.sh
 stop.sh
 infrastructure/firewall.sh
 infrastructure/networks/docker-compose.yml
+infrastructure/routers/generated/
 zones/enterprise/docker-compose.yml
 zones/operational/docker-compose.yml
 zones/control/docker-compose.yml

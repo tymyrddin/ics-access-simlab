@@ -69,7 +69,7 @@ ics_wan (10.10.4.0/24)                          OT/RTU network (city cellular, n
 
 ### Pending
 
-- Routers [ ]: Per-zone router containers. No impact on subnets or Docker networks. Add after current phase is stable and tested.
+- Routers [x]: Five router containers, one per trust boundary, each dual-homed across two zone networks. Enforce inter-zone policy via iptables FORWARD rules within their own network namespace. No host-level forwarding required; `./ctl firewall` now only hides Docker gateway IPs (ICS_HIDE_GW chain).
 - Field devices zone [ ]: WAN zone (ics_wan 10.10.4.0/24). City RTUs, smart grid end devices, substation equipment. Deferred; per-vendor/per-firmware implementations when the time comes.
 
 ## Attack chains
@@ -139,7 +139,21 @@ ponders-machine → substation-rtu:8080 (no-auth REST API)
 
 ## Routers
 
-Per-zone router containers will provide realistic inter-zone routing behaviour. Subnets and Docker networks are unchanged; routers sit at zone boundaries and handle forwarding. Implementation deferred until current phase is stable and attack chains have been tested end-to-end.
+Five router containers sit at zone trust boundaries, each dual-homed across exactly two zone networks:
+
+| Container      | Zone A (IP)          | Zone B (IP)          | Policy                                           |
+|----------------|----------------------|----------------------|--------------------------------------------------|
+| inet-dmz-fw    | ics_internet .200    | ics_dmz .200         | internet to DMZ open; DMZ to internet DROP       |
+| dmz-ent-fw     | ics_dmz .201         | ics_enterprise .201  | ssh-bastion only; enterprise to DMZ web ports    |
+| ent-ops-fw     | ics_enterprise .202  | ics_operational .202 | enterprise to historian/scada/eng-ws; OT transit |
+| ops-ctrl-fw    | ics_operational .203 | ics_control .203     | eng-ws to control:502 only                       |
+| ops-wan-router | ics_operational .204 | ics_wan .204         | scada+eng-ws to wan:502+161 only                 |
+
+Each router runs Alpine + iptables. Static files live in `infrastructure/routers/` (Dockerfile, entrypoint.sh). ACL scripts and docker-compose are generated into `infrastructure/routers/generated/` (gitignored) by `generate.py`.
+
+Docker sets `iptables -P FORWARD DROP` and the nft backend does not honour DOCKER-USER ACCEPT rules for cross-bridge traffic. The router containers solve this by being dual-homed: forwarding happens inside each router's own network namespace, not at the host kernel level.
+
+`./ctl firewall` no longer enforces zone policy. It only applies the ICS_HIDE_GW chain, which hides Docker bridge gateway IPs (10.10.x.1) from CTF containers. The lab works correctly without it; running it is optional and improves CTF realism.
 
 
 ## Stale artefacts

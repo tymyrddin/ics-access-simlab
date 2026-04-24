@@ -48,7 +48,7 @@ print(c.get('attacker_machine', {}).get('auth_mode', 'key'))
 
 _compose_up() {
     local f="$1"; shift
-    [ -f "$f" ] && docker compose -f "$f" up -d "$@"
+    [ -f "$f" ] && docker compose -f "$f" up -d --build "$@"
 }
 
 _compose_down() {
@@ -100,14 +100,17 @@ case "$CMD" in
     echo "[ctl] Starting shared networks ..."
     docker compose -f infrastructure/networks/docker-compose.yml up -d
 
+    echo "[ctl] Starting zone routers ..."
+    _compose_up infrastructure/routers/generated/docker-compose.yml
+
     echo "[ctl] Starting enterprise zone ..."
-    docker compose -f zones/enterprise/docker-compose.yml up -d
+    docker compose -f zones/enterprise/docker-compose.yml up -d --build
 
     echo "[ctl] Starting operational zone ..."
-    docker compose -f zones/operational/docker-compose.yml up -d
+    docker compose -f zones/operational/docker-compose.yml up -d --build
 
     echo "[ctl] Starting control zone ..."
-    docker compose -f zones/control/docker-compose.yml up -d
+    docker compose -f zones/control/docker-compose.yml up -d --build
 
     echo "[ctl] Starting DMZ zone ..."
     _compose_up zones/dmz/docker-compose.yml
@@ -140,6 +143,8 @@ case "$CMD" in
     _compose_down zones/control/docker-compose.yml
     _compose_down zones/operational/docker-compose.yml
     _compose_down zones/enterprise/docker-compose.yml
+    echo "[ctl] Stopping zone routers ..."
+    _compose_down infrastructure/routers/generated/docker-compose.yml
     _compose_down infrastructure/networks/docker-compose.yml
     docker network prune -f
     ;;
@@ -240,6 +245,7 @@ EOF
     rm -f start.sh stop.sh
     rm -f infrastructure/networks/docker-compose.yml
     rm -f infrastructure/firewall.sh
+    rm -rf infrastructure/routers/generated/
     rm -f zones/enterprise/docker-compose.yml
     rm -f zones/operational/docker-compose.yml
     rm -f zones/control/docker-compose.yml
@@ -254,9 +260,11 @@ EOF
     echo "[ctl] Removing containers and images ..."
     _compose_purge zones/internet/components/attacker-machine/docker-compose.yml
     _compose_purge zones/internet/docker-compose.yml
+    _compose_purge zones/dmz/docker-compose.yml
     _compose_purge zones/control/docker-compose.yml
     _compose_purge zones/operational/docker-compose.yml
     _compose_purge zones/enterprise/docker-compose.yml
+    _compose_purge infrastructure/routers/generated/docker-compose.yml
     _compose_purge infrastructure/networks/docker-compose.yml
     echo "[ctl] Pruning Docker build cache ..."
     docker builder prune -f

@@ -245,6 +245,35 @@ if __name__ == "__main__":
     main()
 EOF
 
+cat > "$PROFILE/Tools/mqtt_check.py" << 'EOF'
+#!/usr/bin/env python3
+"""
+MQTT telemetry subscriber.
+Usage: python3 mqtt_check.py [broker_ip [topic]]
+Default: 10.10.3.60, topic uupl/turbine/telemetry
+"""
+import sys
+import paho.mqtt.client as mqtt
+
+BROKER = sys.argv[1] if len(sys.argv) > 1 else "10.10.3.60"
+TOPIC  = sys.argv[2] if len(sys.argv) > 2 else "uupl/turbine/telemetry"
+
+
+def on_message(client, userdata, msg):
+    print(msg.topic, msg.payload.decode())
+
+
+c = mqtt.Client(mqtt.CallbackAPIVersion.VERSION1)
+c.on_message = on_message
+c.connect(BROKER, 1883)
+c.subscribe(TOPIC)
+print(f"Subscribed to {TOPIC} on {BROKER}:1883  (Ctrl-C to stop)")
+try:
+    c.loop_forever()
+except KeyboardInterrupt:
+    pass
+EOF
+
 # ── PLC project file ──────────────────────────────────────────────────────────
 
 cat > "$PROFILE/Projects/PLC/turbine_controller.project" << 'PROJ'
@@ -484,6 +513,7 @@ ssh scada_admin@10.10.2.20
 nmap -sV 10.10.3.0/24
 python Tools\modbus_read.py 10.10.3.51 502 holding 0
 python Tools\modbus_read.py 10.10.3.52 502 holding 0
+python Tools\mqtt_check.py
 cd backups
 dir
 HIST
@@ -688,6 +718,18 @@ chmod 600 "$PROFILE/config/plc-access.conf"
 chmod 600 "$PROFILE/backups/PLC_Backup_2019.tar.gz"
 chmod 750 "$PROFILE/Tools/send_alarm.ps1"
 chmod 644 "$PROFILE/Tools/modbus_read.py" "$PROFILE/Tools/modbus_write.py"
+
+_add_route() {
+    local dest="$1" gw="$2"
+    for _i in 1 2 3 4 5; do
+        ip route replace "$dest" via "$gw" 2>/dev/null && return 0
+        sleep 1
+    done
+    echo "[entrypoint] WARNING: could not add route $dest via $gw" >&2
+}
+_add_route 10.10.1.0/24 10.10.2.202
+_add_route 10.10.4.0/24 10.10.2.204
+_add_route 10.10.5.0/24 10.10.2.202
 
 cron
 /usr/sbin/sshd -D

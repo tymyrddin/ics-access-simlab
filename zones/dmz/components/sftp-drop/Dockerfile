@@ -1,10 +1,12 @@
 FROM atmoz/sftp:debian
 # User: anonymous / password: anonymous
 # Upload directory: /home/anonymous/upload (world-writable)
-# No chroot jail — directory traversal via ../ is possible.
+# No chroot jail, directory traversal via ../ is possible.
 # rsyslog forwards auth events (login failures, SFTP sessions) to scribes-post at 10.10.5.32:514.
+# sshd requires root (binds port 22, manages auth); root is justified here.
+USER root
 RUN apt-get update && \
-    apt-get install -y --no-install-recommends rsyslog && \
+    apt-get install -y --no-install-recommends iproute2 rsyslog && \
     rm -rf /var/lib/apt/lists/*
 COPY users.conf /etc/sftp/users.conf
 COPY rsyslog-forward.conf /etc/rsyslog.d/50-forward.conf
