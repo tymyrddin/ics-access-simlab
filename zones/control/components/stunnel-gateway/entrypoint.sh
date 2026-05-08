@@ -9,7 +9,9 @@ CONF=/etc/stunnel/stunnel.conf
 # Write config from template (already copied to CONF by compose volume mount)
 sed "s|FORWARD_TARGET|${FORWARD_TARGET}|g" /run/stunnel/stunnel.conf > "${CONF}"
 
-chmod 600 /run/stunnel/server.key
+# server.key is already 600 from orchestrator/generate.py and the volume is
+# mounted :ro, so any chmod here would either be a no-op or crash the
+# entrypoint under set -eu. Trust the source perms.
 
 _add_route() {
     local dest="$1" gw="$2"

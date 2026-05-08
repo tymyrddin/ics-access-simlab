@@ -1,4 +1,4 @@
-# Inter-zone routing policy — reference only
+# Inter-zone routing policy, reference only
 #
 # Zone enforcement is handled by the five router containers in
 # infrastructure/routers/. Each router sits at a trust boundary, is dual-homed

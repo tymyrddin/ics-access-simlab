@@ -1,5 +1,5 @@
 """
-UU P&L Distribution SCADA — operator dashboard
+UU P&L Distribution SCADA, operator dashboard
 
 Pulls current plant state from the historian and displays it.
 Protected by HTTP Basic Auth. Credentials: admin / admin.
@@ -67,7 +67,7 @@ def dashboard():
                     "unit": last[2] if len(last) > 2 else "",
                 })
         except Exception:
-            status_rows.append({"asset": asset, "timestamp": "—", "value": "error", "unit": ""})
+            status_rows.append({"asset": asset, "timestamp": ",", "value": "error", "unit": ""})
 
     return render_template_string(DASHBOARD_TEMPLATE, rows=status_rows, historian=HISTORIAN_IP)
 
@@ -78,7 +78,7 @@ DASHBOARD_TEMPLATE = """
 <head><title>UU P&L Distribution SCADA</title></head>
 <body>
 <h2>Unseen University Power &amp; Light Co.</h2>
-<h3>City-Wide Distribution — Operator Dashboard</h3>
+<h3>City-Wide Distribution, Operator Dashboard</h3>
 <p>Historian: {{ historian }} &nbsp;|&nbsp;
    <a href="/historian-pass">historian credentials</a></p>
 <table border="1" cellpadding="4">
@@ -92,7 +92,7 @@ DASHBOARD_TEMPLATE = """
   </tr>
   {% endfor %}
 </table>
-<p><small>UU P&L SCADA v2.1 — Hex Computing Division</small></p>
+<p><small>UU P&L SCADA v2.1, Hex Computing Division</small></p>
 </body>
 </html>
 """
@@ -115,9 +115,9 @@ def config_dump():
     Contains historian read credentials and alarm SMTP relay settings.
     """
     return Response(
-        "# UU P&L SCADA — Connection Configuration\n"
+        "# UU P&L SCADA, Connection Configuration\n"
         "# Written: 2021-08-14  Author: I. Devious, Hex IT\n"
-        "# DO NOT DISTRIBUTE — contains service credentials\n"
+        "# DO NOT DISTRIBUTE, contains service credentials\n"
         "\n"
         f"[historian]\n"
         f"host     = {HISTORIAN_IP}\n"

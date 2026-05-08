@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Enterprise workstation — Windows 10 PowerShell facade
+# Enterprise workstation, Windows 10 PowerShell facade
 # Presents a Windows 10 PowerShell prompt over SSH.
 # Virtual C: drive lives at /opt/win10/C with proper mixed-case names.
 
@@ -252,7 +252,7 @@ cmd_curl() {
 }
 
 cmd_iwr() {
-    # Invoke-WebRequest — minimal passthrough to curl
+    # Invoke-WebRequest, minimal passthrough to curl
     # Strips PS-style named params and extracts URI
     local uri="" headers=() outfile=""
     while [[ $# -gt 0 ]]; do
@@ -365,7 +365,7 @@ cat << 'LOGON'
 *******************************************************************************
 *                                                                             *
 *   Unseen University Power & Light Co.                                       *
-*   BURSAR-DESK — Corporate Workstation                                       *
+*   BURSAR-DESK, Corporate Workstation                                       *
 *                                                                             *
 *   This system is provided for authorised UU P&L business use only.         *
 *   Unauthorised access is prohibited. Usage may be monitored.                *

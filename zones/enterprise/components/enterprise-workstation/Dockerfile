@@ -1,4 +1,4 @@
-# enterprise-workstation — Windows 10 corporate desktop
+# enterprise-workstation, Windows 10 corporate desktop
 #
 # A workstation that accumulated access over time. Originally provisioned for
 # the finance department. At some point given network access to operational
@@ -6,7 +6,7 @@
 #
 # Presents a Windows 10 PowerShell facade over SSH. The filesystem lives at
 # /opt/win10/C with a realistic Windows user profile structure.
-# The issues are not in the OS — they are in what was left in the profile
+# The issues are not in the OS, they are in what was left in the profile
 # by people who needed to get things done quickly.
 
 FROM debian:bookworm-slim

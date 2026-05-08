@@ -42,5 +42,3 @@ books/*
 # captured traffic — too large for git
 data/pcap/
 .idea/
-settings.local.json
-CLAUDE.md

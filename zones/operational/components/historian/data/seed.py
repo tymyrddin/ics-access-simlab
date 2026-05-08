@@ -15,7 +15,7 @@ import random
 from datetime import datetime, timedelta
 
 ICS_ASSETS = {
-    # UU P&L IED network — Hex Steam Turbine + protective relay IEDs.
+    # UU P&L IED network, Hex Steam Turbine + protective relay IEDs.
     # Asset names match the HIL physical_values and IED register names in
     # zones/control/config/uupl_ied/. Normal operating ranges derived from
     # turbine_hil.py constants: RPM_NOMINAL=3000, TEMP_NOMINAL=420, PRESSURE_NOMINAL=85,

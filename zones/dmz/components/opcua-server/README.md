@@ -113,7 +113,7 @@ c = Client("opc.tcp://10.10.5.13:4840")
 c.connect()
 # Browse objects to find the pump node
 objects = c.get_objects_node()
-# Call stopPump method on the pump object — exact NodeId depends on the server tree
+# Call stopPump method on the pump object, exact NodeId depends on the server tree
 pump_node = objects.get_child(["..."])
 pump_node.call_method("stopPump")
 ```

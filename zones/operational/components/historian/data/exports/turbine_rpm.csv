@@ -1,4 +1,4 @@
-# UU P&L Historian — pre-generated export
+# UU P&L Historian, pre-generated export
 # asset: turbine_rpm   unit: RPM   generated: 2026-03-01T00:00:01
 # normal operating range: 2850–3150 RPM   trip: 3300 RPM
 timestamp,value,unit

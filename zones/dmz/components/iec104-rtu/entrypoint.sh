@@ -5,4 +5,4 @@ ip route replace default via 10.10.5.201 || {
     exit 1
 }
 ip route replace 10.10.0.0/24 via 10.10.5.200 2>/dev/null || true
-exec dotnet IEC60870-5-104-simulator.API.dll
+exec python3 /app/rtu_server.py

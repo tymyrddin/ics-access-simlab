@@ -1,4 +1,4 @@
-Network access notes — DO NOT leave on shared systems
+Network access notes, DO NOT leave on shared systems
 ======================================================
 
 VPN connects automatically on login. Config: ~/.vpn/uupl-vpn.conf
@@ -10,7 +10,7 @@ Historian web: http://10.10.2.10:8080
   (ask Stibbons for credentials if you need them)
 
 SCADA web: http://10.10.2.20:8080
-  admin/admin — yes really, IT said they'd fix it in the next maintenance window
+  admin/admin, yes really, IT said they'd fix it in the next maintenance window
 
 Legacy system: 10.10.1.10
   FTP anonymous read works, SMB share is open

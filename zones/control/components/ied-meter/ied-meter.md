@@ -126,7 +126,7 @@ information. Community string `private` allows write access.
 |---------|------------------|------|-------------------------------|
 | 0       | voltage_v        | V    | Line voltage, Feeder A        |
 | 1       | current_a        | A    | Line current, Feeder A        |
-| 2       | frequency_hz_x10 | —    | e.g. 500 = 50.0 Hz            |
+| 2       | frequency_hz_x10 |,    | e.g. 500 = 50.0 Hz            |
 | 3       | power_kw         | kW   | Computed: V × I × 0.95 / 1000 |
 | 4       | power_factor_pct | %    | Fixed at 95                   |
 

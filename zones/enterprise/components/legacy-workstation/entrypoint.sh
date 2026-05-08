@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # legacy-workstation entrypoint
 # Configures and starts services as they would have been in a 1990s Windows shop.
-# Nothing here is intentionally broken — it's intentionally correct for its era.
+# Nothing here is intentionally broken, it's intentionally correct for its era.
 set -e
 
 # --- Samba ---
@@ -37,7 +37,7 @@ cat > /etc/samba/smb.conf << 'EOF'
     comment = Administration
 EOF
 
-# Local user — password set at build time in the realistic weak way
+# Local user, password set at build time in the realistic weak way
 # (short, dictionary word, matches what's on a sticky note somewhere)
 useradd -M -s /bin/false Administrator 2>/dev/null || true
 echo "Administrator:hex123" | chpasswd
@@ -140,9 +140,9 @@ SubnetMask=255.255.255.0
 DefaultGateway=10.10.1.1
 EOF
 
-# UUPL\ — public operational data, the first goldmine
+# UUPL\, public operational data, the first goldmine
 cat > /opt/legacy/C/UUPL/NETWORK.TXT << 'EOF'
-UU P&L Network Inventory — Hex Computing Division
+UU P&L Network Inventory, Hex Computing Division
 Last updated: Q3 1999 (Ponder Stibbons)
 
 === NETWORK SEGMENTS ===
@@ -154,8 +154,8 @@ Operations Floor (Building B Basement)
 
 Engineering (Building A, Level 2)
   Gateway:        10.10.2.1
-  ENG-WS-01:      10.10.2.30   (Ponder Stibbons — DO NOT REBOOT WITHOUT WARNING)
-  ENG-WS-02:      10.10.2.31   (Spare — often borrowed by Archchancellor)
+  ENG-WS-01:      10.10.2.30   (Ponder Stibbons, DO NOT REBOOT WITHOUT WARNING)
+  ENG-WS-02:      10.10.2.31   (Spare, often borrowed by Archchancellor)
 
 Operational Systems
   Historian:      10.10.2.10   (HISTORIAN-01, web API :8080)
@@ -194,7 +194,7 @@ Archchancellor   ext 100  (emergencies only; define carefully)
 EOF
 
 cat > /opt/legacy/C/UUPL/PROCS.TXT << 'EOF'
-UU P&L Hex Turbine -- Standard Operating Procedures
+UU P&L Hex Turbine, Standard Operating Procedures
 Last reviewed: 2019-11-12 / P. Stibbons
 
 PROCEDURE: Turbine Start-up
@@ -229,10 +229,10 @@ timestamp,asset,event,value,unit,operator
 2003-11-12T09:11:22,ied_relay_a,config_write,1,,ponder_stibbons
 EOF
 
-# LOGBOOK\ — engineering logbook with sticky-note passwords
+# LOGBOOK\, engineering logbook with sticky-note passwords
 cat > /opt/legacy/C/LOGBOOK/ENGINEER.LOG << 'EOF'
-=== ENGINEERING LOGBOOK -- UU P&L HEX TURBINE DIVISION ===
-(Ponder Stibbons' informal notes -- do not bin this)
+=== ENGINEERING LOGBOOK, UU P&L HEX TURBINE DIVISION ===
+(Ponder Stibbons' informal notes, do not bin this)
 
 SYSTEM PASSWORDS (last updated 2019-11-12)
 ------------------------------------------
@@ -259,15 +259,15 @@ CONTACTS
 Ponder Stibbons  ext 201
 Sgt Colon        ext 105 (operations floor, knows where the modem numbers are)
 The Librarian    (server room, do not disturb without bananas)
-Archchancellor   ext 100 (emergencies only -- define carefully)
+Archchancellor   ext 100 (emergencies only, define carefully)
 EOF
 
-# PRIVATE\ — restricted, but Win95 had no local file permissions.
+# PRIVATE\, restricted, but Win95 had no local file permissions.
 # Anyone who gets a shell gets everything.
 cat > /opt/legacy/C/PRIVATE/PLCACCS.CFG << 'EOF'
-; UU P&L -- PLC and System Access Credentials
+; UU P&L, PLC and System Access Credentials
 ; Maintained by Ponder Stibbons (last updated 2019-11-12)
-; DO NOT DISTRIBUTE -- authorised staff only
+; DO NOT DISTRIBUTE, authorised staff only
 
 [engineering_workstation]
 host     = 10.10.2.30
@@ -319,9 +319,9 @@ usermod -s /usr/local/bin/win95shell.sh root
 # and were migrated without review when the hardware was replaced.
 
 cat > /srv/smb/private/plc-access.conf << 'EOF'
-# UU P&L -- PLC and System Access Credentials
+# UU P&L, PLC and System Access Credentials
 # Maintained by Ponder Stibbons (last updated 2019-11-12)
-# DO NOT DISTRIBUTE -- authorised staff only
+# DO NOT DISTRIBUTE, authorised staff only
 
 [engineering_workstation]
 host     = 10.10.2.30

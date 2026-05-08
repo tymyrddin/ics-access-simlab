@@ -1,4 +1,4 @@
-# UU P&L Protective Relay IED — SNMP agent
+# UU P&L Protective Relay IED, SNMP agent
 # Default community strings. Write access via "private" is a known issue;
 # "there has been no operational requirement to change it."
 

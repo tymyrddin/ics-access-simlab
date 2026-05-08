@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# SCADA server — Windows Server 2016 facade
+# SCADA server, Windows Server 2016 facade
 # Presents a Windows Server 2016 PowerShell prompt over SSH.
 # Virtual C: drive lives at /opt/winsvr/C.
 
@@ -211,7 +211,7 @@ cat << 'LOGON'
 *******************************************************************************
 *                                                                             *
 *   Unseen University Power & Light Co.                                       *
-*   SCADA-SRV01 — Distribution SCADA Server (Windows Server 2016)            *
+*   SCADA-SRV01, Distribution SCADA Server (Windows Server 2016)            *
 *                                                                             *
 *   Authorised UU P&L personnel only. Usage is monitored and logged.         *
 *   Contact: Ponder Stibbons (ext 201) for access requests.                  *

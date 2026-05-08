@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Historian — Windows Server 2019 facade
+# Historian, Windows Server 2019 facade
 # Presents a Windows Server 2019 PowerShell prompt over SSH.
 # Virtual C: drive lives at /opt/winsvr/C.
 
@@ -256,7 +256,7 @@ cat << 'LOGON'
 *******************************************************************************
 *                                                                             *
 *   Unseen University Power & Light Co.                                       *
-*   HIST-SRV01 — Process Historian Server (Windows Server 2019)              *
+*   HIST-SRV01, Process Historian Server (Windows Server 2019)              *
 *                                                                             *
 *   This system stores all plant time-series data since 1997.                *
 *   Authorised personnel only. Contact: Ponder Stibbons (ext 201).           *

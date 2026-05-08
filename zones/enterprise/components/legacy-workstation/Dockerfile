@@ -1,11 +1,11 @@
-# legacy-workstation — Win95-era service stack
+# legacy-workstation, Win95-era service stack
 #
 # Simulates a workstation running software from an era when network services
 # were designed for connectivity, not security. Samba, FTP, and Telnet are
 # configured as they would have been in the late 1990s: openly, with the
 # assumption that anyone on the network belongs there.
 #
-# The attack surface here is not a misconfiguration — it's correct operation
+# The attack surface here is not a misconfiguration, it's correct operation
 # for the era. Nobody changed it because it kept working.
 
 FROM debian:bookworm-slim

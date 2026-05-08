@@ -41,7 +41,7 @@ Web service endpoints:
 | `/`               | GET    | admin/admin | Live dashboard, polls historian for plant state  |
 | `/config`         | GET    | admin/admin | Connection config dump with credentials          |
 | `/historian-pass` | GET    | admin/admin | Proxies historian SQLi-exploitable /report call  |
-| 404 and others    | —      | —           | `X-Powered-By` header present on all responses   |
+| 404 and others    |,      |,           | `X-Powered-By` header present on all responses   |
 
 The virtual Windows filesystem is mounted at `/opt/winsvr/C`. The shell
 presents this as `C:\`. A connection config file, alarm scripts, and PSReadLine
@@ -175,19 +175,19 @@ The realm confirms the application and organisation.
 ### Authenticated endpoint enumeration (admin/admin)
 
 ```
-/               — live dashboard with historian IP visible in page source
-/config         — full credential dump (hist_read, plantmail123, admin/admin)
-/historian-pass — proxied historian response
+/             , live dashboard with historian IP visible in page source
+/config       , full credential dump (hist_read, plantmail123, admin/admin)
+/historian-pass, proxied historian response
 ```
 
 ### Virtual filesystem (SSH as scada_admin / W1nd0ws@2016)
 
 ```
-C:\SCADA\Config\scada.ini            — all credentials incl. SSH password
-C:\SCADA\Config\alarm_recipients.txt — ops-duty@uupl.am, ponder.stibbons@uupl.am
-C:\SCADA\Scripts\send_alarm.bat      — SMTP credentials (plantmail123)
-C:\SCADA\Scripts\poll_historian.ps1  — historian credentials (hist_read/history2017)
-C:\SCADA\Logs\alarm_log_2026.txt     — real alarm events, trip threshold values visible
+C:\SCADA\Config\scada.ini          , all credentials incl. SSH password
+C:\SCADA\Config\alarm_recipients.txt, ops-duty@uupl.am, ponder.stibbons@uupl.am
+C:\SCADA\Scripts\send_alarm.bat    , SMTP credentials (plantmail123)
+C:\SCADA\Scripts\poll_historian.ps1, historian credentials (hist_read/history2017)
+C:\SCADA\Logs\alarm_log_2026.txt   , real alarm events, trip threshold values visible
 ```
 
 PSReadLine history shows prior historian queries and SSH sessions.

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-UU P&L Hex Turbine Controller — HEX-CPU-4000
+UU P&L Hex Turbine Controller, HEX-CPU-4000
 Hex Computing Division, firmware 4.1.2
 
 Protocols:
@@ -274,7 +274,7 @@ def _dnp3_link_frame(sec_fc: int, dst: int, src: int, user_data: bytes = b"") ->
     crc  = _dnp3_crc(hdr)
     frame = hdr + struct.pack("<H", crc)
     if user_data:
-        # Single block (≤16 bytes user data — sufficient for our responses)
+        # Single block (≤16 bytes user data, sufficient for our responses)
         bcrc = _dnp3_crc(user_data)
         frame += user_data + struct.pack("<H", bcrc)
     return frame
@@ -420,7 +420,7 @@ async def mqtt_publish_loop(store):
 
     Uses paho-mqtt in a thread executor to avoid blocking the event loop.
     Best-effort: MQTT unavailability is silently ignored so the PLC keeps running.
-    allow_anonymous=true on the broker — no credentials required.
+    allow_anonymous=true on the broker, no credentials required.
     """
     import paho.mqtt.client as mqtt
 

@@ -334,7 +334,7 @@ enterprise → wan                       DROP
 eng_ws → control:502                   ACCEPT   (Modbus maintenance from eng workstation)
 operational → control (rest)           DROP
 
-scada → wan:502                        ACCEPT   (Modbus poll — crosses ics_operational → ics_wan)
+scada → wan:502                        ACCEPT   (Modbus poll, crosses ics_operational → ics_wan)
 eng_ws → wan:502                       ACCEPT
 scada → wan:161/udp                    ACCEPT   (SNMP)
 eng_ws → wan:161/udp                   ACCEPT

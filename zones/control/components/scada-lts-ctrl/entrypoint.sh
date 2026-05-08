@@ -10,7 +10,7 @@ CONF="/etc/stunnel/scadalts-ctrl-client.conf"
 
 sed "s|GATEWAY_HOST|${GATEWAY_HOST}|g" "${CONF_TEMPLATE}" > "${CONF}"
 
-# World-readable key — HEX-5103 (risk accepted 2020).
+# World-readable key, HEX-5103 (risk accepted 2020).
 chmod 644 "${CERT_DIR}/client.key"
 chmod 644 "${CERT_DIR}/client.crt"
 chmod 644 "${CERT_DIR}/ca.crt"

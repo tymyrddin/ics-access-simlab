@@ -1,4 +1,4 @@
-UU P&L Network Inventory — Hex Computing Division
+UU P&L Network Inventory, Hex Computing Division
 Last updated: Q3 1999 (Ponder Stibbons)
 
 === NETWORK SEGMENTS ===
@@ -10,8 +10,8 @@ Operations Floor (Building B Basement)
 
 Engineering (Building A, Level 2)
   Gateway:        10.0.1.1
-  ENG-WS-01:      10.0.1.20   (Ponder Stibbons — DO NOT REBOOT WITHOUT WARNING)
-  ENG-WS-02:      10.0.1.21   (Spare — often borrowed by Archchancellor)
+  ENG-WS-01:      10.0.1.20   (Ponder Stibbons, DO NOT REBOOT WITHOUT WARNING)
+  ENG-WS-02:      10.0.1.21   (Spare, often borrowed by Archchancellor)
 
 Turbine Control (Basement Sub-Level 3)
   NOTE: Separate network, air-gapped in theory.

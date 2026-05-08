@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-UU P&L Hex Turbine Control System — Operator Terminal
+UU P&L Hex Turbine Control System, Operator Terminal
 Hex Computing Division HMI v2.3.1
 
 This script is the login shell for the 'operator' account.
@@ -70,12 +70,12 @@ def read_state():
 def render(s):
     os.system("clear")
     print(f"{B}╔══════════════════════════════════════════════════════════════╗{RS}")
-    print(f"{B}║  UU P&L HEX TURBINE CONTROL SYSTEM  —  OPERATOR TERMINAL    ║{RS}")
+    print(f"{B}║  UU P&L HEX TURBINE CONTROL SYSTEM,  OPERATOR TERMINAL    ║{RS}")
     print(f"{B}║  Hex Computing Division HMI v2.3.1   {C}10.10.3.10{RS}{B}             ║{RS}")
     print(f"{B}╠══════════════════════════════════════════════════════════════╣{RS}")
 
     if s is None:
-        print(f"{B}║  {R}** PLC OFFLINE — CANNOT REACH {PLC_IP} **{RS}{B}               ║{RS}")
+        print(f"{B}║  {R}** PLC OFFLINE, CANNOT REACH {PLC_IP} **{RS}{B}               ║{RS}")
         print(f"{B}╚══════════════════════════════════════════════════════════════╝{RS}")
         return
 

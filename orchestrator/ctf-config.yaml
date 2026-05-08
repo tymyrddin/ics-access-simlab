@@ -1,7 +1,7 @@
-# ICS-SimLab Extended — Environment Configuration
+# ICS-SimLab Extended, Environment Configuration
 # Unseen University Power & Light Co., Ankh-Morpork
 #
-# This file controls WHAT is deployed — topology, addressing, component variants.
+# This file controls WHAT is deployed, topology, addressing, component variants.
 # It does not control how vulnerable things are. Vulnerabilities are properties
 # of the simulated systems, baked into their implementations.
 #
@@ -25,7 +25,7 @@ ics_process: uupl_ied
 # Network addressing.
 # Change subnets here if they conflict with your host network.
 networks:
-  # Internet — the public network / city network.
+  # Internet, the public network / city network.
   # The attacker machine is always on this. Future: adversary-side endpoints, external probes.
   # A misconfigured RTU that ends up here is an RTU-level problem, not a network flag.
   internet:
@@ -40,7 +40,7 @@ networks:
   control:
     subnet: 10.10.3.0/24
     docker_name: ics_control
-  # WAN — the OT/RTU network.
+  # WAN, the OT/RTU network.
   # RTUs are on this because they use public cellular IPs with no private APN and no VPN.
   # SCADA polls RTUs outbound over this network.
   # Enterprise cannot reach WAN directly.
@@ -109,17 +109,17 @@ operational_zone:
 
 attacker_machine:
   hostname: unseen-gate
-  internet_ip: 10.10.0.5   # public-facing (ics_internet) — attacker machine only
+  internet_ip: 10.10.0.5   # public-facing (ics_internet), attacker machine only
   ssh_host_port: 2222       # local dev: avoids conflict with host sshd on port 22
                             # Hetzner: change to 22 (setup.sh moves host sshd to 2222)
 
   # auth_mode controls how participants authenticate to the attacker machine.
   #
-  #   key      (default) — pubkey only; keys mounted from adversary-keys at runtime.
+  #   key      (default), pubkey only; keys mounted from adversary-keys at runtime.
   #                        Use for self-hosted / Hetzner deployments.
   #                        ./ctl ssh [user] handles key selection automatically.
   #
-  #   password           — password auth; credentials set from accounts below.
+  #   password         , password auth; credentials set from accounts below.
   #                        Use for Root-Me and other platforms that publish
   #                        connection strings (e.g. "ssh ponder@ctf01.root-me.org").
   #                        No key exchange or adversary-keys file needed.
@@ -135,7 +135,7 @@ attacker_machine:
   #   librarian: books
   #   dean:      dean
 
-# Internet Zone — other nodes on the public network
+# Internet Zone, other nodes on the public network
 # admin_home simulates a remote administrator's machine with VPN access to enterprise.
 # The dual-homing IS the VPN tunnel; the .vpn/uupl-vpn.conf on board is cosmetic loot.
 internet_zone:
@@ -158,7 +158,7 @@ control_zone:
       ip: 10.10.3.10
       implementation: scada-lts-ctrl
       env:
-        PLC_IP: "10.10.3.21"   # informational — Scada-LTS polls via stunnel on localhost:5020
+        PLC_IP: "10.10.3.21"   # informational, Scada-LTS polls via stunnel on localhost:5020
 
     - name: turbine_plc
       hostname: hex-turbine-plc
@@ -246,12 +246,12 @@ control_zone:
       ip: 10.10.3.60
       implementation: mosquitto-broker
 
-# Field Devices Zone — DEFERRED
+# Field Devices Zone, DEFERRED
 # City RTUs, smart grid end devices, and substation equipment are built later,
 # with per-vendor/per-firmware implementations. Do not add stubs here.
 # field_devices_zone: (deferred)
 
-# DMZ Zone — Guild Quarter
+# DMZ Zone, Guild Quarter
 # Between internet and enterprise. Externally-facing attack surface.
 # Devices simulate realistic boundary infrastructure with intentional misconfigurations.
 dmz_zone:

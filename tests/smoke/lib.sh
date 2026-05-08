@@ -98,16 +98,24 @@ ssh_password_login() {
     local runner="$1" user="$2" host="$3" pass="$4"
     local cmd="${5:-}"
     docker exec "$runner" "$SSH_RUNNER_PY" -c "
-import sys, paramiko
+import sys, time, paramiko
 c = paramiko.SSHClient()
 c.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-try:
-    c.connect('$host', username='$user', password='$pass', timeout=5,
-              allow_agent=False, look_for_keys=False)
-except paramiko.AuthenticationException:
-    print('AUTH_FAILED'); sys.exit(1)
-except Exception as e:
-    print('CONNECT_ERROR:', e); sys.exit(1)
+last_err = None
+for _ in range(3):
+    try:
+        c.connect('$host', username='$user', password='$pass', timeout=5,
+                  allow_agent=False, look_for_keys=False)
+        last_err = None
+        break
+    except paramiko.AuthenticationException:
+        # Real auth failure: do not retry, do not mask.
+        print('AUTH_FAILED'); sys.exit(1)
+    except Exception as e:
+        last_err = e
+        time.sleep(1)
+if last_err is not None:
+    print('CONNECT_ERROR:', last_err); sys.exit(1)
 cmd = '''$cmd'''
 if cmd:
     _, out, _ = c.exec_command(cmd, timeout=5)
@@ -125,17 +133,24 @@ ssh_key_login() {
     local runner="$1" user="$2" host="$3" keypath="$4"
     local cmd="${5:-}"
     docker exec "$runner" "$SSH_RUNNER_PY" -c "
-import sys, paramiko
+import sys, time, paramiko
 c = paramiko.SSHClient()
 c.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-try:
-    k = paramiko.Ed25519Key.from_private_key_file('$keypath')
-    c.connect('$host', username='$user', pkey=k, timeout=5,
-              allow_agent=False, look_for_keys=False)
-except paramiko.AuthenticationException:
-    print('AUTH_FAILED'); sys.exit(1)
-except Exception as e:
-    print('CONNECT_ERROR:', e); sys.exit(1)
+k = paramiko.Ed25519Key.from_private_key_file('$keypath')
+last_err = None
+for _ in range(3):
+    try:
+        c.connect('$host', username='$user', pkey=k, timeout=5,
+                  allow_agent=False, look_for_keys=False)
+        last_err = None
+        break
+    except paramiko.AuthenticationException:
+        print('AUTH_FAILED'); sys.exit(1)
+    except Exception as e:
+        last_err = e
+        time.sleep(1)
+if last_err is not None:
+    print('CONNECT_ERROR:', last_err); sys.exit(1)
 cmd = '''$cmd'''
 if cmd:
     _, out, _ = c.exec_command(cmd, timeout=5)
@@ -158,30 +173,45 @@ ssh_password_login_via_jump() {
     local tuser="$5" thost="$6" tpass="$7"
     local cmd="${8:-}"
     docker exec "$runner" "$SSH_RUNNER_PY" -c "
-import sys, paramiko
+import sys, time, paramiko
+
+def connect_with_retry(client, host, **kwargs):
+    last = None
+    for _ in range(3):
+        try:
+            client.connect(host, **kwargs)
+            return None
+        except paramiko.AuthenticationException as e:
+            return ('auth', e)
+        except Exception as e:
+            last = e
+            time.sleep(1)
+    return ('connect', last)
+
 jump = paramiko.SSHClient()
 jump.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-try:
-    jump.connect('$jhost', username='$juser', password='$jpass', timeout=5,
-                 allow_agent=False, look_for_keys=False)
-except paramiko.AuthenticationException:
+err = connect_with_retry(jump, '$jhost', username='$juser', password='$jpass',
+                         timeout=5, allow_agent=False, look_for_keys=False)
+if err and err[0] == 'auth':
     print('JUMP_AUTH_FAILED'); sys.exit(1)
-except Exception as e:
-    print('JUMP_CONNECT_ERROR:', e); sys.exit(1)
+if err:
+    print('JUMP_CONNECT_ERROR:', err[1]); sys.exit(1)
+
 try:
     chan = jump.get_transport().open_channel(
         'direct-tcpip', ('$thost', 22), ('', 0), timeout=5)
 except Exception as e:
     print('JUMP_CHANNEL_ERROR:', e); sys.exit(1)
+
 target = paramiko.SSHClient()
 target.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-try:
-    target.connect('$thost', username='$tuser', password='$tpass', sock=chan,
-                   timeout=5, allow_agent=False, look_for_keys=False)
-except paramiko.AuthenticationException:
+err = connect_with_retry(target, '$thost', username='$tuser', password='$tpass',
+                         sock=chan, timeout=5, allow_agent=False, look_for_keys=False)
+if err and err[0] == 'auth':
     print('AUTH_FAILED'); sys.exit(1)
-except Exception as e:
-    print('CONNECT_ERROR:', e); sys.exit(1)
+if err:
+    print('CONNECT_ERROR:', err[1]); sys.exit(1)
+
 cmd = '''$cmd'''
 if cmd:
     _, out, _ = target.exec_command(cmd, timeout=5)
@@ -263,7 +293,9 @@ wait_for_port() {
     local runner="$1" host="$2" port="$3" timeout="${4:-30}"
     local i=0
     while [ "$i" -lt "$timeout" ]; do
-        if docker exec "$runner" bash -c "exec 3<>/dev/tcp/$host/$port" 2>/dev/null; then
+        # Each attempt is bounded by 'timeout 2' so a hung TCP connect on a
+        # filtered port does not consume the whole window.
+        if docker exec "$runner" timeout 2 bash -c "exec 3<>/dev/tcp/$host/$port" 2>/dev/null; then
             return 0
         fi
         sleep 1

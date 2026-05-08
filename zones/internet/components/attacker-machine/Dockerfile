@@ -21,6 +21,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     netbase \
     iproute2 \
     sudo \
+    dnsutils \
+    mosquitto-clients \
+    ntp \
+    ntpdate \
     && rm -rf /var/lib/apt/lists/*
 
 # /usr/sbin (showmount, mount.nfs) is not in non-root PATH on Debian bookworm
@@ -35,9 +39,10 @@ RUN python3 -m venv /opt/attacker-env && \
     /opt/attacker-env/bin/pip install --no-cache-dir \
         pymodbus==3.6.9 \
         paramiko \
-        impacket
+        impacket \
+        opcua
 
-# Five adversary accounts: UU research group — key-only auth enforced; keys mounted at runtime
+# Five adversary accounts: UU research group, key-only auth enforced; keys mounted at runtime
 RUN for u in ponder hex ridcully librarian dean; do \
         useradd -m -s /bin/bash "$u"; \
         mkdir -p /home/$u/.ssh; \

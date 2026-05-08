@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-UU P&L Protective Relay IED — REL-200A/B
+UU P&L Protective Relay IED, REL-200A/B
 Hex Computing Division, firmware 2.0.1
 
 Protocols:
@@ -10,7 +10,7 @@ Protocols:
 
 Modbus register map
 -------------------
-Holding Registers (FC3, writable — changing these disables protection):
+Holding Registers (FC3, writable, changing these disables protection):
   0  undervoltage_threshold_v   default 196 (85% of 230V)
   1  overcurrent_threshold_a    default 200
   2  overspeed_threshold_rpm    default 3300

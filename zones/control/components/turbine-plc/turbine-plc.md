@@ -164,10 +164,10 @@ interface information. Community string `private` allows writes.
 | 4       | line_current_a_a      | A    | Feeder A current                    |
 | 5       | line_voltage_b_v      | V    | Feeder B output voltage             |
 | 6       | line_current_b_a      | A    | Feeder B current                    |
-| 7       | frequency_hz_x10      | —    | e.g. 500 = 50.0 Hz                  |
+| 7       | frequency_hz_x10      |,    | e.g. 500 = 50.0 Hz                  |
 | 8       | power_kw              | kW   | Total output power                  |
 | 9       | oil_pressure_bar      | bar  | Lubrication system                  |
-| 10      | vibration_mm_s_x10    | —    | e.g. 12 = 1.2 mm/s                  |
+| 10      | vibration_mm_s_x10    |,    | e.g. 12 = 1.2 mm/s                  |
 
 ## Role in the simulator
 

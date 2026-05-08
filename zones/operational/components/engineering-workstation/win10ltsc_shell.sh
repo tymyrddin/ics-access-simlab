@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Engineering workstation — Windows 10 Enterprise LTSC facade
+# Engineering workstation, Windows 10 Enterprise LTSC facade
 # Presents a Windows 10 LTSC PowerShell prompt over SSH.
 # Virtual C: drive lives at /opt/win10/C.
 # Machine is dual-homed: 10.10.2.30 (ops) and 10.10.3.100 (control).
@@ -224,7 +224,7 @@ cmd_python() {
         echo "Type 'exit()' or Ctrl+D to quit."
         return
     fi
-    # Handle -c "code" — strip one layer of surrounding quotes if present
+    # Handle -c "code", strip one layer of surrounding quotes if present
     if [[ "$args" == "-c "* || "$args" == "-c	"* ]]; then
         local code="${args#-c }"
         code="${code#-c	}"
@@ -252,7 +252,7 @@ cmd_curl() { /usr/bin/curl "$@"; }
 cmd_nmap() { /usr/bin/nmap "$@"; }
 cmd_nc()   { /usr/bin/nc "$@"; }
 
-# Bash functions used by eval "$line" dispatch — handle quoted args correctly
+# Bash functions used by eval "$line" dispatch, handle quoted args correctly
 ssh()  { /usr/bin/ssh -o StrictHostKeyChecking=no "$@"; }
 curl() { /usr/bin/curl "$@"; printf '\n'; }
 wget() { /usr/bin/wget "$@"; printf '\n'; }
@@ -368,7 +368,7 @@ cat << 'LOGON'
 *******************************************************************************
 *                                                                             *
 *   Unseen University Power & Light Co.                                       *
-*   ENG-WS01 — Engineering Workstation (Windows 10 Enterprise LTSC)          *
+*   ENG-WS01, Engineering Workstation (Windows 10 Enterprise LTSC)          *
 *                                                                             *
 *   WARNING: This system has direct access to ICS/OT plant equipment.        *
 *   Authorised engineers only. All activity is logged.                        *

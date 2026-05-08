@@ -1,4 +1,4 @@
-# scada-server — city-wide distribution SCADA
+# scada-server, city-wide distribution SCADA
 #
 # Aggregates plant state from the historian and presents it as an operator
 # dashboard. Added when the Archchancellor asked for "something he could look at

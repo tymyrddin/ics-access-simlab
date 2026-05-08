@@ -1,21 +1,32 @@
-FROM ghcr.io/richyp7/iec60870-5-104-simulator:v0.1.7
-# IEC-60870-5-104 simulator seeded with UUPL substation datapoints.
-# Datapoints represent Dolly Sisters / Nap Hill feeder segment:
-#   feeder_a/b_voltage (TypeId 13, short float): energised feeders ~10.8-11.1 kV
-#   load_current (TypeId 13): moderate load at 340 A
-#   frequency (TypeId 13): 49.98 Hz (slightly off nominal, within normal tolerance)
-#   breaker_a/b_state (TypeId 1, boolean): closed, correlating with non-zero voltage
-# Values are internally consistent: an attacker who sets feeder voltage to 0 while
-# breaker_state stays true creates an operationally impossible reading.
-# :2404  IEC-104 protocol endpoint
-# :8080  REST API with no authentication (reconfigure datapoints on the fly)
-# Attack path: POST to :8080 API -> falsify datapoint values -> operator mis-response.
-USER root
+FROM python:3.11-slim-bookworm
+# UU P&L substation RTU. Custom Python service that exposes both:
+#   :2404  IEC-60870-5-104 protocol, no auth
+#   :8080  REST management API, no auth
+# Datapoints are mutable at runtime via REST, picked up by the IEC-104 server
+# on the next periodic report. Vendor-style management UI on the same host is
+# a real OT pattern: engineers commission via the web, then forget to firewall.
+#
+# Replaces the upstream ghcr.io/richyp7/iec60870-5-104-simulator image, which
+# only speaks IEC-104 and has an empty Kestrel on :8080.
+#
+# Pinned to bookworm to match the rest of the lab and avoid the trixie
+# transitional g++-14 dependency tree that currently breaks slim builds.
+
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends iproute2 gosu \
+    && apt-get install -y --no-install-recommends iproute2 \
     && rm -rf /var/lib/apt/lists/*
-COPY SimulationOptions.json /app/Configuration/SimulationOptions.json
-COPY entrypoint.sh /dmz-entrypoint.sh
+
+WORKDIR /app
+
+# c104 publishes manylinux wheels for cpython 3.11/x86_64; --only-binary
+# refuses to fall back to source build, so we fail loud here if the wheel is
+# missing rather than silently dragging in a build toolchain.
+RUN pip install --no-cache-dir --only-binary=c104 c104==2.0.1 flask==3.0.3
+
+COPY rtu_config.json /app/rtu_config.json
+COPY rtu_server.py   /app/rtu_server.py
+COPY entrypoint.sh   /dmz-entrypoint.sh
 RUN chmod +x /dmz-entrypoint.sh
+
 EXPOSE 2404 8080
 ENTRYPOINT ["/dmz-entrypoint.sh"]

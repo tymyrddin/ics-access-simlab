@@ -1,5 +1,5 @@
 FROM debian:12.0
-# debian:12.0 ships openssh-server 9.2p1-2 — vulnerable to CVE-2024-6387 (regreSSHion).
+# debian:12.0 ships openssh-server 9.2p1-2, vulnerable to CVE-2024-6387 (regreSSHion).
 # Primary attack surface: PermitRootLogin yes + weak root password.
 # rsyslog forwards auth events (login failures, sessions) to scribes-post at 10.10.5.32:514.
 RUN apt-get update && \

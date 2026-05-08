@@ -1,5 +1,5 @@
 """
-UU P&L Process Historian — web interface
+UU P&L Process Historian, web interface
 Installed to serve report requests from the operations floor.
 
 The report endpoint accepts an asset name and date range, queries the
@@ -49,7 +49,7 @@ def index():
         "<h2>UU P&L Process Historian</h2>"
         "<p>Authorised users only. "
         "See <a href='/report'>/report</a> for data access.</p>"
-        "<p><small>v1.4 — Hex Computing Division</small></p>"
+        "<p><small>v1.4, Hex Computing Division</small></p>"
         "</body></html>"
     )
 
@@ -60,9 +60,9 @@ def report():
     Returns time-series data for a given asset and date range.
 
     Parameters:
-        asset  — asset name as stored in the readings table
-        from   — start date (YYYY-MM-DD)
-        to     — end date (YYYY-MM-DD)
+        asset, asset name as stored in the readings table
+        from , start date (YYYY-MM-DD)
+        to   , end date (YYYY-MM-DD)
 
     The asset parameter is interpolated directly into the SQL query.
     The database is internal-only, so input sanitisation was not considered
@@ -77,7 +77,7 @@ def report():
 
     db = get_db()
     try:
-        # Direct string interpolation — "it's just internal reporting"
+        # Direct string interpolation, "it's just internal reporting"
         query = (
             f"SELECT timestamp, value, unit FROM readings "
             f"WHERE asset = '{asset}' "

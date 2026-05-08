@@ -1,4 +1,4 @@
-WireGuard VPN client — UU P&L enterprise network
+WireGuard VPN client, UU P&L enterprise network
 =================================================
 
 To connect:
