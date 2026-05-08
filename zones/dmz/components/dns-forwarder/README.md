@@ -31,6 +31,10 @@ Named configuration:
 - `allow-recursion { any; }`: performs recursive resolution for any client
 - `dnssec-validation no`: accepts unsigned or incorrectly signed responses
 - `forwarders { 8.8.8.8; 8.8.4.4; }`: forwards unresolved queries upstream
+- internal authoritative zone for `uupl.am`: A records for every UU P&L
+  host on the lab subnets, served from `uupl.am.zone`. Internal queries
+  resolve directly without needing external recursion, which is the path
+  the cache-poisoning runbook actually targets.
 
 ## Connections
 
@@ -111,9 +115,11 @@ implementations due to source port randomisation and query ID randomisation.
 The `dnssec-validation no` setting removes one layer of protection but does not
 make poisoning trivial; it requires an on-path or timing attack.
 
-The forwarders (8.8.8.8, 8.8.4.4) are external. In an airgapped deployment,
-these may be unreachable and the resolver will fail to resolve external names.
-Replace with internal forwarder addresses if needed.
+The forwarders (8.8.8.8, 8.8.4.4) are external. The DMZ has no outbound NAT
+in this lab, so external recursion does not actually leave the lab; queries
+for external names time out at the resolver. Internal queries against
+`uupl.am` still answer correctly from the authoritative zone, which is what
+the runbook chains rely on.
 
 TCP port 53 is exposed alongside UDP for queries and zone transfers that exceed
 UDP size limits. BIND9 allows zone transfers by default only to explicit

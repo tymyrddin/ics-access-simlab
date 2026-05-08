@@ -193,6 +193,25 @@ pytest tests/integration/ -v
 make test
 ```
 
+### Runbook smoke tests
+
+Once the lab is up (`./ctl up`), the per-runbook smoke tests verify each
+attack chain end-to-end against the running stack. Three drivers cover the
+13 runbooks in `books/`:
+
+```bash
+bash tests/smoke/test_runbooks_phase1.sh   # IT/OT pivot chains
+bash tests/smoke/test_runbooks_phase2.sh   # DMZ-direct + neuron covert exfil
+bash tests/smoke/test_runbooks_phase3.sh   # inner-zone Stage 2/3 attacks
+```
+
+Each test asserts on visitor-realistic behaviour: passwords authenticate,
+files leak via the documented paths, modbus / IEC-104 / OPC-UA / TLS probes
+complete, facade shells return command output. Helpers live in
+`tests/smoke/lib.sh`; SSH probes run paramiko inside `attacker-machine` and
+chain through wizzards-retreat for enterprise / operational targets, so no
+test-only dependencies are added to lab containers.
+
 ## Configuration
 
 Edit `orchestrator/ctf-config.yaml` to change topology, addressing, or component variants, then run `./ctl up`.

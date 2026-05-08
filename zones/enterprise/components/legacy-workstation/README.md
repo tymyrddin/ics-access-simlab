@@ -10,7 +10,8 @@ A legacy workstation running era-appropriate software that was never decommissio
 
 Base image: `debian:bookworm-slim` presenting a Windows 95-era facade via a custom login shell (`win95shell.sh`). The real filesystem is under `/opt/legacy/C/`. SSH drops users into a DOS-style shell with 8.3 filenames.
 
-Services: Samba (ports 139, 445), vsftpd (port 21), Telnet via xinetd (port 23), OpenSSH (port 22).
+Services: Samba (ports 139, 445), vsftpd (port 21), Telnet via xinetd (port
+23, served by `inetutils-telnetd`), OpenSSH (port 22).
 
 Accounts: `Administrator` / `hex123` (also set as Samba password and root SSH password). Anonymous Samba guest access to the `public` share.
 
@@ -32,9 +33,18 @@ Exposed ports: 21, 22, 23, 139, 445.
 
 NTLMv1 and LM hashes enabled: any captured challenge/response can be cracked offline or relayed. Null session / guest SMB access: the `public` share requires no authentication and contains operational documents. FTP anonymous access: same documents available over plaintext FTP. Telnet: credentials transmitted in cleartext, capturable with tcpdump from anywhere on the enterprise segment. SSH with root and weak password: `root`/`hex123`.
 
-Key loot in `\\hex-legacy-1\public`: `C:\UUPL\NETWORK.TXT` (full network inventory including historian, SCADA, engineering workstation IPs and credentials), `C:\UUPL\PROCS.TXT` (operating procedures referencing Modbus addresses), `C:\LOGBOOK\ENGINEER.LOG` (all system passwords in plaintext, described as "informal notes").
+Key loot in `\\hex-legacy-1\public` (also available over anonymous FTP and
+visible in the virtual C: drive at `C:\UUPL\` and `C:\LOGBOOK\`):
+- `UUPL/NETWORK.TXT`: full network inventory including historian, SCADA,
+  engineering workstation IPs.
+- `LOGBOOK/ENGINEER.LOG`: every system password in plaintext, described as
+  "Ponder Stibbons' informal notes". Includes hist_read/history2017 (the
+  historian ingest credential) and the SCADA SSH password.
+- `procedures.txt`, `network_inventory.txt`, `logs_sample.csv` (legacy
+  copies kept under different names; same flavour of information).
 
-The `private` share is restricted to `Administrator` but contains the same credential list in `plc-access.conf`.
+The `private` share is restricted to `Administrator` but contains the same
+credential list in `plc-access.conf`.
 
 ## Modifying vulnerabilities
 

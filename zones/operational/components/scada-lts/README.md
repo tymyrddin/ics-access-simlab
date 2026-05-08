@@ -26,12 +26,19 @@ the fix was to disable verification rather than miss a maintenance window.
 Base image: `scadalts/scadalts:release-2.8.1`. Running on Tomcat. Scada-LTS inherits
 the Mango Automation codebase and runs on Java. https://hub.docker.com/r/scadalts/scadalts
 
-Additional package: `stunnel4` (installed on top of the base image to carry
-Modbus-TLS to the PLC gateway).
+Additional packages installed on top of the base image:
+- `stunnel4`: carries Modbus-TLS to the PLC gateway.
+- `openssh-server`: lets the runbook chain `ssh scada_admin@10.10.2.20`
+  (used by stunnel-client-key-theft and historian-ingest-poison).
 
-Port 8080: Scada-LTS web UI.
+Ports:
+- 8080: Scada-LTS web UI.
+- 22: sshd for `scada_admin / W1nd0ws@2016`.
 
-Credentials: `admin` / `admin` (default, unchanged).
+Credentials:
+- web: `admin / admin` (default, unchanged).
+- ssh: `scada_admin / W1nd0ws@2016` (documented in ENGINEER.LOG and the
+  bursar's ops-access.conf).
 
 The stunnel client runs in the background and presents a local Modbus listener
 on `127.0.0.1:5020`. Scada-LTS data source connects to this local port; traffic
