@@ -10,6 +10,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     netbase \
     nfs-ganesha \
     nfs-ganesha-vfs \
+    nmap \
+    ftp \
+    smbclient \
     && rm -rf /var/lib/apt/lists/*
 
 # Remote administrator account — weak password is the vulnerability

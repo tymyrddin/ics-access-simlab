@@ -40,7 +40,7 @@ A Hetzner CX32 (4 vCPU / 8 GB) runs the full stack comfortably.
 
 ```bash
 ./ctl up          # generate + start everything, prints SSH command when ready
-./ctl firewall    # apply inter-zone firewall rules (sudo)
+./ctl firewall    # hide Docker bridge gateway IPs from container scans (sudo)
 ./ctl ssh         # drop into unseen-gate as ponder
 ./ctl verify      # print Step 2 verification commands
 ./ctl down        # stop everything
@@ -64,7 +64,7 @@ users cannot read them (`chmod 700 .` or equivalent).
 | `./ctl down`             | Stop and remove all containers                          |
 | `./ctl ssh [user]`       | SSH into unseen-gate (default user: `ponder`)           |
 | `./ctl cohort-keys`      | Generate a participant keypair for Hetzner deployments  |
-| `./ctl firewall`         | Apply inter-zone iptables rules (sudo)                  |
+| `./ctl firewall`         | Hide Docker bridge gateway IPs from container scans (sudo) |
 | `./ctl verify`           | Print verification commands for the current scenario    |
 | `./ctl generate`         | Regenerate compose files without starting               |
 | `./ctl clean`            | `down` + remove generated files                         |

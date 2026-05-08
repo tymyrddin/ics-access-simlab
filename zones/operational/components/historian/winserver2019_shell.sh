@@ -198,6 +198,51 @@ System commands: whoami, hostname, ipconfig, netstat, ping, net, ssh, nmap, nc, 
 EOF
 }
 
+# ── command dispatch ──────────────────────────────────────────────────────────
+# _dispatch handles a single command line. Used by both the interactive REPL
+# and the -c "<cmd>" non-interactive path so SSH command exec works the way
+# real PowerShell would.
+
+_dispatch() {
+    local line="$1"
+    line="${line//$'\r'/}"
+    line="${line#.\\}"; line="${line#./}"
+
+    local cmd rest
+    read -r cmd rest <<< "$line"
+
+    case "${cmd,,}" in
+        cd|set-location|sl)         cmd_cd "$rest" ;;
+        dir|ls|get-childitem|gci)   cmd_dir "$rest" ;;
+        cat|type|get-content|gc)    cmd_cat "$rest" ;;
+        pwd|get-location|gl)        cmd_pwd ;;
+        cls|clear|clear-host)       clear ;;
+        whoami)                     cmd_whoami ;;
+        hostname)                   cmd_hostname ;;
+        ipconfig)                   cmd_ipconfig ;;
+        netstat)                    cmd_netstat ;;
+        ping)                       cmd_ping $rest ;;
+        net)    read -r sub _ <<< "$rest"; cmd_net "$sub" ;;
+        ssh)                        cmd_ssh $rest ;;
+        curl|wget)                  cmd_curl $rest ;;
+        invoke-webrequest|iwr)      cmd_iwr $rest ;;
+        nmap)                       cmd_nmap $rest ;;
+        nc)                         cmd_nc $rest ;;
+        help|get-help)              cmd_help ;;
+        exit|quit|logout)           printf '\n'; exit 0 ;;
+        "")                         true ;;
+        *)
+            printf "'%s' is not recognized as the name of a cmdlet, function, script file,\nor operable program. Check the spelling of the name, or if a path was\nincluded, verify that the path is correct and try again.\n" "$cmd" ;;
+    esac
+}
+
+# Non-interactive command exec: ssh user@host '<cmd>' invokes the shell as
+# `<shell> -c '<cmd>'`. Dispatch the single line and exit.
+if [[ "${1:-}" == "-c" && $# -ge 2 ]]; then
+    _dispatch "$2"
+    exit
+fi
+
 # ── banner ────────────────────────────────────────────────────────────────────
 
 clear
@@ -225,31 +270,5 @@ LOGON
 while true; do
     printf 'PS %s> ' "$(_disp)"
     IFS= read -r line || break
-    line="${line//$'\r'/}"
-    line="${line#.\\}"; line="${line#./}"
-    read -r cmd rest <<< "$line"
-
-    case "${cmd,,}" in
-        cd|set-location|sl)         cmd_cd "$rest" ;;
-        dir|ls|get-childitem|gci)   cmd_dir "$rest" ;;
-        cat|type|get-content|gc)    cmd_cat "$rest" ;;
-        pwd|get-location|gl)        cmd_pwd ;;
-        cls|clear|clear-host)       clear ;;
-        whoami)                     cmd_whoami ;;
-        hostname)                   cmd_hostname ;;
-        ipconfig)                   cmd_ipconfig ;;
-        netstat)                    cmd_netstat ;;
-        ping)                       cmd_ping $rest ;;
-        net)    read -r sub _ <<< "$rest"; cmd_net "$sub" ;;
-        ssh)                        cmd_ssh $rest ;;
-        curl|wget)                  cmd_curl $rest ;;
-        invoke-webrequest|iwr)      cmd_iwr $rest ;;
-        nmap)                       cmd_nmap $rest ;;
-        nc)                         cmd_nc $rest ;;
-        help|get-help)              cmd_help ;;
-        exit|quit|logout)           printf '\n'; exit 0 ;;
-        "")                         true ;;
-        *)
-            printf "'%s' is not recognized as the name of a cmdlet, function, script file,\nor operable program. Check the spelling of the name, or if a path was\nincluded, verify that the path is correct and try again.\n" "$cmd" ;;
-    esac
+    _dispatch "$line"
 done

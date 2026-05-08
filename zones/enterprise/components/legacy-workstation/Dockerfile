@@ -15,7 +15,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     samba \
     samba-common-bin \
     vsftpd \
-    telnetd \
+    inetutils-telnetd \
     telnet \
     xinetd \
     openssh-server \

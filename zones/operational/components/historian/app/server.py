@@ -131,16 +131,25 @@ def export():
     Used by the nightly report cron job on uupl-eng-ws.
 
     The path is constructed by joining EXPORT_DIR with the tag parameter.
-    Input is not sanitised — "it's an internal reporting endpoint."
+    Input is not sanitised, so a traversal like tag=../historian.db serves the
+    raw SQLite database (the internal-only justification used at install time).
+    Files are served as bytes, mimetype guessed from extension, so binary files
+    such as the SQLite DB come through intact.
     """
     tag = request.args.get("tag", "")
     if not tag:
         return "tag parameter required", 400
     path = os.path.join(EXPORT_DIR, tag)
     try:
-        with open(path) as f:
+        with open(path, "rb") as f:
             content = f.read()
-        return Response(content, mimetype="text/csv")
+        if path.endswith(".csv"):
+            mime = "text/csv"
+        elif path.endswith(".db") or path.endswith(".sqlite"):
+            mime = "application/vnd.sqlite3"
+        else:
+            mime = "application/octet-stream"
+        return Response(content, mimetype=mime)
     except FileNotFoundError:
         return f"no export for tag: {tag}", 404
     except PermissionError:

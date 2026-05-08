@@ -296,6 +296,63 @@ System commands available on this machine:
 EOF
 }
 
+# ── command dispatch ──────────────────────────────────────────────────────────
+# _dispatch handles a single command line. Used by both the interactive REPL
+# and by the -c "<cmd>" non-interactive path. Real Windows shells accept
+# inline commands (PowerShell -Command, cmd /c); this facade matches that so
+# `ssh user@host '<cmd>'` works without forcing visitors into the prompt
+# first.
+
+_dispatch() {
+    local line="$1"
+    line="${line//$'\r'/}"
+    line="${line%"${line##*[^ ]}"}"
+
+    if [[ "$line" =~ ^\$[A-Za-z_][A-Za-z0-9_]*= ]]; then
+        eval "${line:1}" 2>/dev/null || true
+        return
+    fi
+
+    line="${line#.\\}"; line="${line#./}"
+    local cmd rest
+    read -r cmd rest <<< "$line"
+
+    case "${cmd,,}" in
+        cd|set-location|sl)         cmd_cd "$rest" ;;
+        dir|ls|get-childitem|gci)   cmd_dir "$rest" ;;
+        cat|type|get-content|gc)    cmd_cat "$rest" ;;
+        pwd|get-location|gl)        cmd_pwd ;;
+        cls|clear|clear-host)       clear ;;
+        whoami)                     cmd_whoami ;;
+        hostname)                   cmd_hostname ;;
+        ipconfig)                   cmd_ipconfig ;;
+        netstat)                    cmd_netstat ;;
+        ip)                         cmd_ip $rest ;;
+        ping)                       cmd_ping $rest ;;
+        net)    read -r sub _ <<< "$rest"; cmd_net "$sub" ;;
+        ssh)                        eval "$line" ;;
+        curl|wget)                  eval "$line" ;;
+        socat)                      eval "$line" ;;
+        invoke-webrequest|iwr)      eval cmd_iwr "$rest" ;;
+        nmap)                       eval "$line" ;;
+        nc)                         eval "$line" ;;
+        python|python3)             cmd_python "$rest" ;;
+        *.py)                       cmd_python "$cmd $rest" ;;
+        help|get-help)              cmd_help ;;
+        exit|quit|logout)           printf '\n'; exit 0 ;;
+        "")                         true ;;
+        *)
+            printf "'%s' is not recognized as the name of a cmdlet, function, script file,\nor operable program. Check the spelling of the name, or if a path was\nincluded, verify that the path is correct and try again.\n" "$cmd" ;;
+    esac
+}
+
+# Non-interactive command exec: ssh user@host '<cmd>' invokes the shell as
+# `<shell> -c '<cmd>'`. Dispatch the single line and exit.
+if [[ "${1:-}" == "-c" && $# -ge 2 ]]; then
+    _dispatch "$2"
+    exit
+fi
+
 # ── banner ────────────────────────────────────────────────────────────────────
 
 clear
@@ -332,11 +389,9 @@ while true; do
     IFS= read -r line
     case $? in
         0) ;;                              # normal input
-        1) break ;;                        # EOF / Ctrl-D — exit shell
-        *) printf '\n'; continue ;;        # signal-interrupted read — re-prompt
+        1) break ;;                        # EOF or Ctrl-D, exit shell
+        *) printf '\n'; continue ;;        # signal-interrupted read, re-prompt
     esac
-    line="${line//$'\r'/}"
-    line="${line%"${line##*[^ ]}"}"   # strip trailing spaces
 
     # Line continuation: trailing backslash joins the next line
     while [[ "$line" == *\\ ]]; do
@@ -347,40 +402,5 @@ while true; do
         line="${line}${cont}"
     done
 
-    # Variable assignment: $VAR=value or $VAR=$(...)
-    if [[ "$line" =~ ^\$[A-Za-z_][A-Za-z0-9_]*= ]]; then
-        eval "${line:1}" 2>/dev/null || true
-        continue
-    fi
-
-    line="${line#.\\}"; line="${line#./}"
-    read -r cmd rest <<< "$line"
-
-    case "${cmd,,}" in
-        cd|set-location|sl)         cmd_cd "$rest" ;;
-        dir|ls|get-childitem|gci)   cmd_dir "$rest" ;;
-        cat|type|get-content|gc)    cmd_cat "$rest" ;;
-        pwd|get-location|gl)        cmd_pwd ;;
-        cls|clear|clear-host)       clear ;;
-        whoami)                     cmd_whoami ;;
-        hostname)                   cmd_hostname ;;
-        ipconfig)                   cmd_ipconfig ;;
-        netstat)                    cmd_netstat ;;
-        ip)                         cmd_ip $rest ;;
-        ping)                       cmd_ping $rest ;;
-        net)    read -r sub _ <<< "$rest"; cmd_net "$sub" ;;
-        ssh)                        eval "$line" ;;
-        curl|wget)                  eval "$line" ;;
-        socat)                      eval "$line" ;;
-        invoke-webrequest|iwr)      eval cmd_iwr "$rest" ;;
-        nmap)                       eval "$line" ;;
-        nc)                         eval "$line" ;;
-        python|python3)             cmd_python "$rest" ;;
-        *.py)                       cmd_python "$cmd $rest" ;;
-        help|get-help)              cmd_help ;;
-        exit|quit|logout)           printf '\n'; exit 0 ;;
-        "")                         true ;;
-        *)
-            printf "'%s' is not recognized as the name of a cmdlet, function, script file,\nor operable program. Check the spelling of the name, or if a path was\nincluded, verify that the path is correct and try again.\n" "$cmd" ;;
-    esac
+    _dispatch "$line"
 done

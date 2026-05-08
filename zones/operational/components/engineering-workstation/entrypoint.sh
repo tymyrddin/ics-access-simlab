@@ -731,5 +731,19 @@ _add_route 10.10.1.0/24 10.10.2.202
 _add_route 10.10.4.0/24 10.10.2.204
 _add_route 10.10.5.0/24 10.10.2.202
 
+echo "[eng-ws] Waiting for PLC at 10.10.3.21:502..."
+until nc -z 10.10.3.21 502 2>/dev/null; do sleep 2; done
+echo "[eng-ws] PLC reachable, running first poll then starting cron."
+
+# Run one poll synchronously so plc_poll.log has at least one entry from the
+# moment the workstation is up. Cron then takes over on its */1 schedule. This
+# mirrors a real engineering workstation that has been online for ages, where
+# the polling log is never empty. Run as engineer to match the cron user so
+# the log file ends up owned correctly for future cron-driven appends.
+WIN_PROFILE="/opt/win10/C/Users/engineer"
+touch "$WIN_PROFILE/plc_poll.log"
+chown engineer:engineer "$WIN_PROFILE/plc_poll.log"
+su engineer -s /bin/sh -c "/venv/bin/python3 $WIN_PROFILE/Tools/poll_and_ingest.py >> $WIN_PROFILE/plc_poll.log 2>&1" || true
+
 cron
 /usr/sbin/sshd -D
