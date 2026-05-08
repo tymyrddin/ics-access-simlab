@@ -52,8 +52,14 @@ Virtual Windows profile at `/opt/win10/C/Users/engineer/`. Key contents:
 PSReadLine history includes Modbus reads and writes to the turbine PLC, SSH to
 the HMI, and curl queries to historian and SCADA.
 
-A cron job polls the turbine PLC every five minutes and appends the governor
-setpoint to `/home/engineer/plc_poll.log`.
+The entrypoint runs one synchronous PLC poll at startup so
+`plc_poll.log` is non-empty from the moment the workstation is up. After
+that, a cron job polls the turbine PLC every minute and appends the governor
+setpoint to the same log.
+
+The `win10ltsc` facade shell honours `-c "<cmd>"`, so
+`ssh engineer@10.10.2.30 'cat config\plc-access.conf'` returns the file
+contents rather than the banner.
 
 The authorised key list includes a static Ed25519 public key corresponding to
 the private key stored at `~/.ssh-keys/uupl_eng_key` on `wizzards-retreat`

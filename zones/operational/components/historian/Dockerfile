@@ -1,4 +1,4 @@
-# historian — process data logger
+# historian, process data logger
 #
 # Stores time-series data from ICS sensors and makes it available via a
 # web interface for report generation and trend analysis.

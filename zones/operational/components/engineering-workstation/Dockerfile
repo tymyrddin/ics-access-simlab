@@ -2,7 +2,7 @@
 #
 # Used to configure, update, and reprogram PLCs and IEDs in the control zone.
 # Has direct network access to both the operational zone and the control zone.
-# This is not an accident — it is required for the job. The access controls
+# This is not an accident, it is required for the job. The access controls
 # are the credentials in the config files and "asking Ponder first."
 #
 # Presents a Windows 10 Enterprise LTSC facade over SSH.

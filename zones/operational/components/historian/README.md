@@ -78,9 +78,11 @@ the precise register values needed to disable protection. The `config` table
 contains the database password. Bug filed HEX-1847, closed won't-fix 2019.
 
 Path traversal in `/export`: the `tag` parameter is joined to the exports
-directory with `os.path.join` and no sanitisation. `tag=../historian.db` returns
-the entire SQLite database as a download. Bug never formally filed; noted in
-on-disk documentation as known behaviour.
+directory with `os.path.join` and no sanitisation. `tag=../historian.db`
+returns the entire SQLite database as a binary download (the endpoint reads
+in binary mode and serves with a sqlite mimetype, so the SQLite header bytes
+arrive intact). Bug never formally filed; noted in on-disk documentation as
+known behaviour.
 
 Credential reuse: the database password `Historian2015` is also the SSH password
 for `hist_admin`. The `historian.ini` config file notes this explicitly with the

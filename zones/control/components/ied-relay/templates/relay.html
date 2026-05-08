@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-<title>REL-200{{ relay_id|upper }} — {{ feeder }} Feeder</title>
+<title>REL-200{{ relay_id|upper }}, {{ feeder }} Feeder</title>
 <meta http-equiv="refresh" content="5">
 <style>
 body { font-family: monospace; background: #1a1a1a; color: #ccc; padding: 20px; }
@@ -19,7 +19,7 @@ form input[type=submit] { background: #555; cursor: pointer; margin-top: 8px; }
 </style>
 </head>
 <body>
-<h1>UU P&amp;L Protective Relay — {{ feeder }} Feeder</h1>
+<h1>UU P&amp;L Protective Relay, {{ feeder }} Feeder</h1>
 <p>REL-200{{ relay_id|upper }} &nbsp;|&nbsp; Hex Computing Division &nbsp;|&nbsp; firmware 2.0.1</p>
 
 {% set tripped = store.getValues(1, 0, count=1)[0] %}
@@ -52,7 +52,7 @@ form input[type=submit] { background: #555; cursor: pointer; margin-top: 8px; }
       {{ "OVER" if current > oc else "OK" }}
     </td>
   </tr>
-  <tr><td>Frequency</td><td>{{ "%.1f"|format(freq / 10.0) }} Hz</td><td>—</td></tr>
+  <tr><td>Frequency</td><td>{{ "%.1f"|format(freq / 10.0) }} Hz</td><td>,</td></tr>
   <tr>
     <td>Turbine RPM</td><td>{{ rpm }}</td>
     <td class="{{ 'tripped' if rpm > os else 'normal' }}">

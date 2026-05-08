@@ -13,7 +13,7 @@ _add_route() {
 _add_route 10.10.0.0/24 10.10.5.200   # internet return path via inet-dmz-fw
 _add_route 10.10.2.0/24 10.10.1.202
 
-# Set root password (CTF vulnerability — weak credential)
+# Set root password (CTF vulnerability, weak credential)
 echo "root:uupl2015" | chpasswd
 
 # Generate host keys if not already present

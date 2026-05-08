@@ -40,7 +40,7 @@ A Hetzner CX32 (4 vCPU / 8 GB) runs the full stack comfortably.
 
 ```bash
 ./ctl up          # generate + start everything, prints SSH command when ready
-./ctl firewall    # apply inter-zone firewall rules (sudo)
+./ctl firewall    # hide Docker bridge gateway IPs from container scans (sudo)
 ./ctl ssh         # drop into unseen-gate as ponder
 ./ctl verify      # print Step 2 verification commands
 ./ctl down        # stop everything
@@ -64,7 +64,7 @@ users cannot read them (`chmod 700 .` or equivalent).
 | `./ctl down`             | Stop and remove all containers                          |
 | `./ctl ssh [user]`       | SSH into unseen-gate (default user: `ponder`)           |
 | `./ctl cohort-keys`      | Generate a participant keypair for Hetzner deployments  |
-| `./ctl firewall`         | Apply inter-zone iptables rules (sudo)                  |
+| `./ctl firewall`         | Hide Docker bridge gateway IPs from container scans (sudo) |
 | `./ctl verify`           | Print verification commands for the current scenario    |
 | `./ctl generate`         | Regenerate compose files without starting               |
 | `./ctl clean`            | `down` + remove generated files                         |
@@ -192,6 +192,25 @@ pytest tests/integration/ -v
 # Or both at once
 make test
 ```
+
+### Runbook smoke tests
+
+Once the lab is up (`./ctl up`), the per-runbook smoke tests verify each
+attack chain end-to-end against the running stack. Three drivers cover the
+13 runbooks in `books/`:
+
+```bash
+bash tests/smoke/test_runbooks_phase1.sh   # IT/OT pivot chains
+bash tests/smoke/test_runbooks_phase2.sh   # DMZ-direct + neuron covert exfil
+bash tests/smoke/test_runbooks_phase3.sh   # inner-zone Stage 2/3 attacks
+```
+
+Each test asserts on visitor-realistic behaviour: passwords authenticate,
+files leak via the documented paths, modbus / IEC-104 / OPC-UA / TLS probes
+complete, facade shells return command output. Helpers live in
+`tests/smoke/lib.sh`; SSH probes run paramiko inside `attacker-machine` and
+chain through wizzards-retreat for enterprise / operational targets, so no
+test-only dependencies are added to lab containers.
 
 ## Configuration
 

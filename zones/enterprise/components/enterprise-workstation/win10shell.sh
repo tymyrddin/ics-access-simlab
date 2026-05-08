@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Enterprise workstation — Windows 10 PowerShell facade
+# Enterprise workstation, Windows 10 PowerShell facade
 # Presents a Windows 10 PowerShell prompt over SSH.
 # Virtual C: drive lives at /opt/win10/C with proper mixed-case names.
 
@@ -252,7 +252,7 @@ cmd_curl() {
 }
 
 cmd_iwr() {
-    # Invoke-WebRequest — minimal passthrough to curl
+    # Invoke-WebRequest, minimal passthrough to curl
     # Strips PS-style named params and extracts URI
     local uri="" headers=() outfile=""
     while [[ $# -gt 0 ]]; do
@@ -304,6 +304,52 @@ System commands available on this machine:
 EOF
 }
 
+# ── command dispatch ──────────────────────────────────────────────────────────
+# _dispatch handles a single command line. Used by both the interactive REPL
+# and the -c "<cmd>" non-interactive path so SSH command exec works the way
+# real PowerShell would (`powershell -Command '<cmd>'`).
+
+_dispatch() {
+    local line="$1"
+    line="${line//$'\r'/}"
+    line="${line#.\\}"; line="${line#./}"
+
+    local cmd rest
+    read -r cmd rest <<< "$line"
+
+    case "${cmd,,}" in
+        cd|set-location|sl)         cmd_cd "$rest" ;;
+        dir|ls|get-childitem|gci)   cmd_dir "$rest" ;;
+        cat|type|get-content|gc)    cmd_cat "$rest" ;;
+        pwd|get-location|gl)        cmd_pwd ;;
+        cls|clear|clear-host)       clear ;;
+        whoami)                     cmd_whoami ;;
+        hostname)                   cmd_hostname ;;
+        ipconfig)                   cmd_ipconfig ;;
+        netstat)                    cmd_netstat ;;
+        ping)                       cmd_ping $rest ;;
+        net)    read -r sub _ <<< "$rest"; cmd_net "$sub" ;;
+        ssh)                        cmd_ssh $rest ;;
+        curl|wget)                  cmd_curl $rest ;;
+        invoke-webrequest|iwr)      cmd_iwr $rest ;;
+        nmap)                       cmd_nmap $rest ;;
+        nc)                         cmd_nc $rest ;;
+        ftp)                        cmd_ftp $rest ;;
+        help|get-help)              cmd_help ;;
+        exit|quit|logout)           printf '\n'; exit 0 ;;
+        "")                         true ;;
+        *)
+            printf "'%s' is not recognized as the name of a cmdlet, function, script file,\nor operable program. Check the spelling of the name, or if a path was\nincluded, verify that the path is correct and try again.\n" "$cmd" ;;
+    esac
+}
+
+# Non-interactive command exec: ssh user@host '<cmd>' invokes the shell as
+# `<shell> -c '<cmd>'`. Dispatch the single line and exit.
+if [[ "${1:-}" == "-c" && $# -ge 2 ]]; then
+    _dispatch "$2"
+    exit
+fi
+
 # ── banner ────────────────────────────────────────────────────────────────────
 
 clear
@@ -319,7 +365,7 @@ cat << 'LOGON'
 *******************************************************************************
 *                                                                             *
 *   Unseen University Power & Light Co.                                       *
-*   BURSAR-DESK — Corporate Workstation                                       *
+*   BURSAR-DESK, Corporate Workstation                                       *
 *                                                                             *
 *   This system is provided for authorised UU P&L business use only.         *
 *   Unauthorised access is prohibited. Usage may be monitored.                *
@@ -334,66 +380,5 @@ LOGON
 while true; do
     printf 'PS %s> ' "$(_disp)"
     IFS= read -r line || break
-    line="${line//$'\r'/}"
-
-    # Strip leading .\ or ./
-    line="${line#.\\}"; line="${line#./}"
-
-    read -r cmd rest <<< "$line"
-
-    case "${cmd,,}" in
-        # Navigation
-        cd|set-location|sl)
-            cmd_cd "$rest" ;;
-        # Listing
-        dir|ls|get-childitem|gci)
-            cmd_dir "$rest" ;;
-        # File content
-        cat|type|get-content|gc)
-            cmd_cat "$rest" ;;
-        # Path
-        pwd|get-location|gl)
-            cmd_pwd ;;
-        # Clear
-        cls|clear|clear-host)
-            clear ;;
-        # System info
-        whoami)
-            cmd_whoami ;;
-        hostname)
-            cmd_hostname ;;
-        ipconfig)
-            cmd_ipconfig ;;
-        # Network
-        netstat)
-            cmd_netstat ;;
-        ping)
-            cmd_ping $rest ;;
-        net)
-            read -r sub _ <<< "$rest"
-            cmd_net "$sub" ;;
-        # Pivot
-        ssh)
-            cmd_ssh $rest ;;
-        curl|wget)
-            cmd_curl $rest ;;
-        invoke-webrequest|iwr)
-            cmd_iwr $rest ;;
-        nmap)
-            cmd_nmap $rest ;;
-        nc)
-            cmd_nc $rest ;;
-        ftp)
-            cmd_ftp $rest ;;
-        # Help
-        help|get-help)
-            cmd_help ;;
-        # Exit
-        exit|quit|logout)
-            printf '\n'; exit 0 ;;
-        "")
-            true ;;
-        *)
-            printf "'%s' is not recognized as the name of a cmdlet, function, script file,\nor operable program. Check the spelling of the name, or if a path was\nincluded, verify that the path is correct and try again.\n" "$cmd" ;;
-    esac
+    _dispatch "$line"
 done

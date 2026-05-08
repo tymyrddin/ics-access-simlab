@@ -188,8 +188,8 @@ Banner on SSH identifies Windows Server 2019. The web service returns
 ### Web service enumeration
 
 ```
-/status       — {"status": "ok", "readings": 43200}
-/assets       — turbine_rpm, turbine_temperature, turbine_pressure,
+/status     , {"status": "ok", "readings": 43200}
+/assets     , turbine_rpm, turbine_temperature, turbine_pressure,
                 line_voltage_a, line_current_a, line_voltage_b, line_current_b,
                 meter_power_kw, turbine_frequency_hz, oil_pressure
 ```
@@ -197,10 +197,10 @@ Banner on SSH identifies Windows Server 2019. The web service returns
 ### Virtual filesystem (SSH login as hist_admin / Historian2015)
 
 ```
-C:\Historian\Config\historian.ini       — database + ingest + SSH credentials
-C:\Historian\Config\data_sources.xml    — Modbus polling targets (PLC IPs)
-C:\Historian\Data\README.txt            — schema notes, path traversal hint
-C:\Historian\Archive\export_schedule.txt — nightly export schedule, traversal note
+C:\Historian\Config\historian.ini     , database + ingest + SSH credentials
+C:\Historian\Config\data_sources.xml  , Modbus polling targets (PLC IPs)
+C:\Historian\Data\README.txt          , schema notes, path traversal hint
+C:\Historian\Archive\export_schedule.txt, nightly export schedule, traversal note
 ```
 
 PSReadLine history reveals prior queries, including direct SQLite access.

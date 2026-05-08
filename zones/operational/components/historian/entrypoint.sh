@@ -40,7 +40,7 @@ mkdir -p \
 # ── C:\Historian\Config\historian.ini ─────────────────────────────────────────
 
 cat > "/opt/winsvr/C/Historian/Config/historian.ini" << EOF
-; UU P&L Process Historian — Configuration
+; UU P&L Process Historian, Configuration
 ; Installed: 1997-03-22
 ; Last modified: 2019-04-07 (added /ingest endpoint for RTU feeds)
 ; Contact: ponder.stibbons@uupl.am
@@ -54,12 +54,12 @@ password = Historian2015
 
 [web]
 port     = 8080
-; No authentication on read endpoints — "internal network only"
-; /report  — query time-series (SQLi present — HEX-1847, closed won't-fix 2019)
-; /export  — serve export files (path traversal — HEX-2291, never filed)
-; /ingest  — write data (auth: hist_read / history2017)
-; /assets  — list asset names (no auth)
-; /status  — health check (no auth)
+; No authentication on read endpoints, "internal network only"
+; /report, query time-series (SQLi present, HEX-1847, closed won't-fix 2019)
+; /export, serve export files (path traversal, HEX-2291, never filed)
+; /ingest, write data (auth: hist_read / history2017)
+; /assets, list asset names (no auth)
+; /status, health check (no auth)
 
 [ingest]
 user     = hist_read
@@ -68,12 +68,12 @@ password = history2017
 [admin]
 ssh_user = hist_admin
 ssh_pass = Historian2015
-notes    = Same password as database — "easier to remember" — P.S.
+notes    = Same password as database, "easier to remember", P.S.
 EOF
 
 cat > "/opt/winsvr/C/Historian/Config/data_sources.xml" << 'EOF'
 <?xml version="1.0" encoding="utf-8"?>
-<!-- UU P&L Historian — RTU Data Source Configuration -->
+<!-- UU P&L Historian, RTU Data Source Configuration -->
 <!-- Written: 2019-04-07  Added city RTU feeds via /ingest endpoint -->
 <DataSources>
   <Source name="turbine_plc" type="modbus-tcp">
@@ -98,7 +98,7 @@ C:\Historian\Data\
 ==================
 The historian database lives here. Do not move or delete.
 
-  historian.db    — SQLite database, ~80 MB, 30 days of 1-minute readings
+  historian.db  , SQLite database, ~80 MB, 30 days of 1-minute readings
 
 To query directly:
   sqlite3 historian.db "SELECT * FROM readings WHERE asset='turbine_rpm' LIMIT 10;"
@@ -115,16 +115,16 @@ EOF
 # ── C:\Historian\Archive\ ────────────────────────────────────────────────────
 
 cat > "/opt/winsvr/C/Historian/Archive/export_schedule.txt" << 'EOF'
-UU P&L Historian — Nightly Export Schedule
+UU P&L Historian, Nightly Export Schedule
 ==========================================
 Generated files are served at http://10.10.2.10:8080/export?tag=<filename>
 Path traversal: tag=../historian.db serves the raw database file.
 
 Schedule (runs at 01:00 daily via Task Scheduler):
-  turbine_rpm.csv       — turbine speed, 24h
-  line_voltage_a.csv    — feeder A voltage, 24h
-  line_voltage_b.csv    — feeder B voltage, 24h
-  line_current_a.csv    — feeder A current, 24h
+  turbine_rpm.csv     , turbine speed, 24h
+  line_voltage_a.csv  , feeder A voltage, 24h
+  line_voltage_b.csv  , feeder B voltage, 24h
+  line_current_a.csv  , feeder A current, 24h
 
 Files are written to C:\Historian\Data\exports\ (Linux: /opt/historian/data/exports/)
 EOF
@@ -148,15 +148,15 @@ dir
 HIST
 
 cat > "$PROFILE/Desktop/README.txt" << 'EOF'
-HIST-SRV01 — Quick Reference
+HIST-SRV01, Quick Reference
 ==============================
 
 Web interface:  http://10.10.2.10:8080/
-  /report       — query data (SQL injection in asset parameter)
-  /export       — serve exports (path traversal in tag parameter)
-  /ingest       — write data (POST, auth: hist_read/history2017)
-  /assets       — list assets (no auth)
-  /status       — health check (no auth)
+  /report     , query data (SQL injection in asset parameter)
+  /export     , serve exports (path traversal in tag parameter)
+  /ingest     , write data (POST, auth: hist_read/history2017)
+  /assets     , list assets (no auth)
+  /status     , health check (no auth)
 
 Database:  C:\Historian\Data\historian.db
 Config:    C:\Historian\Config\historian.ini

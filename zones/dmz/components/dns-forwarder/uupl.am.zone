@@ -1,0 +1,36 @@
+$TTL 3600
+@   IN  SOA city-directory.uupl.am. ponder.uupl.am. (
+            2026050801  ; serial
+            7200        ; refresh
+            3600        ; retry
+            604800      ; expire
+            3600 )      ; minimum
+
+@                       IN  NS      city-directory.uupl.am.
+city-directory          IN  A       10.10.5.31
+unseen-gate             IN  A       10.10.0.5
+wizzards-retreat        IN  A       10.10.0.10
+hex-legacy-1            IN  A       10.10.1.10
+bursar-desk             IN  A       10.10.1.20
+uupl-historian          IN  A       10.10.2.10
+distribution-scada      IN  A       10.10.2.20
+uupl-eng-ws             IN  A       10.10.2.30
+hex-turbine-plc         IN  A       10.10.3.21
+uupl-relay-a            IN  A       10.10.3.31
+uupl-relay-b            IN  A       10.10.3.32
+uupl-meter              IN  A       10.10.3.33
+guild-exchange          IN  A       10.10.5.10
+sorting-office          IN  A       10.10.5.11
+clacks-relay            IN  A       10.10.5.12
+guild-register          IN  A       10.10.5.13
+substation-rtu          IN  A       10.10.5.14
+contractors-gate        IN  A       10.10.5.20
+dispatch-box            IN  A       10.10.5.21
+guild-clock             IN  A       10.10.5.30
+scribes-post            IN  A       10.10.5.32
+
+; Convenient aliases used in older operational documents
+historian               IN  CNAME   uupl-historian.uupl.am.
+scada                   IN  CNAME   distribution-scada.uupl.am.
+eng-ws                  IN  CNAME   uupl-eng-ws.uupl.am.
+turbine                 IN  CNAME   hex-turbine-plc.uupl.am.

@@ -31,7 +31,7 @@ done
 
 # Try to log in with the factory default. If the password has already been
 # changed (container restart), this returns an error body with no token field
-# and TOKEN stays empty — the config block is skipped cleanly.
+# and TOKEN stays empty, the config block is skipped cleanly.
 TOKEN=$(curl -s -X POST http://127.0.0.1:7000/api/v2/login \
     -H 'Content-Type: application/json' \
     -d '{"name":"admin","pass":"0000"}' \

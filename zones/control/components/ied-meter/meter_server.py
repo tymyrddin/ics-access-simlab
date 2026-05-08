@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-UU P&L Revenue Meter — MTR-100
+UU P&L Revenue Meter, MTR-100
 Hex Computing Division, firmware 1.3.0
 
 Passive revenue meter. Reads from PLC, derives power and power factor.

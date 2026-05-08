@@ -1,5 +1,5 @@
 FROM ghcr.io/umati/umatigateway:pr-375
-# Pre-fix build — web UI on :8080 has no authentication (CVE-2025-27615).
+# Pre-fix build, web UI on :8080 has no authentication (CVE-2025-27615).
 # OPC connection configured to guild-register (10.10.5.13:4840), SecurityMode None.
 # MQTT northbound configured to clacks-relay (10.10.5.12:1883).
 # Connections are set to startOPCConnection=False so the app starts without

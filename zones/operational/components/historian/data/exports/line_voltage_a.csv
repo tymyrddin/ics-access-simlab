@@ -1,4 +1,4 @@
-# UU P&L Historian — pre-generated export
+# UU P&L Historian, pre-generated export
 # asset: line_voltage_a   unit: V   generated: 2026-03-01T00:00:01
 # normal operating range: 196–253V   undervoltage trip: 196V (relay HR[0])
 timestamp,value,unit

@@ -16,7 +16,7 @@ EOF
 # Everything the attacker sees lives here.
 # Structure mirrors a real Windows 10 user profile.
 
-WIN="C:\\Users\\bursardesk"   # display only — actual root below
+WIN="C:\\Users\\bursardesk"   # display only, actual root below
 PROFILE="/opt/win10/C/Users/bursardesk"
 
 mkdir -p \
@@ -27,11 +27,11 @@ mkdir -p \
     "$PROFILE/AppData/Roaming/Microsoft/Windows/PowerShell/PSReadLine" \
     "$PROFILE/.ssh"
 
-# ops-access.conf — operational credentials, written by Ponder for convenience.
+# ops-access.conf, operational credentials, written by Ponder for convenience.
 # Stored in AppData because someone followed a "keep config out of Desktop" tip
 # without understanding that AppData is not encrypted.
 cat > "$PROFILE/AppData/Roaming/UUPLOps/ops-access.conf" << 'EOF'
-# Operational systems access — created by Ponder Stibbons 2019-03-14
+# Operational systems access, created by Ponder Stibbons 2019-03-14
 # "Just copy these into whatever tool you're using, saves the back and forth"
 #
 # Historian web interface
@@ -47,10 +47,10 @@ scada.user=admin
 scada.pass=admin
 EOF
 
-# Monthly report script — PowerShell version on the Desktop.
+# Monthly report script, PowerShell version on the Desktop.
 # Hard-coded credentials because that is how it was done in 2019.
 cat > "$PROFILE/Desktop/pull_monthly_report.ps1" << 'EOF'
-# Monthly historian report — run on the 1st of each month
+# Monthly historian report, run on the 1st of each month
 # Usage: .\pull_monthly_report.ps1 -Month 2024-04
 param(
     [string]$Month = (Get-Date -Format "yyyy-MM")
@@ -70,7 +70,7 @@ Invoke-WebRequest -Uri $Uri -Headers $Headers -OutFile $OutFile
 Write-Host "Done. Report saved to $OutFile"
 EOF
 
-# PSReadLine history — PowerShell command history.
+# PSReadLine history, PowerShell command history.
 # The equivalent of .bash_history, and just as revealing.
 cat > "$PROFILE/AppData/Roaming/Microsoft/Windows/PowerShell/PSReadLine/ConsoleHost_history.txt" << 'EOF'
 dir
@@ -88,9 +88,9 @@ exit
 dir .\reports
 EOF
 
-# notes.txt in Documents — informal operational notes
+# notes.txt in Documents, informal operational notes
 cat > "$PROFILE/Documents/notes.txt" << 'EOF'
-Misc operational notes — please do not delete
+Misc operational notes, please do not delete
 
 Access to historian: see AppData\Roaming\UUPLOps\ops-access.conf
 If historian is down, call Ponder (ext 201) before trying anything yourself.
@@ -100,7 +100,7 @@ If it fails mid-month, re-run manually:
   .\Desktop\pull_monthly_report.ps1 -Month 2024-04
 
 SSH to eng workstation: engineer @ 10.10.2.30
-(ask Ponder for the password — not keeping it here again)
+(ask Ponder for the password, not keeping it here again)
 
 SCADA is read-only from here. Changes go through Sgt Colon (ext 105).
 
@@ -132,14 +132,14 @@ timestamp,asset,rpm,temp_c,pressure_bar,voltage_a,current_a,voltage_b,current_b
 2024-03-31T23:55:00,turbine_main,2996,183.7,4.1,11046,313.1,10995,310.5
 EOF
 
-# .ssh/known_hosts — systems bursardesk has connected to
+# .ssh/known_hosts, systems bursardesk has connected to
 cat > "$PROFILE/.ssh/known_hosts" << 'EOF'
 10.10.2.10 ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIBk7t3v2mNpOqLxRdYuHsWcAeJ9fKgXnMbZoQpTyVwIu
 10.10.2.20 ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIDrm4wHqP8yNcXeGsAfLjVtUkZoBpWnMdCiRlTuSvYxE
 10.10.2.30 ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIFvn6xKpQrYeHdMbWoLgJcNuAtZsSiTmXqBfDkRwPjGy
 EOF
 
-# Careless copy left in temp — someone needed it outside the profile
+# Careless copy left in temp, someone needed it outside the profile
 cp "$PROFILE/AppData/Roaming/UUPLOps/ops-access.conf" /tmp/ops-access.conf.bak
 chmod 644 /tmp/ops-access.conf.bak
 

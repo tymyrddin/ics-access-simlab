@@ -6,11 +6,15 @@ certificate, and forwards plain Modbus TCP to the PLC at port 502. The intent is
 mutual authentication: only the SCADA system holds a valid client certificate,
 so only the SCADA system can reach the PLC via this gateway.
 
-The TLS version is pinned to TLSv1. Upgrading to TLSv1.2 broke compatibility
-with the SCADA client library in 2019, and revisiting it was deferred to the next
-outage window. The server certificate expired and renewal has not been completed
+The TLS version is pinned to TLSv1.2 (sslVersionMin and sslVersionMax both
+TLSv1.2). An attempted upgrade to TLSv1.3 broke compatibility with the SCADA
+client library in 2019 and revisiting it was deferred to the next outage
+window. The server certificate expired and renewal has not been completed
 (HEX-4421, won't-fix). The SCADA client was reconfigured to skip server
-certificate verification rather than miss a maintenance window.
+certificate verification rather than miss a maintenance window. The lab
+certs are RSA-2048, which modern openssl flags as too weak for its default
+SECLEVEL=2; visitors with a recent openssl client need
+`-cipher 'DEFAULT@SECLEVEL=0'` to negotiate.
 
 The gateway is correctly designed. The client has been reconfigured to ignore
 what the gateway is saying. This is the realistic part.
@@ -37,13 +41,14 @@ volume-mounted from this component directory; `entrypoint.sh` substitutes
 `FORWARD_TARGET` from the environment before starting stunnel.
 
 Configuration summary:
-- `sslVersion = TLSv1` (pinned, cannot be negotiated up)
+- `sslVersionMin = TLSv1.2`, `sslVersionMax = TLSv1.2` (pinned)
 - `verify = 2` (requires client certificate against CA)
 - `cert` / `key`: server identity
 - `CAfile`: CA certificate for client verification
 - Forward target: default `10.10.3.21:502` (set via `FORWARD_TARGET` env var)
 
-The server key is `chmod 600` at start.
+The server key arrives 600 from `orchestrator/generate.py` via a read-only
+volume mount, so no chmod is needed at container start.
 
 ## Connections
 
@@ -53,14 +58,15 @@ The server key is `chmod 600` at start.
 
 ## Protocols
 
-TLS (TLSv1): port 8502 inbound.
+TLS (TLSv1.2): port 8502 inbound.
 Modbus TCP: port 502 outbound (plain, forwarded to PLC).
 
 ## Built-in vulnerabilities
 
-TLSv1 pinned: TLSv1 is deprecated (RFC 8996, 2021) and disabled by default in
-modern TLS libraries. The protocol downgrade was accepted in 2019. The gateway
-will not upgrade regardless of what the client proposes.
+TLSv1.2 pinned, no TLSv1.3: TLSv1.3 is the current best practice. The 2019
+upgrade attempt was rolled back when the SCADA client library failed; the
+lab still negotiates TLSv1.2 and a constrained cipher set to keep the
+RSA-2048 lab certs in play.
 
 Server certificate not verified by client: the SCADA stunnel client has
 `verify = 0` (see the scada-lts component README). A network attacker with a
@@ -105,9 +111,13 @@ docker logs stunnel-gateway
 docker exec -it stunnel-gateway sh
 ```
 
-Test TLS connectivity from the SCADA container (TLSv1 client):
+Test TLS connectivity from the SCADA container:
 ```bash
-openssl s_client -connect 10.10.2.50:8502 -tls1 -cert client.crt -key client.key
+openssl s_client -connect 10.10.2.50:8502 \
+    -tls1_2 -cipher 'DEFAULT@SECLEVEL=0' \
+    -cert /run/stunnel-certs/client.crt \
+    -key  /run/stunnel-certs/client.key  \
+    -CAfile /run/stunnel-certs/ca.crt
 ```
 
 The gateway logs accepted and rejected connections to stdout.

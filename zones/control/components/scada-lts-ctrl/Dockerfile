@@ -1,12 +1,12 @@
 FROM scadalts/scadalts:release-2.8.1
 
-# Scada-LTS — control-zone SCADA/HMI (Purdue L2).
+# Scada-LTS, control-zone SCADA/HMI (Purdue L2).
 # Connects directly to field devices via Modbus through the stunnel gateway.
 # Operators use this to view process state and issue control commands.
 #
 # Default credentials: admin / admin (never changed post-commissioning).
 # Certs volume-mounted at runtime from generated certs/ directory.
-# Client key made world-readable by entrypoint — HEX-5103 (risk accepted 2020).
+# Client key made world-readable by entrypoint, HEX-5103 (risk accepted 2020).
 
 USER root
 

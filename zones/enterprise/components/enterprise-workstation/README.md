@@ -77,8 +77,11 @@ docker exec -it enterprise-workstation bash
 ssh bursardesk@10.10.1.20    # password: Octavo1
 ```
 
-Inside, the virtual C: drive is at `/opt/win10/C/`. The win10shell presents a PowerShell-style prompt. Real SSH and 
-curl commands work normally.
+Inside, the virtual C: drive is at `/opt/win10/C/`. The win10shell presents
+a PowerShell-style prompt. Real SSH and curl commands work normally. The
+shell honours `-c "<cmd>"`, so `ssh bursardesk@10.10.1.20 'cat AppData/...'`
+returns the file content rather than the banner, matching how a real
+Windows SSH/PowerShell host would behave.
 
 ## Concrete attack paths
 

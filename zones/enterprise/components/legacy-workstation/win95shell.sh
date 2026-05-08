@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
-# UU P&L Legacy Workstation — DOS shell emulator
+# UU P&L Legacy Workstation, DOS shell emulator
 # Presents a Windows 95-era command prompt over SSH/Telnet.
 # The filesystem lives at /opt/legacy/C with uppercase 8.3 names.
-# Nothing here is spoofed at the OS level — it is all bash.
+# Nothing here is spoofed at the OS level, it is all bash.
 
 VIRT_ROOT="/opt/legacy/C"
 VIRT_CWD=""   # path relative to VIRT_ROOT, empty = C:\ root
@@ -260,7 +260,7 @@ cmd_help() {
     printf 'EXIT     Quits COMMAND.COM.\n'
     printf 'FTP      Connects to an FTP server.\n'
     printf 'HELP     This help.\n'
-    printf 'NC       Netcat — raw TCP connections.\n'
+    printf 'NC       Netcat, raw TCP connections.\n'
     printf 'NET      Network commands (USE / VIEW / USER).\n'
     printf 'NETSTAT  Displays active network connections.\n'
     printf 'NMAP     Network scanner.\n'

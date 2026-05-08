@@ -7,7 +7,7 @@ AUTH_MODE="${AUTH_MODE:-key}"
 
 if [ "$AUTH_MODE" = "password" ]; then
     # ------------------------------------------------------------------
-    # Password mode — Root-Me and platforms that publish credentials.
+    # Password mode, Root-Me and platforms that publish credentials.
     # No key exchange or adversary-keys file required.
     # Credentials are set from AUTH_ACCOUNTS: "user:pass user:pass ..."
     # ------------------------------------------------------------------
@@ -32,9 +32,9 @@ EOF
 
 else
     # ------------------------------------------------------------------
-    # Key mode (default) — self-hosted / Hetzner deployments.
+    # Key mode (default), self-hosted / Hetzner deployments.
     # Public keys are mounted from adversary-keys at runtime.
-    # Format: username ssh-... [comment] — one line per participant.
+    # Format: username ssh-... [comment], one line per participant.
     # ------------------------------------------------------------------
     cat > /etc/ssh/sshd_config.d/jumphost.conf << 'EOF'
 PasswordAuthentication no
@@ -65,7 +65,7 @@ EOF
             fi
         done < /run/adversary-keys
     else
-        echo "[entrypoint] Warning: /run/adversary-keys not mounted — no keys distributed" >&2
+        echo "[entrypoint] Warning: /run/adversary-keys not mounted, no keys distributed" >&2
     fi
 
 fi

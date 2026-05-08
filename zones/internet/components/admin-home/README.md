@@ -10,6 +10,10 @@ A remote administrator's personal machine with VPN access into the corporate net
 
 Base image: `debian:bookworm-slim`. Runs OpenSSH (port 22) and NFS-Ganesha (user-space NFSv3 server, ports 111/2049/20048).
 
+Visitor recon tooling pre-installed (rincewind is technical and uses these
+day-to-day): nmap, ftp, smbclient. They are also what the runbook chains
+explicitly tell the visitor to run from this host once they get a shell.
+
 User: `rincewind`, password `wizzard`. Neither has been changed since the machine was provisioned.
 
 The WireGuard tools package is installed; no daemon runs. NFS-Ganesha exports a tmpfs staging directory as `/work` 

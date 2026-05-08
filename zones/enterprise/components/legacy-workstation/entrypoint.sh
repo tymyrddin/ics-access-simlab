@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # legacy-workstation entrypoint
 # Configures and starts services as they would have been in a 1990s Windows shop.
-# Nothing here is intentionally broken — it's intentionally correct for its era.
+# Nothing here is intentionally broken, it's intentionally correct for its era.
 set -e
 
 # --- Samba ---
@@ -37,7 +37,7 @@ cat > /etc/samba/smb.conf << 'EOF'
     comment = Administration
 EOF
 
-# Local user — password set at build time in the realistic weak way
+# Local user, password set at build time in the realistic weak way
 # (short, dictionary word, matches what's on a sticky note somewhere)
 useradd -M -s /bin/false Administrator 2>/dev/null || true
 echo "Administrator:hex123" | chpasswd
@@ -79,9 +79,11 @@ service telnet
 {
     flags           = REUSE
     socket_type     = stream
+    protocol        = tcp
+    port            = 23
     wait            = no
     user            = root
-    server          = /usr/sbin/in.telnetd
+    server          = /usr/sbin/telnetd
     log_on_failure  += USERID
     disable         = no
 }
@@ -138,9 +140,9 @@ SubnetMask=255.255.255.0
 DefaultGateway=10.10.1.1
 EOF
 
-# UUPL\ — public operational data, the first goldmine
+# UUPL\, public operational data, the first goldmine
 cat > /opt/legacy/C/UUPL/NETWORK.TXT << 'EOF'
-UU P&L Network Inventory — Hex Computing Division
+UU P&L Network Inventory, Hex Computing Division
 Last updated: Q3 1999 (Ponder Stibbons)
 
 === NETWORK SEGMENTS ===
@@ -152,8 +154,8 @@ Operations Floor (Building B Basement)
 
 Engineering (Building A, Level 2)
   Gateway:        10.10.2.1
-  ENG-WS-01:      10.10.2.30   (Ponder Stibbons — DO NOT REBOOT WITHOUT WARNING)
-  ENG-WS-02:      10.10.2.31   (Spare — often borrowed by Archchancellor)
+  ENG-WS-01:      10.10.2.30   (Ponder Stibbons, DO NOT REBOOT WITHOUT WARNING)
+  ENG-WS-02:      10.10.2.31   (Spare, often borrowed by Archchancellor)
 
 Operational Systems
   Historian:      10.10.2.10   (HISTORIAN-01, web API :8080)
@@ -192,7 +194,7 @@ Archchancellor   ext 100  (emergencies only; define carefully)
 EOF
 
 cat > /opt/legacy/C/UUPL/PROCS.TXT << 'EOF'
-UU P&L Hex Turbine -- Standard Operating Procedures
+UU P&L Hex Turbine, Standard Operating Procedures
 Last reviewed: 2019-11-12 / P. Stibbons
 
 PROCEDURE: Turbine Start-up
@@ -227,10 +229,10 @@ timestamp,asset,event,value,unit,operator
 2003-11-12T09:11:22,ied_relay_a,config_write,1,,ponder_stibbons
 EOF
 
-# LOGBOOK\ — engineering logbook with sticky-note passwords
+# LOGBOOK\, engineering logbook with sticky-note passwords
 cat > /opt/legacy/C/LOGBOOK/ENGINEER.LOG << 'EOF'
-=== ENGINEERING LOGBOOK -- UU P&L HEX TURBINE DIVISION ===
-(Ponder Stibbons' informal notes -- do not bin this)
+=== ENGINEERING LOGBOOK, UU P&L HEX TURBINE DIVISION ===
+(Ponder Stibbons' informal notes, do not bin this)
 
 SYSTEM PASSWORDS (last updated 2019-11-12)
 ------------------------------------------
@@ -257,15 +259,15 @@ CONTACTS
 Ponder Stibbons  ext 201
 Sgt Colon        ext 105 (operations floor, knows where the modem numbers are)
 The Librarian    (server room, do not disturb without bananas)
-Archchancellor   ext 100 (emergencies only -- define carefully)
+Archchancellor   ext 100 (emergencies only, define carefully)
 EOF
 
-# PRIVATE\ — restricted, but Win95 had no local file permissions.
+# PRIVATE\, restricted, but Win95 had no local file permissions.
 # Anyone who gets a shell gets everything.
 cat > /opt/legacy/C/PRIVATE/PLCACCS.CFG << 'EOF'
-; UU P&L -- PLC and System Access Credentials
+; UU P&L, PLC and System Access Credentials
 ; Maintained by Ponder Stibbons (last updated 2019-11-12)
-; DO NOT DISTRIBUTE -- authorised staff only
+; DO NOT DISTRIBUTE, authorised staff only
 
 [engineering_workstation]
 host     = 10.10.2.30
@@ -317,9 +319,9 @@ usermod -s /usr/local/bin/win95shell.sh root
 # and were migrated without review when the hardware was replaced.
 
 cat > /srv/smb/private/plc-access.conf << 'EOF'
-# UU P&L -- PLC and System Access Credentials
+# UU P&L, PLC and System Access Credentials
 # Maintained by Ponder Stibbons (last updated 2019-11-12)
-# DO NOT DISTRIBUTE -- authorised staff only
+# DO NOT DISTRIBUTE, authorised staff only
 
 [engineering_workstation]
 host     = 10.10.2.30
@@ -368,8 +370,8 @@ chmod 640 /srv/smb/private/old-backup.bak
 # the plant operators needed to get things done without calling Ponder.
 mkdir -p /opt/legacy/data
 cat > /opt/legacy/data/engineering-logbook.txt << 'EOF'
-=== ENGINEERING LOGBOOK -- UU P&L HEX TURBINE DIVISION ===
-(Ponder Stibbons' informal notes -- do not bin this)
+=== ENGINEERING LOGBOOK, UU P&L HEX TURBINE DIVISION ===
+(Ponder Stibbons' informal notes; do not bin this)
 
 SYSTEM PASSWORDS (last updated 2019-11-12)
 ------------------------------------------
@@ -398,9 +400,89 @@ CONTACTS
 Ponder Stibbons  ext 201
 Sgt Colon        ext 105 (operations floor, knows where the modem numbers are)
 The Librarian    (server room, do not disturb without bananas)
-Archchancellor   ext 100 (emergencies only -- define carefully)
+Archchancellor   ext 100 (emergencies only, define carefully)
 EOF
 chmod 644 /opt/legacy/data/engineering-logbook.txt
+
+# --- Anonymous FTP / SMB-guest credential leak ---
+# The runbook chain (admin-home pivot, enterprise-to-turbine-trip) reaches this
+# host first and expects anonymous FTP to expose ENGINEER.LOG and NETWORK.TXT.
+# Years of "Ponder said put a copy in the public share so the apprentices can
+# read it" leave the engineering logbook in /srv/smb/public/. Same content as
+# the private logbook, plus accumulated entries about other UU P&L systems.
+mkdir -p /srv/smb/public/LOGBOOK /srv/smb/public/UUPL
+
+cat > /srv/smb/public/LOGBOOK/ENGINEER.LOG << 'EOF'
+=== ENGINEERING LOGBOOK, UU P&L HEX TURBINE DIVISION ===
+(Ponder Stibbons' informal notes; do not bin this)
+
+SYSTEM PASSWORDS (last updated 2019-11-12)
+------------------------------------------
+Turbine PLC:        no password (Modbus TCP, network IS the access control)
+Engineer SSH:       engineer / spanner99      (eng-ws, 10.10.2.30)
+Bursar's desk:      bursardesk / Octavo1      (bursar-desk, 10.10.1.20)
+Historian SSH:      hist_admin / Historian2015 (uupl-historian, 10.10.2.10)
+Historian DB:       hist1999 (old), Historian2015 (current web API)
+Historian ingest:   hist_read / history2017
+SCADA web:          admin / admin             (distribution-scada, 10.10.2.20)
+SCADA SSH:          scada_admin / W1nd0ws@2016
+Administrator:      hex123
+HMI operator:       hex123 / operator
+
+Emergency stop: Modbus coil 0 on hex_turbine_controller (10.10.3.21)
+                DO NOT write without coordinating with duty engineer.
+
+KNOWN ISSUES
+------------
+- IED relay B (Nap Hill, 10.10.3.32) gives false positive trips when
+  voltage drops below 10800V. Workaround: raise trip threshold via
+  Modbus HR[10]. Reset before leaving shift.
+- Historian web API returns SQL errors on asset names with apostrophes.
+  Vendor says it is a "cosmetic limitation." It is not cosmetic.
+- FTP on hex-legacy-1 has no write access. Use SMB share for uploads.
+
+CONTACTS
+--------
+Ponder Stibbons  ext 201
+Sgt Colon        ext 105 (operations floor, knows where the modem numbers are)
+The Librarian    (server room, do not disturb without bananas)
+Archchancellor   ext 100 (emergencies only, define carefully)
+EOF
+chmod 644 /srv/smb/public/LOGBOOK/ENGINEER.LOG
+
+cat > /srv/smb/public/UUPL/NETWORK.TXT << 'EOF'
+UU P&L Network Inventory, Hex Computing Division
+Last updated: Q3 2019 (Ponder Stibbons)
+
+=== NETWORK SEGMENTS ===
+
+Enterprise (Building A, Level 2)
+  hex-legacy-1     10.10.1.10   File / FTP / SMB / Telnet (this host)
+  bursar-desk      10.10.1.20   Bursar's workstation
+  wizzards-retreat 10.10.1.3    Remote admin VPN endpoint
+
+Operational (Building A, Level 1)
+  uupl-historian   10.10.2.10   Process historian, web :8080
+  distribution-scada 10.10.2.20 Scada-LTS, web :8080
+  uupl-eng-ws      10.10.2.30   Engineering workstation
+                                Dual-homed: 10.10.3.100 (control)
+
+Turbine Control (Basement Sub-Level 3)
+  hex-turbine-plc  10.10.3.21   Main turbine PLC, Modbus TCP :502
+  uupl-relay-a     10.10.3.31   Protective relay, Feeder A (Dolly Sisters)
+  uupl-relay-b     10.10.3.32   Protective relay, Feeder B (Nap Hill)
+  uupl-meter       10.10.3.33   Revenue meter
+
+Credentials: see C:\\LOGBOOK\\ENGINEER.LOG (mirrored at LOGBOOK/ENGINEER.LOG
+on the public share for the apprentices).
+
+=== CONTACTS ===
+
+Ponder Stibbons  ext 201  (all technical matters)
+Sgt Colon        ext 105  (operations floor; modem numbers)
+Archchancellor   ext 100  (emergencies only; define carefully)
+EOF
+chmod 644 /srv/smb/public/UUPL/NETWORK.TXT
 
 # --- /etc/motd ---
 cat > /etc/motd << 'EOF'

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Historian — Windows Server 2019 facade
+# Historian, Windows Server 2019 facade
 # Presents a Windows Server 2019 PowerShell prompt over SSH.
 # Virtual C: drive lives at /opt/winsvr/C.
 
@@ -198,35 +198,17 @@ System commands: whoami, hostname, ipconfig, netstat, ping, net, ssh, nmap, nc, 
 EOF
 }
 
-# ── banner ────────────────────────────────────────────────────────────────────
+# ── command dispatch ──────────────────────────────────────────────────────────
+# _dispatch handles a single command line. Used by both the interactive REPL
+# and the -c "<cmd>" non-interactive path so SSH command exec works the way
+# real PowerShell would.
 
-clear
-cat << 'BANNER'
-Windows PowerShell
-Copyright (C) Microsoft Corporation. All rights reserved.
-
-BANNER
-
-cat << 'LOGON'
-*******************************************************************************
-*                                                                             *
-*   Unseen University Power & Light Co.                                       *
-*   HIST-SRV01 — Process Historian Server (Windows Server 2019)              *
-*                                                                             *
-*   This system stores all plant time-series data since 1997.                *
-*   Authorised personnel only. Contact: Ponder Stibbons (ext 201).           *
-*                                                                             *
-*******************************************************************************
-
-LOGON
-
-# ── main loop ─────────────────────────────────────────────────────────────────
-
-while true; do
-    printf 'PS %s> ' "$(_disp)"
-    IFS= read -r line || break
+_dispatch() {
+    local line="$1"
     line="${line//$'\r'/}"
     line="${line#.\\}"; line="${line#./}"
+
+    local cmd rest
     read -r cmd rest <<< "$line"
 
     case "${cmd,,}" in
@@ -252,4 +234,41 @@ while true; do
         *)
             printf "'%s' is not recognized as the name of a cmdlet, function, script file,\nor operable program. Check the spelling of the name, or if a path was\nincluded, verify that the path is correct and try again.\n" "$cmd" ;;
     esac
+}
+
+# Non-interactive command exec: ssh user@host '<cmd>' invokes the shell as
+# `<shell> -c '<cmd>'`. Dispatch the single line and exit.
+if [[ "${1:-}" == "-c" && $# -ge 2 ]]; then
+    _dispatch "$2"
+    exit
+fi
+
+# ── banner ────────────────────────────────────────────────────────────────────
+
+clear
+cat << 'BANNER'
+Windows PowerShell
+Copyright (C) Microsoft Corporation. All rights reserved.
+
+BANNER
+
+cat << 'LOGON'
+*******************************************************************************
+*                                                                             *
+*   Unseen University Power & Light Co.                                       *
+*   HIST-SRV01, Process Historian Server (Windows Server 2019)              *
+*                                                                             *
+*   This system stores all plant time-series data since 1997.                *
+*   Authorised personnel only. Contact: Ponder Stibbons (ext 201).           *
+*                                                                             *
+*******************************************************************************
+
+LOGON
+
+# ── main loop ─────────────────────────────────────────────────────────────────
+
+while true; do
+    printf 'PS %s> ' "$(_disp)"
+    IFS= read -r line || break
+    _dispatch "$line"
 done

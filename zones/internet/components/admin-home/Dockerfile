@@ -10,9 +10,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     netbase \
     nfs-ganesha \
     nfs-ganesha-vfs \
+    nmap \
+    ftp \
+    smbclient \
     && rm -rf /var/lib/apt/lists/*
 
-# Remote administrator account — weak password is the vulnerability
+# Remote administrator account, weak password is the vulnerability
 RUN useradd -m -s /bin/bash rincewind && \
     echo "rincewind:wizzard" | chpasswd
 
@@ -27,14 +30,14 @@ COPY loot/vpn/   /home/rincewind/.vpn/
 COPY loot/ssh/   /home/rincewind/.ssh-keys/
 COPY loot/notes.txt /home/rincewind/notes.txt
 
-# NFS work share — world-readable, no auth required (misconfiguration)
+# NFS work share, world-readable, no auth required (misconfiguration)
 RUN mkdir -p /home/rincewind/work
 COPY loot/notes.txt /home/rincewind/work/notes.txt
 RUN chmod 755 /home/rincewind/work && \
     chmod 644 /home/rincewind/work/notes.txt
 
 # Rincewind's SSH keypair. Public key goes into authorized_keys so key login works.
-# Private key copy left in work/ — the entrypoint stages work/ to the NFS export with
+# Private key copy left in work/, the entrypoint stages work/ to the NFS export with
 # 644 permissions, making the key world-readable to anyone who mounts the share.
 RUN ssh-keygen -t ed25519 -f /home/rincewind/work/rincewind_id_ed25519 -N '' \
         -C 'rincewind@wizzards-retreat' && \
@@ -50,7 +53,7 @@ RUN chown -R rincewind:rincewind /home/rincewind/ && \
               /home/rincewind/.ssh && \
     chmod 600 /home/rincewind/.ssh/authorized_keys
 
-# NFS-Ganesha config (user-space NFS server — no kernel modules required)
+# NFS-Ganesha config (user-space NFS server, no kernel modules required)
 RUN mkdir -p /etc/ganesha /var/run/ganesha /var/log/ganesha
 COPY ganesha.conf /etc/ganesha/ganesha.conf
 

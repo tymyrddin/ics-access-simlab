@@ -53,7 +53,7 @@ _compose_up() {
 
 _compose_down() {
     local f="$1"
-    [ -f "$f" ] && docker compose -f "$f" down || true
+    [ -f "$f" ] && docker compose -f "$f" down -v || true
 }
 
 _compose_purge() {
@@ -131,7 +131,7 @@ case "$CMD" in
     echo "  Stop:     ./ctl down"
     echo "  Verify:   ./ctl verify"
     echo ""
-    echo "  Run './ctl firewall' (sudo) to enforce inter-zone routing rules."
+    echo "  Run 'sudo ./ctl firewall' to hide Docker bridge gateway IPs from container network scans."
     ;;
 
   down)

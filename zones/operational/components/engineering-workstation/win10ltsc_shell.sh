@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Engineering workstation — Windows 10 Enterprise LTSC facade
+# Engineering workstation, Windows 10 Enterprise LTSC facade
 # Presents a Windows 10 LTSC PowerShell prompt over SSH.
 # Virtual C: drive lives at /opt/win10/C.
 # Machine is dual-homed: 10.10.2.30 (ops) and 10.10.3.100 (control).
@@ -224,7 +224,7 @@ cmd_python() {
         echo "Type 'exit()' or Ctrl+D to quit."
         return
     fi
-    # Handle -c "code" — strip one layer of surrounding quotes if present
+    # Handle -c "code", strip one layer of surrounding quotes if present
     if [[ "$args" == "-c "* || "$args" == "-c	"* ]]; then
         local code="${args#-c }"
         code="${code#-c	}"
@@ -252,7 +252,7 @@ cmd_curl() { /usr/bin/curl "$@"; }
 cmd_nmap() { /usr/bin/nmap "$@"; }
 cmd_nc()   { /usr/bin/nc "$@"; }
 
-# Bash functions used by eval "$line" dispatch — handle quoted args correctly
+# Bash functions used by eval "$line" dispatch, handle quoted args correctly
 ssh()  { /usr/bin/ssh -o StrictHostKeyChecking=no "$@"; }
 curl() { /usr/bin/curl "$@"; printf '\n'; }
 wget() { /usr/bin/wget "$@"; printf '\n'; }
@@ -296,64 +296,25 @@ System commands available on this machine:
 EOF
 }
 
-# ── banner ────────────────────────────────────────────────────────────────────
+# ── command dispatch ──────────────────────────────────────────────────────────
+# _dispatch handles a single command line. Used by both the interactive REPL
+# and by the -c "<cmd>" non-interactive path. Real Windows shells accept
+# inline commands (PowerShell -Command, cmd /c); this facade matches that so
+# `ssh user@host '<cmd>'` works without forcing visitors into the prompt
+# first.
 
-clear
-cat << 'BANNER'
-Windows PowerShell
-Copyright (C) Microsoft Corporation. All rights reserved.
-
-Try the new cross-platform PowerShell https://aka.ms/pscore6
-
-BANNER
-
-cat << 'LOGON'
-*******************************************************************************
-*                                                                             *
-*   Unseen University Power & Light Co.                                       *
-*   ENG-WS01 — Engineering Workstation (Windows 10 Enterprise LTSC)          *
-*                                                                             *
-*   WARNING: This system has direct access to ICS/OT plant equipment.        *
-*   Authorised engineers only. All activity is logged.                        *
-*   Contact: Ponder Stibbons, ext 201 / ponder.stibbons@uupl.am             *
-*                                                                             *
-*******************************************************************************
-
-LOGON
-
-# ── main loop ─────────────────────────────────────────────────────────────────
-# Ctrl+C kills the foreground command and returns to the prompt.
-# trap ':' INT (not '') keeps children using the default SIGINT disposition,
-# so nmap / python die normally. The shell itself runs ':' and stays alive.
-trap ':' INT
-
-while true; do
-    printf 'PS %s> ' "$(_disp)"
-    IFS= read -r line
-    case $? in
-        0) ;;                              # normal input
-        1) break ;;                        # EOF / Ctrl-D — exit shell
-        *) printf '\n'; continue ;;        # signal-interrupted read — re-prompt
-    esac
+_dispatch() {
+    local line="$1"
     line="${line//$'\r'/}"
-    line="${line%"${line##*[^ ]}"}"   # strip trailing spaces
+    line="${line%"${line##*[^ ]}"}"
 
-    # Line continuation: trailing backslash joins the next line
-    while [[ "$line" == *\\ ]]; do
-        line="${line%\\}"
-        IFS= read -r cont || break
-        cont="${cont//$'\r'/}"
-        cont="${cont%"${cont##*[^ ]}"}"
-        line="${line}${cont}"
-    done
-
-    # Variable assignment: $VAR=value or $VAR=$(...)
     if [[ "$line" =~ ^\$[A-Za-z_][A-Za-z0-9_]*= ]]; then
         eval "${line:1}" 2>/dev/null || true
-        continue
+        return
     fi
 
     line="${line#.\\}"; line="${line#./}"
+    local cmd rest
     read -r cmd rest <<< "$line"
 
     case "${cmd,,}" in
@@ -383,4 +344,63 @@ while true; do
         *)
             printf "'%s' is not recognized as the name of a cmdlet, function, script file,\nor operable program. Check the spelling of the name, or if a path was\nincluded, verify that the path is correct and try again.\n" "$cmd" ;;
     esac
+}
+
+# Non-interactive command exec: ssh user@host '<cmd>' invokes the shell as
+# `<shell> -c '<cmd>'`. Dispatch the single line and exit.
+if [[ "${1:-}" == "-c" && $# -ge 2 ]]; then
+    _dispatch "$2"
+    exit
+fi
+
+# ── banner ────────────────────────────────────────────────────────────────────
+
+clear
+cat << 'BANNER'
+Windows PowerShell
+Copyright (C) Microsoft Corporation. All rights reserved.
+
+Try the new cross-platform PowerShell https://aka.ms/pscore6
+
+BANNER
+
+cat << 'LOGON'
+*******************************************************************************
+*                                                                             *
+*   Unseen University Power & Light Co.                                       *
+*   ENG-WS01, Engineering Workstation (Windows 10 Enterprise LTSC)          *
+*                                                                             *
+*   WARNING: This system has direct access to ICS/OT plant equipment.        *
+*   Authorised engineers only. All activity is logged.                        *
+*   Contact: Ponder Stibbons, ext 201 / ponder.stibbons@uupl.am             *
+*                                                                             *
+*******************************************************************************
+
+LOGON
+
+# ── main loop ─────────────────────────────────────────────────────────────────
+# Ctrl+C kills the foreground command and returns to the prompt.
+# trap ':' INT (not '') keeps children using the default SIGINT disposition,
+# so nmap / python die normally. The shell itself runs ':' and stays alive.
+trap ':' INT
+
+while true; do
+    printf 'PS %s> ' "$(_disp)"
+    IFS= read -r line
+    case $? in
+        0) ;;                              # normal input
+        1) break ;;                        # EOF or Ctrl-D, exit shell
+        *) printf '\n'; continue ;;        # signal-interrupted read, re-prompt
+    esac
+
+    # Line continuation: trailing backslash joins the next line
+    while [[ "$line" == *\\ ]]; do
+        line="${line%\\}"
+        IFS= read -r cont || break
+        cont="${cont//$'\r'/}"
+        cont="${cont%"${cont##*[^ ]}"}"
+        line="${line}${cont}"
+    done
+
+    _dispatch "$line"
 done

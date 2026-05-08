@@ -61,6 +61,28 @@ sudo bash tests/smoke/test_firewall.sh
 
 Skips automatically when not root.
 
+### Runbook smoke tests
+
+One smoke script per runbook in `books/`. Each walks the runbook stages and
+asserts on visitor-realistic behaviour: passwords work, files leak via the
+expected paths, modbus / IEC-104 / OPC-UA / TLS protocol probes complete,
+facade shells answer `ssh user@host '<cmd>'` with the command output. They
+assume `./ctl up` has already been run; each test waits for its required
+services with `wait_for_port` before probing.
+
+Three drivers aggregate the runs:
+
+```bash
+bash tests/smoke/test_runbooks_phase1.sh   # IT/OT pivot chains
+bash tests/smoke/test_runbooks_phase2.sh   # DMZ-direct chains + neuron exfil
+bash tests/smoke/test_runbooks_phase3.sh   # operational/control Stage 2/3 attacks
+```
+
+Cumulative: 13 runbooks, 109 assertions. Helpers live in
+`tests/smoke/lib.sh`; the SSH probes use paramiko inside `attacker-machine`
+(no test-only software is added to lab containers), with chained transport
+through wizzards-retreat for enterprise/operational targets.
+
 ## Dependency order
 
 | Layer                              | Requires                        |
@@ -71,6 +93,7 @@ Skips automatically when not root.
 | `tests/smoke/test_zones.sh`        | Docker, images built            |
 | `tests/smoke/test_connectivity.sh` | Docker, images built            |
 | `tests/smoke/test_firewall.sh`     | Docker, images built, root      |
+| `tests/smoke/test_runbooks_phase*.sh` | Docker, full lab up via `./ctl up` |
 
 To generate compose files before running smoke tests directly:
 

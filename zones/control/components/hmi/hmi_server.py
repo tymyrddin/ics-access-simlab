@@ -4,7 +4,7 @@ HMI web interface (:8080) and Modbus mirror server (:502).
 
 The Modbus server on :502 exposes the last-known PLC state as input registers
 (read-only mirror). It also accepts writes to coils/holding registers and
-forwards them to the PLC — making it a transparent proxy for operator commands.
+forwards them to the PLC, making it a transparent proxy for operator commands.
 Useful for attackers who discover the HMI before the PLC.
 """
 

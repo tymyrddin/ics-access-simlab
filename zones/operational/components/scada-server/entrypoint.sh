@@ -29,9 +29,9 @@ mkdir -p \
 # ── C:\SCADA\Config\scada.ini ─────────────────────────────────────────────────
 
 cat > "/opt/winsvr/C/SCADA/Config/scada.ini" << EOF
-; UU P&L Distribution SCADA — Connection Configuration
+; UU P&L Distribution SCADA, Connection Configuration
 ; Written: 2021-08-14  Author: I. Devious, Hex IT
-; DO NOT DISTRIBUTE — contains service credentials
+; DO NOT DISTRIBUTE, contains service credentials
 
 [historian]
 host     = ${HISTORIAN_IP}
@@ -59,7 +59,7 @@ notes    = Windows admin account. Set at installation. IT asked about rotating i
 EOF
 
 cat > "/opt/winsvr/C/SCADA/Config/alarm_recipients.txt" << 'EOF'
-# UU P&L SCADA — Alarm Notification Recipients
+# UU P&L SCADA, Alarm Notification Recipients
 # Updated: 2025-11-03  P. Stibbons
 
 [critical]
@@ -77,7 +77,7 @@ EOF
 
 cat > "/opt/winsvr/C/SCADA/Scripts/send_alarm.bat" << 'EOF'
 @echo off
-REM UU P&L SCADA — Alarm notification relay
+REM UU P&L SCADA, Alarm notification relay
 REM Called by SCADA monitor when trip conditions are detected.
 REM Written: 2018-06-22  Last modified: 2023-01-09
 
@@ -99,7 +99,7 @@ EOF
 mkdir -p /opt/scada/scripts
 cat > /opt/scada/scripts/send_alarm.sh << 'EOF'
 #!/usr/bin/env bash
-# UU P&L SCADA — Alarm notification relay
+# UU P&L SCADA, Alarm notification relay
 SMTP_HOST="mail.uu.am"
 SMTP_PORT=587
 SMTP_USER="alarms@uupl.am"
@@ -126,7 +126,7 @@ chmod 750 /opt/scada/scripts/send_alarm.sh
 
 cat > "/opt/winsvr/C/SCADA/Scripts/poll_historian.ps1" << EOF
 # Polls historian for current plant state. Run on demand or via Task Scheduler.
-# Uses hist_read account — read-only access to historian web API.
+# Uses hist_read account, read-only access to historian web API.
 
 \$HistorianUrl = "http://${HISTORIAN_IP}:8080"
 \$User         = "hist_read"
@@ -145,7 +145,7 @@ EOF
 # ── C:\SCADA\Logs\ ────────────────────────────────────────────────────────────
 
 cat > "/opt/winsvr/C/SCADA/Logs/alarm_log_2026.txt" << 'EOF'
-UU P&L Distribution SCADA — Alarm Log 2026
+UU P&L Distribution SCADA, Alarm Log 2026
 ===========================================
 Format: timestamp | severity | asset | value | threshold | action
 
@@ -153,7 +153,7 @@ Format: timestamp | severity | asset | value | threshold | action
 2026-01-14T03:22:43 | CLEAR    | turbine_rpm        | 3048 RPM  | -         | auto-clear
 2026-02-03T11:07:55 | WARNING  | turbine_temperature| 462 C     | hi=460    | notified ops-duty
 2026-02-03T11:08:02 | CLEAR    | turbine_temperature| 441 C     | -         | auto-clear
-2026-02-19T22:44:01 | CRITICAL | line_voltage_a     | 193 V     | lo_lo=184 | relay trip — Feeder A offline
+2026-02-19T22:44:01 | CRITICAL | line_voltage_a     | 193 V     | lo_lo=184 | relay trip, Feeder A offline
 2026-02-19T22:44:09 | CRITICAL | relay_a_trip       | 1 (tripped)| -        | send_alarm.bat executed
 2026-02-19T22:54:22 | INFO     | relay_a_trip       | 0 (reclosed)| -       | feeder restored
 2026-03-01T08:30:00 | INFO     | turbine_rpm        | 3002 RPM  | -         | daily check OK
@@ -178,7 +178,7 @@ dir
 EOF
 
 cat > "$PROFILE/Desktop/README.txt" << 'EOF'
-SCADA-SRV01 — Quick Reference
+SCADA-SRV01, Quick Reference
 ==============================
 
 Web dashboard:  http://10.10.2.20:8080/   (admin/admin)

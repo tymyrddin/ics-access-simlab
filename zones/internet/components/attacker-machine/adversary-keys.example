@@ -1,4 +1,4 @@
-# adversary-keys — one line per participant: username pubkey [comment]
+# adversary-keys, one line per participant: username pubkey [comment]
 # Copy to adversary-keys (gitignored) and add real public keys before deploying.
 # For local dev, ./ctl up will add your own key for user 'ponder' automatically.
 #
