@@ -28,7 +28,6 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 ORCHESTRATOR_DIR = Path(__file__).resolve().parent
 ZONES_DIR = REPO_ROOT / "zones"
 INFRA_DIR = REPO_ROOT / "infrastructure"
-FIREWALL_RULES = ORCHESTRATOR_DIR / "firewall-rules.txt"
 ADVERSARY_README = ORCHESTRATOR_DIR / "adversary-readme.txt"
 ROUTERS_DIR = INFRA_DIR / "routers"
 
@@ -96,13 +95,6 @@ docker compose -f "$REPO/zones/control/docker-compose.yml" up -d
 echo "[*] Starting DMZ zone..."
 docker compose -f "$REPO/zones/dmz/docker-compose.yml" up -d
 
-echo "[*] Applying inter-zone firewall rules..."
-if [ "$EUID" -eq 0 ]; then
-    bash "$REPO/infrastructure/firewall.sh"
-else
-    echo "[!] Skipping firewall rules, not root (run as root or with sudo to enforce inter-zone policy)"
-fi
-
 echo "[+] All zones running."
 """
 
@@ -123,17 +115,6 @@ docker compose -f "$REPO/zones/operational/docker-compose.yml" down
 
 echo "[*] Stopping enterprise zone..."
 docker compose -f "$REPO/zones/enterprise/docker-compose.yml" down
-
-echo "[*] Removing shared networks..."
-docker compose -f "$REPO/infrastructure/networks/docker-compose.yml" down
-
-echo "[*] Flushing inter-zone firewall rules..."
-if [ "$EUID" -eq 0 ]; then
-    iptables -F DOCKER-USER
-    iptables -A DOCKER-USER -j RETURN
-else
-    echo "[!] Skipping firewall flush, not root (run as root or with sudo to flush rules)"
-fi
 
 echo "[+] All zones stopped."
 """
@@ -222,6 +203,13 @@ def _subnet(config: dict, key: str) -> str:
 
 def _external_net(name: str) -> dict:
     return {"external": True, "name": name}
+
+
+# Each clab zone runs from clab/<zone>-zone.clab.yaml. Application services
+# are still built via the per-zone docker-compose.yml files (compose stays
+# the build tool); they are never started by compose. Routers come from
+# clab/frr/ and the per-zone topology's bind to /acl.sh.
+_CLAB_ZONES = ("internet", "enterprise", "operational", "control", "dmz")
 
 
 # ---------------------------------------------------------------------------
@@ -699,109 +687,6 @@ def generate_dmz_compose(config: dict, output_path: Path) -> dict:
 
 
 # ---------------------------------------------------------------------------
-# Inter-zone firewall (DOCKER-USER chain, applied on the host after zones up)
-# ---------------------------------------------------------------------------
-
-def generate_firewall_sh(config: dict) -> str:
-    """Generate infrastructure/firewall.sh from orchestrator/firewall-rules.txt.
-
-    Zone enforcement is handled by router containers (infrastructure/routers/).
-    This script only applies the ICS_HIDE_GW chain, which hides Docker bridge
-    gateway IPs (10.10.x.1) from CTF containers.
-
-    firewall-rules.txt contains the zone policy as commented-out reference;
-    no active DOCKER-USER rules are emitted here.
-    """
-    addrs = {
-        "internet":      config["networks"]["internet"]["subnet"],
-        "enterprise":    config["networks"]["enterprise"]["subnet"],
-        "operational":   config["networks"]["operational"]["subnet"],
-        "control":       config["networks"]["control"]["subnet"],
-        "wan":           config["networks"]["wan"]["subnet"],
-        "dmz":           config["networks"]["dmz"]["subnet"],
-        "historian":     config["operational_zone"]["historian"]["ip"],
-        "scada":         config["operational_zone"]["scada_server"]["ip"],
-        "eng_ws":        config["operational_zone"]["engineering_workstation"]["ip"],
-        # admin_home internet IP, used for VPN ACCEPT rule before internet→enterprise DROP.
-        # Falls back to 0.0.0.0/32 (no-op) when internet_zone is absent from config.
-        "admin_home_ip": (
-            config.get("internet_zone", {})
-                  .get("admin_home", {})
-                  .get("internet_ip", "0.0.0.0/32")
-        ),
-        # ssh-bastion DMZ IP, used for contractor pivot ACCEPT rule before dmz→enterprise DROP.
-        # Falls back to 0.0.0.0/32 (no-op) when dmz_zone is absent from config.
-        "ssh_bastion": next(
-            (d["ip"] for d in config.get("dmz_zone", {}).get("devices", [])
-             if d.get("implementation") == "ssh-bastion-vuln"),
-            "0.0.0.0/32"
-        ),
-    }
-    # Docker assigns .1 on each bridge network to the host machine.
-    # Without INPUT rules to block it, nmap scans from CTF containers reach the
-    # host and reveal its hostname, open ports, and other meta-information.
-    # Rules live in a named chain (ICS_HIDE_GW) that is flushed on every run,
-    # so repeated invocations never accumulate stale entries.
-    # Old direct INPUT rules from prior versions are deleted first.
-    cleanup = ""
-    for net_cfg in config["networks"].values():
-        subnet = net_cfg["subnet"]
-        prefix = subnet.rsplit(".", 1)[0]
-        gw = prefix + ".1"
-        cleanup += f"iptables -D INPUT -s {subnet} -d {gw} -j DROP 2>/dev/null || true\n"
-        cleanup += f"iptables -D INPUT -s {subnet} -d {gw} -p tcp --syn -j DROP 2>/dev/null || true\n"
-        cleanup += f"iptables -D INPUT -s {subnet} -d {gw} -p icmp -j DROP 2>/dev/null || true\n"
-
-    gw_rules = (
-        "# Remove any old direct INPUT rules accumulated from prior firewall runs.\n"
-        + cleanup
-        + "\n"
-        "# Hide Docker bridge gateway IPs from CTF containers (INPUT chain).\n"
-        "# Named chain is flushed on every run so rules never accumulate.\n"
-        "iptables -N ICS_HIDE_GW 2>/dev/null || true\n"
-        "iptables -F ICS_HIDE_GW\n"
-        "iptables -C INPUT -j ICS_HIDE_GW 2>/dev/null "
-        "|| iptables -I INPUT 1 -j ICS_HIDE_GW\n"
-    )
-    gw_rules += "iptables -A ICS_HIDE_GW -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT\n"
-    for net_cfg in config["networks"].values():
-        prefix = net_cfg["subnet"].rsplit(".", 1)[0]
-        gw = prefix + ".1"
-        gw_rules += f"iptables -A ICS_HIDE_GW -d {gw} -j DROP\n"
-    gw_rules += "\n"
-
-    # Strip comment header lines from the rules file, the generated script
-    # has its own header; the txt file comments are for human editors only.
-    raw = FIREWALL_RULES.read_text()
-    body = "\n".join(
-        line for line in raw.splitlines() if not line.startswith("#")
-    ).strip()
-    rules = body.format_map(addrs)
-    return (
-        "#!/usr/bin/env bash\n"
-        "# Host gateway-hiding rules, ICS_HIDE_GW chain\n"
-        "# Generated by orchestrator/generate.py, do not edit directly.\n"
-        "#\n"
-        "# Zone enforcement is handled by router containers (infrastructure/routers/).\n"
-        "# This script only hides Docker bridge gateway IPs (10.10.x.1) from CTF\n"
-        "# containers so nmap scans do not reveal host metadata.\n"
-        "#\n"
-        "# Requires root (iptables). Applied after all zone stacks are up.\n"
-        "set -euo pipefail\n"
-        "\n"
-        'if [ "$EUID" -ne 0 ]; then\n'
-        '    echo "[firewall] Error: iptables rules require root. Run as root or with sudo." >&2\n'
-        "    exit 1\n"
-        "fi\n"
-        "\n"
-        + gw_rules
-        + '\necho "[firewall] Inter-zone rules applied."\n'
-    )
-
-
-
-
-# ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
 
@@ -1096,47 +981,84 @@ def generate_routers(config: dict) -> None:
         f"# All else: DROP (default policy)\n"
     )
 
-    # Make ACL scripts executable
+    # Make ACL scripts executable; clab binds them as /acl.sh.
     for acl in out.glob("*-acl.sh"):
         acl.chmod(0o755)
 
-    # ── docker-compose.yml ───────────────────────────────────────────────────
-
-    router_dir_rel = _rel(ROUTERS_DIR, out)
-
-    def router_svc(name, net_a, ip_a, net_b, ip_b, acl_name):
-        return {
-            "build": {"context": router_dir_rel},
-            "container_name": name,
-            "hostname": name,
-            "restart": "unless-stopped",
-            "cap_add": ["NET_ADMIN"],
-            "cap_drop": ["ALL"],
-            "sysctls": {"net.ipv4.ip_forward": 1},
-            "networks": {
-                netname(net_a): {"ipv4_address": rip(net_a, ip_a)},
-                netname(net_b): {"ipv4_address": rip(net_b, ip_b)},
-            },
-            "volumes": [f"./{acl_name}:/acl.sh:ro"],
-        }
-
-    services = {
-        "inet-dmz-fw":    router_svc("inet-dmz-fw",    "internet", 200, "dmz",        200, "inet-dmz-fw-acl.sh"),
-        "dmz-ent-fw":     router_svc("dmz-ent-fw",     "dmz",      201, "enterprise", 201, "dmz-ent-fw-acl.sh"),
-        "ent-ops-fw":     router_svc("ent-ops-fw",     "enterprise",202, "operational",202, "ent-ops-fw-acl.sh"),
-        "ops-ctrl-fw":    router_svc("ops-ctrl-fw",    "operational",203, "control",   203, "ops-ctrl-fw-acl.sh"),
-        "ops-wan-router": router_svc("ops-wan-router", "operational",204, "wan",       204, "ops-wan-router-acl.sh"),
-    }
-
-    all_nets = {
-        netname(k): _external_net(netname(k))
-        for k in ("internet", "enterprise", "operational", "control", "wan", "dmz")
-        if k in nets
-    }
-
-    compose = {"services": services, "networks": all_nets}
-    write_compose(out / "docker-compose.yml", compose)
+    # The previous compose-managed router stack is retired. If a stale
+    # docker-compose.yml lingers from an older generate run, drop it.
+    compose_path = out / "docker-compose.yml"
+    if compose_path.exists():
+        compose_path.unlink()
     logging.info(f"Router ACL scripts written to {out}")
+
+
+# ---------------------------------------------------------------------------
+# Clab orchestration helpers
+# ---------------------------------------------------------------------------
+# The data plane is real Linux bridges referenced by every topology as
+# kind: bridge nodes. Bridge lifecycle (create on up, delete on down)
+# lives in these helpers so clab itself never owns them.
+
+_CLAB_BRIDGES = ("ics_internet", "ics_enterprise", "ics_operational",
+                 "ics_control", "ics_dmz", "ics_wan")
+
+
+def generate_clab_helpers(config: dict) -> None:
+    """Write infrastructure/clab-up.sh and clab-down.sh.
+
+    up: pre-create the host Linux bridges with sudo, build the FRR image,
+        deploy each per-zone topology in order.
+    down: destroy each topology in reverse order, then drop the host
+          bridges with sudo.
+    """
+    bridges = " ".join(_CLAB_BRIDGES)
+
+    deploy = "\n".join(
+        f'containerlab deploy --topo "$REPO/clab/{z}-zone.clab.yaml"'
+        for z in _CLAB_ZONES
+    )
+    # Do not silence clab's stderr; the per-container "Removed container"
+    # lines are how operators verify the teardown actually happened.
+    destroy = "\n".join(
+        f'containerlab destroy --topo "$REPO/clab/{z}-zone.clab.yaml"'
+        for z in reversed(_CLAB_ZONES)
+    )
+
+    up = INFRA_DIR / "clab-up.sh"
+    up.write_text(
+        "#!/usr/bin/env bash\n"
+        "# Generated by orchestrator/generate.py, do not edit directly.\n"
+        "set -euo pipefail\n"
+        'REPO="$(cd "$(dirname "$0")/.." && pwd)"\n\n'
+        'echo "[clab] Creating host bridges (sudo)..."\n'
+        f'sudo bash -c \'for b in {bridges}; do '
+        'ip link show "$b" >/dev/null 2>&1 || ip link add "$b" type bridge; '
+        'ip link set "$b" up; done\'\n\n'
+        'echo "[clab] Building clab-router image..."\n'
+        'docker build -q -t clab-router "$REPO/clab/frr"\n\n'
+        'echo "[clab] Building lab-mysql8 image..."\n'
+        'docker build -q -t lab-mysql8 "$REPO/clab/lab-mysql8"\n\n'
+        'echo "[clab] Deploying topologies..."\n'
+        + deploy + "\n"
+    )
+    up.chmod(0o755)
+
+    down = INFRA_DIR / "clab-down.sh"
+    down.write_text(
+        "#!/usr/bin/env bash\n"
+        "# Generated by orchestrator/generate.py, do not edit directly.\n"
+        "set +e\n"
+        'REPO="$(cd "$(dirname "$0")/.." && pwd)"\n\n'
+        'echo "[clab] Destroying topologies..."\n'
+        + destroy + "\n\n"
+        'echo "[clab] Removing host bridges (sudo)..."\n'
+        f'sudo bash -c \'for b in {bridges}; do '
+        'ip link delete "$b" type bridge 2>/dev/null; done\'\n'
+    )
+    down.chmod(0o755)
+    logging.info(f"Wrote: {up}")
+    logging.info(f"Wrote: {down}")
 
 
 # ---------------------------------------------------------------------------
@@ -1163,10 +1085,12 @@ def main() -> None:
     if needs_certs:
         generate_certs(REPO_ROOT)
 
-    write_compose(
-        INFRA_DIR / "networks" / "docker-compose.yml",
-        generate_networks_compose(config),
-    )
+    # The shared networks compose is gone: the data plane runs on real
+    # Linux bridges created by infrastructure/clab-up.sh, not docker
+    # user-defined networks. Drop the file if a previous generate left it.
+    legacy_networks = INFRA_DIR / "networks" / "docker-compose.yml"
+    if legacy_networks.exists():
+        legacy_networks.unlink()
 
     enterprise_path  = ZONES_DIR / "enterprise"  / "docker-compose.yml"
     operational_path = ZONES_DIR / "operational" / "docker-compose.yml"
@@ -1185,10 +1109,17 @@ def main() -> None:
         write_compose(dmz_path, generate_dmz_compose(config, dmz_path))
 
     generate_routers(config)
+    generate_clab_helpers(config)
 
     write_script(REPO_ROOT / "start.sh", _START_SH)
     write_script(REPO_ROOT / "stop.sh", _STOP_SH)
-    write_script(INFRA_DIR / "firewall.sh", generate_firewall_sh(config))
+
+    # Drop stale files left by previous generator iterations. firewall.sh
+    # was the docker-bridge gateway-hiding workaround; .fabric was the
+    # per-zone fabric-toggle marker. Both removed now.
+    for stale in (INFRA_DIR / "firewall.sh", INFRA_DIR / ".fabric"):
+        if stale.exists():
+            stale.unlink()
 
     logging.info("Done. Run: ./ctl up")
 

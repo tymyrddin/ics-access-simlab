@@ -1,0 +1,107 @@
+# UU P&L operational zone, structural clab edition.
+#
+# ics_operational (own), plus ics_control for the dual-homed
+# stunnel-gateway / engineering-workstation, plus ics_wan for ops-wan-router.
+
+name: uupl-operational
+prefix: ""
+
+topology:
+
+  defaults:
+    kind: linux
+
+  nodes:
+
+    ics_operational: { kind: bridge }
+    ics_control:     { kind: bridge }
+    ics_wan:         { kind: bridge }
+
+    # ── L3 boundary ─────────────────────────────────────────────────────
+    ops-wan-router:
+      image: clab-router
+      binds:
+        - frr/daemons:/etc/frr/daemons
+        - frr/ops-wan-router.frr.conf:/etc/frr/frr.conf
+        - ../infrastructure/routers/generated/ops-wan-router-acl.sh:/acl.sh
+      labels:
+        role: gateway
+
+    # ── Operational services ────────────────────────────────────────────
+    historian:
+      image: operational-historian
+      cap-add: [NET_ADMIN]
+      env: { DATA_SOURCE: uupl_ied }
+      exec:
+        - sh -c "ip addr add 10.10.2.10/24 dev eth1 && ip link set eth1 up"
+        - sh -c "ip route replace default via 10.10.2.202"
+
+    scada-db:
+      image: lab-mysql8
+      env:
+        MYSQL_DATABASE:      scadalts
+        MYSQL_USER:          scadalts
+        MYSQL_PASSWORD:      scada2015
+        MYSQL_ROOT_PASSWORD: scadaroot
+      exec:
+        - sh -c "ip addr add 10.10.2.19/24 dev eth1 && ip link set eth1 up"
+        - sh -c "ip route replace default via 10.10.2.202"
+
+    scada-server:
+      image: operational-scada-server
+      cap-add: [NET_ADMIN]
+      binds:
+        - ../certs/client.crt:/run/stunnel-certs/client.crt
+        - ../certs/client.key:/run/stunnel-certs/client.key
+        - ../certs/ca.crt:/run/stunnel-certs/ca.crt
+      env:
+        MYSQL_HOST:     scada-db
+        MYSQL_PORT:     '3306'
+        MYSQL_DATABASE: scadalts
+        MYSQL_USER:     scadalts
+        MYSQL_PASSWORD: scada2015
+        STUNNEL_GW_IP:  10.10.2.50
+      exec:
+        - sh -c "ip addr add 10.10.2.20/24 dev eth1 && ip link set eth1 up"
+        - sh -c "ip route replace default via 10.10.2.202"
+
+    # stunnel-gateway dual-homed operational + control.
+    stunnel-gateway:
+      image: operational-stunnel-gateway
+      cap-add: [NET_ADMIN]
+      binds:
+        - ../zones/control/components/stunnel-gateway/stunnel.conf:/run/stunnel/stunnel.conf:ro
+        - ../certs/ca.crt:/run/stunnel/ca.crt:ro
+        - ../certs/server.crt:/run/stunnel/server.crt:ro
+        - ../certs/server.key:/run/stunnel/server.key:ro
+      env: { FORWARD_TARGET: "10.10.3.21:502" }
+      exec:
+        - sh -c "ip addr add 10.10.2.50/24 dev eth1 && ip link set eth1 up"
+        - sh -c "ip addr add 10.10.3.50/24 dev eth2 && ip link set eth2 up"
+        - sh -c "ip route replace default via 10.10.2.202"
+
+    # engineering-workstation dual-homed operational + control.
+    engineering-workstation:
+      image: operational-engineering-workstation
+      cap-add: [NET_ADMIN]
+      env:
+        ICS_PROCESS:    uupl_ied
+        CONTROL_SUBNET: 10.10.3.0/24
+      exec:
+        - sh -c "ip addr add 10.10.2.30/24  dev eth1 && ip link set eth1 up"
+        - sh -c "ip addr add 10.10.3.100/24 dev eth2 && ip link set eth2 up"
+        - sh -c "ip route replace default via 10.10.2.202"
+
+  # Per-topology prefix `vo*` for globally unique veth names.
+  links:
+    - endpoints: [ops-wan-router:eth1, ics_operational:vo0]
+    - endpoints: [ops-wan-router:eth2, ics_wan:vo1]
+
+    - endpoints: [historian:eth1,               ics_operational:vo2]
+    - endpoints: [scada-db:eth1,                ics_operational:vo3]
+    - endpoints: [scada-server:eth1,            ics_operational:vo4]
+    - endpoints: [stunnel-gateway:eth1,         ics_operational:vo5]
+    - endpoints: [engineering-workstation:eth1, ics_operational:vo6]
+
+    - endpoints: [stunnel-gateway:eth2,         ics_control:vo7]
+    - endpoints: [engineering-workstation:eth2, ics_control:vo8]

@@ -1,0 +1,52 @@
+# UU P&L internet zone, structural clab edition.
+#
+# Three bridges: ics_internet (own), plus ics_enterprise and
+# ics_operational for admin-home's triple-homing. inet-dmz-fw lives in
+# clab/dmz-zone.clab.yaml; the visitor reaches it via the shared
+# ics_internet bridge.
+
+name: uupl-internet
+prefix: ""
+
+topology:
+
+  defaults:
+    kind: linux
+
+  nodes:
+
+    ics_internet:    { kind: bridge }
+    ics_enterprise:  { kind: bridge }
+    ics_operational: { kind: bridge }
+
+    # External entry. Port 2222 on the host forwards to 22 here.
+    attacker-machine:
+      image: internet-attacker-machine
+      ports: ["2222:22"]
+      binds:
+        - ../zones/internet/components/attacker-machine/adversary-keys:/run/adversary-keys:ro
+        - ../zones/internet/components/attacker-machine/adversary-readme.txt:/run/adversary-readme.txt:ro
+      cap-add: [NET_ADMIN, NET_RAW, SYS_ADMIN, SYS_PTRACE]
+      exec:
+        - sh -c "ip addr add 10.10.0.5/24 dev eth1 && ip link set eth1 up"
+        - sh -c "ip route replace default via 10.10.0.200"
+
+    # Triple-homed VPN simulator. eth1 = internet, eth2 = enterprise,
+    # eth3 = operational. The dual VPN narrative is the dual NICs.
+    admin-home:
+      image: internet-admin-home
+      cap-add: [NET_ADMIN, NET_RAW, SYS_ADMIN, SYS_PTRACE]
+      exec:
+        - sh -c "ip addr add 10.10.0.10/24 dev eth1 && ip link set eth1 up"
+        - sh -c "ip addr add 10.10.1.3/24  dev eth2 && ip link set eth2 up"
+        - sh -c "ip addr add 10.10.2.3/24  dev eth3 && ip link set eth3 up"
+        - sh -c "ip route replace default via 10.10.0.200"
+
+  # Bridge-side endpoint names are host-namespace veth interface names,
+  # so they need to be globally unique across all topologies. Convention:
+  # per-topology prefix (`vi*` for internet-zone), sequential.
+  links:
+    - endpoints: [attacker-machine:eth1, ics_internet:vi0]
+    - endpoints: [admin-home:eth1,       ics_internet:vi1]
+    - endpoints: [admin-home:eth2,       ics_enterprise:vi2]
+    - endpoints: [admin-home:eth3,       ics_operational:vi3]

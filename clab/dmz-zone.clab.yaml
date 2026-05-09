@@ -1,0 +1,132 @@
+# UU P&L dmz zone, structural clab edition.
+#
+# Three Linux bridges enter this topology: ics_dmz (the zone's own),
+# ics_internet (for inet-dmz-fw's other side), and ics_enterprise (for
+# dmz-ent-fw and the dual-homed ssh_bastion). Same kind: bridge name
+# means the same Linux bridge on the host, shared with other topologies.
+
+name: uupl-dmz
+prefix: ""
+
+topology:
+
+  defaults:
+    kind: linux
+
+  nodes:
+
+    ics_dmz:        { kind: bridge }
+    ics_internet:   { kind: bridge }
+    ics_enterprise: { kind: bridge }
+
+    # ── L3 boundaries ───────────────────────────────────────────────────
+    inet-dmz-fw:
+      image: clab-router
+      binds:
+        - frr/daemons:/etc/frr/daemons
+        - frr/inet-dmz-fw.frr.conf:/etc/frr/frr.conf
+        - ../infrastructure/routers/generated/inet-dmz-fw-acl.sh:/acl.sh
+      labels:
+        role: gateway
+
+    dmz-ent-fw:
+      image: clab-router
+      binds:
+        - frr/daemons:/etc/frr/daemons
+        - frr/dmz-ent-fw.frr.conf:/etc/frr/frr.conf
+        - ../infrastructure/routers/generated/dmz-ent-fw-acl.sh:/acl.sh
+      labels:
+        role: gateway
+
+    # ── DMZ services ────────────────────────────────────────────────────
+    umati_gateway:
+      image: dmz-umati-gateway
+      cap-add: [NET_ADMIN]
+      exec:
+        - sh -c "ip addr add 10.10.5.10/24 dev eth1 && ip link set eth1 up"
+        - sh -c "ip route replace default via 10.10.5.201"
+
+    neuron_gateway:
+      image: dmz-neuron-gateway
+      cap-add: [NET_ADMIN]
+      exec:
+        - sh -c "ip addr add 10.10.5.11/24 dev eth1 && ip link set eth1 up"
+        - sh -c "ip route replace default via 10.10.5.201"
+
+    mqtt_dmz:
+      image: dmz-mqtt-dmz
+      cap-add: [NET_ADMIN]
+      exec:
+        - sh -c "ip addr add 10.10.5.12/24 dev eth1 && ip link set eth1 up"
+        - sh -c "ip route replace default via 10.10.5.201"
+
+    opcua_server:
+      image: dmz-opcua-server
+      cap-add: [NET_ADMIN]
+      exec:
+        - sh -c "ip addr add 10.10.5.13/24 dev eth1 && ip link set eth1 up"
+        - sh -c "ip route replace default via 10.10.5.201"
+
+    iec104_rtu:
+      image: dmz-iec104-rtu
+      cap-add: [NET_ADMIN]
+      exec:
+        - sh -c "ip addr add 10.10.5.14/24 dev eth1 && ip link set eth1 up"
+        - sh -c "ip route replace default via 10.10.5.201"
+
+    # ssh_bastion is dual-homed dmz + enterprise. eth1 = dmz, eth2 = enterprise.
+    ssh_bastion:
+      image: dmz-ssh-bastion
+      cap-add: [NET_ADMIN]
+      exec:
+        - sh -c "ip addr add 10.10.5.20/24 dev eth1 && ip link set eth1 up"
+        - sh -c "ip addr add 10.10.1.30/24 dev eth2 && ip link set eth2 up"
+        - sh -c "ip route replace default via 10.10.5.201"
+
+    sftp_drop:
+      image: dmz-sftp-drop
+      cap-add: [NET_ADMIN]
+      exec:
+        - sh -c "ip addr add 10.10.5.21/24 dev eth1 && ip link set eth1 up"
+        - sh -c "ip route replace default via 10.10.5.201"
+
+    ntp_server:
+      image: dmz-ntp-server
+      cap-add: [NET_ADMIN]
+      exec:
+        - sh -c "ip addr add 10.10.5.30/24 dev eth1 && ip link set eth1 up"
+        - sh -c "ip route replace default via 10.10.5.201"
+
+    dns_forwarder:
+      image: dmz-dns-forwarder
+      cap-add: [NET_ADMIN]
+      exec:
+        - sh -c "ip addr add 10.10.5.31/24 dev eth1 && ip link set eth1 up"
+        - sh -c "ip route replace default via 10.10.5.201"
+
+    syslog_relay:
+      image: dmz-syslog-relay
+      cap-add: [NET_ADMIN]
+      exec:
+        - sh -c "ip addr add 10.10.5.32/24 dev eth1 && ip link set eth1 up"
+        - sh -c "ip route replace default via 10.10.5.201"
+
+  # Per-topology prefix `vd*` for globally unique veth names.
+  links:
+    - endpoints: [inet-dmz-fw:eth1, ics_dmz:vd0]
+    - endpoints: [inet-dmz-fw:eth2, ics_internet:vd1]
+    - endpoints: [dmz-ent-fw:eth1,  ics_dmz:vd2]
+    - endpoints: [dmz-ent-fw:eth2,  ics_enterprise:vd3]
+
+    - endpoints: [umati_gateway:eth1,  ics_dmz:vd4]
+    - endpoints: [neuron_gateway:eth1, ics_dmz:vd5]
+    - endpoints: [mqtt_dmz:eth1,       ics_dmz:vd6]
+    - endpoints: [opcua_server:eth1,   ics_dmz:vd7]
+    - endpoints: [iec104_rtu:eth1,     ics_dmz:vd8]
+    - endpoints: [ssh_bastion:eth1,    ics_dmz:vd9]
+    - endpoints: [sftp_drop:eth1,      ics_dmz:vd10]
+    - endpoints: [ntp_server:eth1,     ics_dmz:vd11]
+    - endpoints: [dns_forwarder:eth1,  ics_dmz:vd12]
+    - endpoints: [syslog_relay:eth1,   ics_dmz:vd13]
+
+    - endpoints: [ssh_bastion:eth2, ics_enterprise:vd14]

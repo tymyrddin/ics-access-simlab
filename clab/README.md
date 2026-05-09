@@ -1,0 +1,143 @@
+# clab/
+
+Containerlab artefacts. The lab runs on clab end-to-end. Every zone has a
+topology under `clab/<zone>-zone.clab.yaml`; every router runs from the
+shared `clab/frr/` image; the per-zone `zones/*/docker-compose.yml` files
+stay around as the build tool for application images and nothing more.
+
+## Why
+
+The previous fabric was Docker bridges plus alpine + iptables router
+containers. It worked, but visitors only ever met a Linux firewall behind
+each zone boundary. Containerlab plus FRR gives:
+
+- a real router admin plane (`vtysh`, ACL syntax, routing-protocol
+  configuration) that visitors can compromise alongside the application
+  plane
+- declarative topology in YAML, links as first-class objects
+- the start of an OT-realistic L2/L3 layer where attacks like ARP
+  poisoning, STP root takeover, OSPF / BGP misconfiguration, and SNMP
+  write-community abuse become viable
+
+## What is here
+
+```
+clab/
+  control-zone.clab.yaml       topology for the control zone
+  dmz-zone.clab.yaml           topology for the dmz zone
+  internet-zone.clab.yaml      topology for the internet zone (no router)
+  enterprise-zone.clab.yaml    topology for the enterprise zone
+  operational-zone.clab.yaml   topology for the operational zone
+  frr/
+    Dockerfile                 FRR + iptables + openssh + vtysh-shell admin
+                               (image tag: clab-router, reused by every router)
+    daemons                    enabled FRR daemons (zebra + staticd)
+    ops-ctrl-fw.frr.conf       control-zone gateway config
+    inet-dmz-fw.frr.conf       internet-side dmz boundary config
+    dmz-ent-fw.frr.conf        enterprise-side dmz boundary config
+    ent-ops-fw.frr.conf        enterprise-operational boundary config
+    ops-wan-router.frr.conf    operational-wan boundary config
+    sshd_config                admin-plane sshd config
+    start.sh                   startup wrapper: iptables, sshd, then FRR
+  README.md                    this file
+```
+
+Every topology sets `prefix: ""` so docker container names match what
+compose's `container_name` produced. `docker exec turbine_plc ...` works
+the same as it always did; tests and runbooks stay fabric-agnostic.
+
+## Running the lab
+
+```bash
+./ctl up      # builds images, deploys topologies, runs cross-zone attaches
+./ctl down    # destroys topologies, removes the cross-attaches and bridges
+./ctl ssh     # ssh into unseen-gate as ponder
+```
+
+`./ctl up` calls `orchestrator/generate.py` which writes
+`infrastructure/clab-up.sh` and `infrastructure/clab-down.sh`. Those two
+scripts pre-create the six host Linux bridges with `sudo ip link add`
+(one prompt per session), build the `clab-router` and `lab-mysql8`
+images, then `containerlab deploy` each per-zone topology. Each
+topology declares its bridges as `kind: bridge` nodes and connects
+every container via explicit veth `links:`. There is no
+`docker network connect` matrix any more; cross-zone connectivity is
+modelled in the topology files themselves.
+
+## What changes for visitors
+
+Every zone gateway is FRR for routing plus iptables for packet filter,
+with an admin plane on TCP/22. SSH to the gateway IP as `admin` / `admin`
+and the visitor lands directly in `vtysh`. `enable` (password
+`uupl-router`) opens `configure terminal` and the static routes plus
+interface config become editable. The iptables policy is loaded from
+`infrastructure/routers/generated/<router>-acl.sh`, deny-by-default
+forwarding unchanged. Realism is in the admin plane: vendor defaults
+that nobody changed since commissioning.
+
+The five gateways:
+
+- `inet-dmz-fw` at `10.10.5.200` and `10.10.0.200` (internet/dmz)
+- `dmz-ent-fw` at `10.10.5.201` and `10.10.1.201` (dmz/enterprise)
+- `ent-ops-fw` at `10.10.1.202` and `10.10.2.202` (enterprise/operational)
+- `ops-ctrl-fw` at `10.10.3.203` and `10.10.2.203` (operational/control)
+- `ops-wan-router` at `10.10.2.204` and `10.10.4.204` (operational/wan)
+
+## Known gaps
+
+1. No L2/L3 protocol attack surface yet (ARP poisoning, STP, OSPF/BGP
+   misconfig). The router admin plane is in; protocol-attack surface
+   lands in subsequent commits. The kind:bridge fabric makes the L2
+   surface real (real Linux bridges, real ARP, real STP behaviour),
+   but no attack tooling targets it yet.
+2. The wan zone (`ics_wan` 10.10.4.0/24) is a placeholder bridge. The
+   `ops-wan-router` boundary works; there is nothing on the wan side
+   to talk to.
+
+## Scada-LTS schema migration, partial workaround
+
+The Scada-LTS WAR (release-2.8.1 and nightly both observed) ships with
+buggy Flyway migrations. On a fresh MySQL the V1.1 (`ViewsHierarchy`)
+migration completes its SQL (the `views_category_views_hierarchy` table
+exists) but Flyway throws after, marks the row failed, and blocks
+every subsequent migration. The WAR's runtime SQL then references
+columns that later migrations would have added (`events.typeRef3`,
+`events.assigneeTs`, ...) and most UI pages return HTTP 500.
+
+What is in place: the scada-lts entrypoints
+(`zones/control/components/scada-lts-ctrl/entrypoint.sh` and
+`zones/operational/components/scada-lts/entrypoint.sh`) ship a small
+watchdog that detects V1.1's failure, sets `success=1` on that row,
+and restarts Tomcat once. After this, V1.1 is marked applied and
+subsequent migrations are unblocked. Some of those subsequent
+migrations may themselves fail in the same cosmetic way; we do not
+patch every failure because we have not verified that all upstream
+failures are cosmetic (vs genuine).
+
+Result:
+
+- `/Scada-LTS/login.htm` may return 500 if a later-than-V1.1 migration
+  is also broken upstream. Tomcat is up on `:8080` either way; the
+  service is visitor-detectable.
+- The lab's runbook tests do not exercise the SCADA web UI;
+  `stunnel-client-key-theft` and friends use SSH access to the cert
+  files, not the WAR. All three phase suites stay green.
+- A complete fix needs upstream Scada-LTS to fix V1.1 (and any
+  other broken migration), or a maintainer here to walk through every
+  buggy migration and assess whether patching `success=1` is safe.
+
+If you ever want a clickable SCADA dashboard for the visitor
+narrative, the path is to read each failed `V*` class in the WAR's
+`/usr/local/tomcat/webapps/Scada-LTS/WEB-INF/classes/org/scada_lts/dao/migration/mysql/`
+directory, decide whether the missing post-action matters, and either
+patch upstream or ship a per-migration alter-table shim.
+
+## Verifying
+
+The Phase 1, 2, and 3 runbook smoke tests are the acceptance suite:
+
+```bash
+bash tests/smoke/test_runbooks_phase1.sh
+bash tests/smoke/test_runbooks_phase2.sh
+bash tests/smoke/test_runbooks_phase3.sh
+```

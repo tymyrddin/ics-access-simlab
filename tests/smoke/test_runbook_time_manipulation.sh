@@ -49,7 +49,10 @@ fi
 echo "[ntp] Stage 1b: ntpdate -q reports an offset"
 
 OFFSET_OUT="$(in_container "$ATTACKER" ntpdate -q 10.10.5.30 2>&1)"
-assert_contains "$OFFSET_OUT" "stratum|offset" "ntpdate -q reports stratum/offset"
+# ntpdate's terse output looks like:
+#   2026-05-09 15:49:07 (+0000) -0.001395 +/- 0.000056 10.10.5.30 s4 no-leap
+# Match either the stratum tag (sN) or the offset (signed value +/- error).
+assert_contains "$OFFSET_OUT" '\bs[0-9]+\b|\+/-' "ntpdate -q reports stratum/offset"
 
 echo "[ntp] Stage 1c: no symmetric-key authentication configured"
 

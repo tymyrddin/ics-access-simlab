@@ -1,4 +1,7 @@
-FROM atmoz/sftp:debian
+# atmoz/sftp does not publish a `debian-bookworm` tag. The rolling
+# `debian` tag is bookworm today; pinned by digest so the lab does not
+# silently shift when upstream rolls forward.
+FROM atmoz/sftp:debian@sha256:8b3a4d6d7535b85c840c669c2f19e1e23bbeda5458d215ff7273e67a2edc5bcf
 # User: anonymous / password: anonymous
 # Upload directory: /home/anonymous/upload (world-writable)
 # No chroot jail, directory traversal via ../ is possible.
