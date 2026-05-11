@@ -5,6 +5,9 @@ ssh-keygen -A
 
 /usr/sbin/sshd
 
+# Start status server in background
+python3 /usr/local/bin/status-server.py &
+
 # OverlayFS (Docker) does not support name_to_handle_at(), which NFS-Ganesha's
 # VFS FSAL requires. Stage the work directory on tmpfs instead.
 mkdir -p /nfs-export

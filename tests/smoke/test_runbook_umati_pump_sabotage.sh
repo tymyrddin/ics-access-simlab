@@ -23,10 +23,14 @@ REPO="$(cd "$(dirname "$0")/../.." && pwd)"
 source "$REPO/tests/smoke/lib.sh"
 
 ATTACKER="attacker-machine"
+HOME_BOX="admin-home"
 UMATI="umati_gateway"
 OPCUA="opcua_server"
 
-for c in "$ATTACKER" "$UMATI" "$OPCUA"; do
+# Recon (curl, TCP port probe) runs from attacker-machine. OPC-UA Python
+# fires from wizzards-retreat, where the opcua library lives in
+# /opt/admin-env (Rincewind's admin kit).
+for c in "$ATTACKER" "$HOME_BOX" "$UMATI" "$OPCUA"; do
     require_running "$c"
 done
 
@@ -57,9 +61,9 @@ fi
 
 echo "[umati] Stage 3: OPC-UA server accepts anonymous connection"
 
-# Use the python-opcua client (added to /opt/attacker-env). SecurityMode None
-# + anonymous user connects without further setup.
-OPC_OUT="$(in_container "$ATTACKER" /opt/attacker-env/bin/python3 -c "
+# Use the python-opcua client from wizzards-retreat (/opt/admin-env).
+# SecurityMode None + anonymous user connects without further setup.
+OPC_OUT="$(in_container "$HOME_BOX" /opt/admin-env/bin/python3 -c "
 from opcua import Client
 c = Client('opc.tcp://10.10.5.13:4840')
 c.session_timeout = 10000
@@ -81,7 +85,7 @@ echo "[umati] Stage 4: pump object discoverable on the OPC-UA server"
 # The thin-edge demo server publishes a Demo namespace with simulator nodes.
 # The runbook calls a stopPump method; precondition is finding a pump-shaped
 # node. Browse the Objects subtree and search names case-insensitively.
-PUMP_OUT="$(in_container "$ATTACKER" /opt/attacker-env/bin/python3 -c "
+PUMP_OUT="$(in_container "$HOME_BOX" /opt/admin-env/bin/python3 -c "
 from opcua import Client
 c = Client('opc.tcp://10.10.5.13:4840')
 c.session_timeout = 10000

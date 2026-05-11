@@ -10,6 +10,9 @@ topology:
 
   defaults:
     kind: linux
+    # See clab/control-zone.clab.yaml for the why.
+    exec:
+      - sh -c "ip addr flush dev eth0 2>/dev/null || true"
 
   nodes:
 

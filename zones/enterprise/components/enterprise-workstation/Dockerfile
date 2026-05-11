@@ -23,6 +23,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     nmap \
     ftp \
     python3 \
+    smbclient \
+    sqlite3 \
     && rm -rf /var/lib/apt/lists/*
 
 COPY entrypoint.sh /entrypoint.sh

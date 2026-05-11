@@ -12,6 +12,12 @@ topology:
 
   defaults:
     kind: linux
+    # See clab/control-zone.clab.yaml for the why: strip the mgmt-IP
+    # from eth0 so hostname -I returns only in-simulation addresses.
+    # attacker-machine has `network-mode: none` and therefore no eth0;
+    # the `2>/dev/null || true` swallows the error there.
+    exec:
+      - sh -c "ip addr flush dev eth0 2>/dev/null || true"
 
   nodes:
 
@@ -19,10 +25,14 @@ topology:
     ics_enterprise:  { kind: bridge }
     ics_operational: { kind: bridge }
 
-    # External entry. Port 2222 on the host forwards to 22 here.
+    # External entry. `network-mode: none` strips the docker mgmt eth0
+    # entirely; the only interface the visitor ever sees is eth1 at
+    # 10.10.0.5. Host-side reachability for the SSH entrypoint is
+    # plumbed via iptables NAT in infrastructure/clab-up.sh, not via
+    # docker's port-publish.
     attacker-machine:
       image: internet-attacker-machine
-      ports: ["2222:22"]
+      network-mode: none
       binds:
         - ../zones/internet/components/attacker-machine/adversary-keys:/run/adversary-keys:ro
         - ../zones/internet/components/attacker-machine/adversary-readme.txt:/run/adversary-readme.txt:ro

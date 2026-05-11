@@ -92,6 +92,11 @@ def seed(ics_process: str, db_path: str) -> None:
     conn.execute("INSERT OR IGNORE INTO config VALUES ('db_pass',    'Historian2015')")
     conn.execute("INSERT OR IGNORE INTO config VALUES ('installed',  '1997-03-22')")
     conn.execute("INSERT OR IGNORE INTO config VALUES ('contact',    'ponder.stibbons@uupl.am')")
+    # SSH and ingest credentials for path traversal discovery
+    conn.execute("INSERT OR IGNORE INTO config VALUES ('ssh_user',   'hist_admin')")
+    conn.execute("INSERT OR IGNORE INTO config VALUES ('ssh_pass',   'Historian2015')")
+    conn.execute("INSERT OR IGNORE INTO config VALUES ('ingest_user', 'hist_read')")
+    conn.execute("INSERT OR IGNORE INTO config VALUES ('ingest_pass', 'history2017')")
 
     # Alarm setpoints stored by historian since 2003.
     # Used by the alarm display and cross-referenced by the SCADA server.

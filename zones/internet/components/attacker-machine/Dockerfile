@@ -1,10 +1,16 @@
 FROM debian:bookworm-slim
 
+# deb.debian.org is fronted by Fastly; specific POPs degraded from this host.
+# Pin to a direct NL mirror.
+RUN sed -i 's|deb.debian.org|ftp.nl.debian.org|g' \
+        /etc/apt/sources.list /etc/apt/sources.list.d/*.sources 2>/dev/null || true
+
 RUN apt-get update && apt-get install -y --no-install-recommends \
     openssh-server \
     openssh-client \
     iputils-ping \
     net-tools \
+    netcat-openbsd \
     nmap \
     curl \
     wget \
@@ -22,9 +28,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     iproute2 \
     sudo \
     dnsutils \
-    mosquitto-clients \
-    ntp \
-    ntpdate \
     && rm -rf /var/lib/apt/lists/*
 
 # /usr/sbin (showmount, mount.nfs) is not in non-root PATH on Debian bookworm
@@ -35,12 +38,13 @@ RUN echo "ALL ALL=(root) NOPASSWD: /usr/bin/mount, /usr/bin/umount" \
     > /etc/sudoers.d/ctf-mount && chmod 440 /etc/sudoers.d/ctf-mount
 
 # Python attacker libs in a venv (bookworm enforces PEP 668)
+# Generic red-team kit only. ICS-protocol libraries (pymodbus, opcua) live
+# on hosts where their presence is legitimate, not on a squatted gateway.
 RUN python3 -m venv /opt/attacker-env && \
     /opt/attacker-env/bin/pip install --no-cache-dir \
-        pymodbus==3.6.9 \
         paramiko \
         impacket \
-        opcua
+        scapy
 
 # Five adversary accounts: UU research group, key-only auth enforced; keys mounted at runtime
 RUN for u in ponder hex ridcully librarian dean; do \
@@ -49,6 +53,11 @@ RUN for u in ponder hex ridcully librarian dean; do \
         chmod 700 /home/$u/.ssh; \
         chown $u:$u /home/$u/.ssh; \
     done
+
+# Create wordlist directory
+RUN mkdir -p /usr/share/wordlists
+
+COPY common-passwords.txt /usr/share/wordlists/rockyou.txt
 
 COPY entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh

@@ -13,6 +13,13 @@ topology:
 
   defaults:
     kind: linux
+    # Strip clab's mgmt-network IP from eth0 on every node, so visitors
+    # who type `hostname -I` see only the in-simulation address. clab's
+    # own deploy/destroy uses docker exec and does not need eth0 to
+    # have an IP. Failures are tolerated for kind:bridge nodes (which
+    # do not have eth0) and netns-shared nodes.
+    exec:
+      - sh -c "ip addr flush dev eth0 2>/dev/null || true"
 
   nodes:
 

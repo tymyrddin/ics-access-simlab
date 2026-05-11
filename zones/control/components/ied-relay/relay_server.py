@@ -58,15 +58,16 @@ FC_HR = 3
 FC_IR = 4
 
 HR_UV_THRESH  = 0
-HR_OC_THRESH  = 1
-HR_OS_THRESH  = 2
+HR_OS_THRESH  = 1
+HR_OC_THRESH  = 2
 
 IR_VOLTAGE = 0
 IR_CURRENT = 1
 IR_FREQ    = 2
 IR_RPM     = 3
 
-COIL_TRIP  = 0
+COIL_TRIP     = 0
+COIL_BREAKER  = 1
 
 RECLOSE_DELAY = 10.0
 
@@ -81,9 +82,31 @@ def _make_store():
     return ModbusSlaveContext(
         co=ModbusSequentialDataBlock(0, [0] * 10),
         di=ModbusSequentialDataBlock(0, [0] * 10),
-        hr=ModbusSequentialDataBlock(0, [196, 200, 3300] + [0] * 17),
+        hr=ModbusSequentialDataBlock(0, [196, 3300, 200] + [0] * 17),
         ir=ModbusSequentialDataBlock(0, [0] * 20),
     )
+
+
+def _update_trip_log_registers(store, cause, voltage, current, rpm):
+    """Update HR[10:20] with latest trip events (5 events × 2 registers each)."""
+    import time
+    timestamp = int(time.time())
+    cause_codes = {
+        "undervoltage": 1, "overcurrent": 2, "overspeed": 3,
+        "manual": 4, "reclose-failed": 5
+    }
+    cause_code = cause_codes.get(cause, 0)
+
+    # Shift existing entries down: HR[10:14] → HR[12:16], HR[12:16] → HR[14:18], etc.
+    existing = store.getValues(FC_HR, 10, count=10)
+    store.setValues(FC_HR, 12, existing[:8])  # Shift 4 oldest entries down
+
+    # Write new entry at HR[10:11]
+    # Entry format: [timestamp_high, timestamp_low, cause_code, voltage_v, current_a]
+    # But we only have 2 registers, so pack: [time_low, (cause_code<<8)|voltage_low]
+    time_low = timestamp & 0xFFFF
+    packed = (cause_code << 12) | (voltage & 0xFFF)
+    store.setValues(FC_HR, 10, [time_low, packed])
 
 
 def _plc_read(reg, count=1):
@@ -149,7 +172,10 @@ async def poll_plc_loop(store):
 
 async def relay_logic_loop(store):
     """Protection logic: check thresholds, trip/reclose breaker."""
-    await asyncio.sleep(5.0)
+    # Explicitly reset coils to ensure clean startup state
+    store.setValues(FC_CO, COIL_TRIP, [0])
+    store.setValues(FC_CO, COIL_BREAKER, [0])  # breaker closed
+    await asyncio.sleep(10.0)  # Extended grace period for PLC startup
     tripped_at = None
     reclosed   = False
 
@@ -181,6 +207,8 @@ async def relay_logic_loop(store):
             if len(_trip_log) > 50:
                 _trip_log.pop(0)
             store.setValues(FC_CO, COIL_TRIP, [1])
+            store.setValues(FC_CO, COIL_BREAKER, [1])  # breaker open
+            _update_trip_log_registers(store, cause, voltage, current, rpm)
             await asyncio.get_event_loop().run_in_executor(None, lambda: _breaker_write(0))
             await asyncio.get_event_loop().run_in_executor(
                 None, lambda: _mqtt_publish_trip(cause, voltage, current, rpm)
@@ -191,6 +219,7 @@ async def relay_logic_loop(store):
         elif tripped and tripped_at and not reclosed:
             if time.monotonic() - tripped_at >= RECLOSE_DELAY:
                 store.setValues(FC_CO, COIL_TRIP, [0])
+                store.setValues(FC_CO, COIL_BREAKER, [0])  # breaker closed
                 await asyncio.get_event_loop().run_in_executor(None, lambda: _breaker_write(1))
                 reclosed = True
                 await asyncio.sleep(1.0)
@@ -200,6 +229,8 @@ async def relay_logic_loop(store):
                 rpm     = store.getValues(FC_IR, IR_RPM,     count=1)[0]
                 if voltage < uv_thresh and current > 5 or current > oc_thresh or rpm > os_thresh:
                     store.setValues(FC_CO, COIL_TRIP, [1])
+                    store.setValues(FC_CO, COIL_BREAKER, [1])  # breaker open again
+                    _update_trip_log_registers(store, "reclose-failed", voltage, current, rpm)
                     await asyncio.get_event_loop().run_in_executor(None, lambda: _breaker_write(0))
                     _trip_log.append({
                         "time": time.strftime("%Y-%m-%dT%H:%M:%S"),
@@ -265,6 +296,11 @@ def force_trip():
     if not session.get("auth"):
         return redirect(url_for("index"))
     _store.setValues(FC_CO, COIL_TRIP, [1])
+    _store.setValues(FC_CO, COIL_BREAKER, [1])  # breaker open
+    voltage = _store.getValues(FC_IR, IR_VOLTAGE, count=1)[0]
+    current = _store.getValues(FC_IR, IR_CURRENT, count=1)[0]
+    rpm = _store.getValues(FC_IR, IR_RPM, count=1)[0]
+    _update_trip_log_registers(_store, "manual", voltage, current, rpm)
     _breaker_write(0)
     return redirect(url_for("index"))
 

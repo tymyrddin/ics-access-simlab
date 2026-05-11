@@ -23,12 +23,17 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
     netcat-openbsd \
     socat \
+    sqlite3 \
     && rm -rf /var/lib/apt/lists/*
 
 RUN python3 -m venv /venv
 ENV PATH="/venv/bin:$PATH"
 
 RUN pip install --no-cache-dir pymodbus==3.6.8 paho-mqtt
+
+# Install mbpoll wrapper (pymodbus-based replacement for native mbpoll)
+COPY mbpoll-wrapper.py /usr/local/bin/mbpoll
+RUN chmod +x /usr/local/bin/mbpoll
 
 COPY entrypoint.sh /entrypoint.sh
 COPY win10ltsc_shell.sh /usr/local/bin/win10ltsc_shell.sh
