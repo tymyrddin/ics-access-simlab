@@ -51,15 +51,14 @@ Cross-zone routing at Layer 3 through a dual-homed container is intentionally no
 bash tests/smoke/test_connectivity.sh
 ```
 
-### Firewall policy
+### Firewall policy (legacy)
 
-Root required. Applies `infrastructure/firewall.sh`, then verifies that allowed paths are open and everything else between zones is blocked. The `DOCKER-USER` chain is restored on exit.
-
-```bash
-sudo bash tests/smoke/test_firewall.sh
-```
-
-Skips automatically when not root.
+`tests/smoke/test_firewall.sh` exists from the docker-bridge fabric era when
+`infrastructure/firewall.sh` was applied on the host. The clab fabric moves
+forwarding policy into the FRR + iptables router containers, where the
+runbook smoke tests already exercise it implicitly (e.g. cross-zone paths
+blocked vs. allowed). The legacy script may now skip or fail; the
+runbook-phase suites are the active acceptance tests.
 
 ### Runbook smoke tests
 
@@ -92,8 +91,8 @@ through wizzards-retreat for enterprise/operational targets.
 | `tests/smoke/test_networks.sh`     | Docker, generated compose files |
 | `tests/smoke/test_zones.sh`        | Docker, images built            |
 | `tests/smoke/test_connectivity.sh` | Docker, images built            |
-| `tests/smoke/test_firewall.sh`     | Docker, images built, root      |
-| `tests/smoke/test_runbooks_phase*.sh` | Docker, full lab up via `./ctl up` |
+| `tests/smoke/test_firewall.sh`     | Legacy (docker-bridge fabric), no longer maintained |
+| `tests/smoke/test_runbooks_phase*.sh` | Full lab up via `./ctl up`    |
 
 To generate compose files before running smoke tests directly:
 

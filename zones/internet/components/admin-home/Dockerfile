@@ -1,6 +1,12 @@
 FROM debian:bookworm-slim
 
+# deb.debian.org is fronted by Fastly; specific POPs degraded from this host.
+# Pin to a direct NL mirror.
+RUN sed -i 's|deb.debian.org|ftp.nl.debian.org|g' \
+        /etc/apt/sources.list /etc/apt/sources.list.d/*.sources 2>/dev/null || true
+
 RUN apt-get update && apt-get install -y --no-install-recommends \
+    iproute2 \
     openssh-server \
     openssh-client \
     iputils-ping \
@@ -13,7 +19,19 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     nmap \
     ftp \
     smbclient \
+    mosquitto-clients \
+    ntp \
+    ntpdate \
+    python3 \
+    python3-flask \
+    python3-venv \
     && rm -rf /var/lib/apt/lists/*
+
+# Rincewind's admin Python venv. Plausible kit for a UU P&L sysadmin who
+# pokes at OPC-UA servers from home over the VPN. Modbus tooling stays on
+# eng-ws, not here.
+RUN python3 -m venv /opt/admin-env && \
+    /opt/admin-env/bin/pip install --no-cache-dir opcua
 
 # Remote administrator account, weak password is the vulnerability
 RUN useradd -m -s /bin/bash rincewind && \
@@ -57,8 +75,9 @@ RUN chown -R rincewind:rincewind /home/rincewind/ && \
 RUN mkdir -p /etc/ganesha /var/run/ganesha /var/log/ganesha
 COPY ganesha.conf /etc/ganesha/ganesha.conf
 
+COPY status-server.py /usr/local/bin/status-server.py
 COPY entrypoint.sh /entrypoint.sh
-RUN chmod +x /entrypoint.sh
+RUN chmod +x /entrypoint.sh /usr/local/bin/status-server.py
 
-EXPOSE 22 111 2049 20048
+EXPOSE 22 80 111 2049 20048
 ENTRYPOINT ["/entrypoint.sh"]

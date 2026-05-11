@@ -1,8 +1,11 @@
-FROM python:3.11-slim
+FROM python:3.11-slim-bookworm
 
 WORKDIR /opt/hmi
 
-RUN apt-get update && apt-get install -y --no-install-recommends \
+RUN printf 'Acquire::Retries "10";\nAcquire::http::Timeout "60";\n' \
+        > /etc/apt/apt.conf.d/80-retries \
+    && apt-get update \
+    && apt-get install -y --no-install-recommends \
         openssh-server \
     && rm -rf /var/lib/apt/lists/*
 

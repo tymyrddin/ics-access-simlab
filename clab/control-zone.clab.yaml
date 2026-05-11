@@ -1,0 +1,161 @@
+# UU P&L control zone, structural clab edition.
+#
+# ics_control and ics_operational are real Linux bridges on the host
+# (kind: bridge). Containers attach to them via explicit veth links.
+# ops-ctrl-fw is the L3 boundary, with FRR holding the routing table and
+# iptables enforcing the forwarding-policy ACL from /acl.sh. Every
+# non-router node sets its IP and default route via per-node exec.
+
+name: uupl-control
+prefix: ""
+
+topology:
+
+  defaults:
+    kind: linux
+    # Strip clab's mgmt-network IP from eth0 on every node, so visitors
+    # who type `hostname -I` see only the in-simulation address. clab's
+    # own deploy/destroy uses docker exec and does not need eth0 to
+    # have an IP. Failures are tolerated for kind:bridge nodes (which
+    # do not have eth0) and netns-shared nodes.
+    exec:
+      - sh -c "ip addr flush dev eth0 2>/dev/null || true"
+
+  nodes:
+
+    # ── Zone bridges ────────────────────────────────────────────────────
+    # The bridges are pre-created on the host by infrastructure/clab-up.sh
+    # before the deploy. clab attaches container veths to them; lifecycle
+    # of the bridges is managed by clab-up.sh / clab-down.sh, not clab.
+    ics_control:     { kind: bridge }
+    ics_operational: { kind: bridge }
+
+    # ── L3 boundary ─────────────────────────────────────────────────────
+    # FRR sets eth1 / eth2 IPs from frr.conf. iptables is loaded from
+    # /acl.sh in start.sh. eth0 is clab's out-of-band mgmt NIC.
+    ops-ctrl-fw:
+      image: clab-router
+      binds:
+        - frr/daemons:/etc/frr/daemons
+        - frr/ops-ctrl-fw.frr.conf:/etc/frr/frr.conf
+        - ../infrastructure/routers/generated/ops-ctrl-fw-acl.sh:/acl.sh
+      labels:
+        role: gateway
+
+    # ── Control-zone services ───────────────────────────────────────────
+    mosquitto_broker:
+      image: control-mosquitto-broker
+      exec:
+        - sh -c "ip addr add 10.10.3.60/24 dev eth1 && ip link set eth1 up"
+        - sh -c "ip route replace default via 10.10.3.203"
+
+    turbine_plc:
+      image: control-turbine-plc
+      cap-add: [NET_ADMIN]
+      exec:
+        - sh -c "ip addr add 10.10.3.21/24 dev eth1 && ip link set eth1 up"
+        - sh -c "ip route replace default via 10.10.3.203"
+
+    # OPC-UA shares turbine_plc's netns, OPC-UA on opc.tcp://10.10.3.21:4840.
+    turbine_opcua:
+      image: control-turbine-opcua
+      network-mode: container:turbine_plc
+
+    ied_relay_a:
+      image: control-ied-relay-a
+      cap-add: [NET_ADMIN]
+      exec:
+        - sh -c "ip addr add 10.10.3.31/24 dev eth1 && ip link set eth1 up"
+        - sh -c "ip route replace default via 10.10.3.203"
+
+    ied_relay_b:
+      image: control-ied-relay-b
+      cap-add: [NET_ADMIN]
+      exec:
+        - sh -c "ip addr add 10.10.3.32/24 dev eth1 && ip link set eth1 up"
+        - sh -c "ip route replace default via 10.10.3.203"
+
+    ied_meter_main:
+      image: control-ied-meter-main
+      cap-add: [NET_ADMIN]
+      exec:
+        - sh -c "ip addr add 10.10.3.33/24 dev eth1 && ip link set eth1 up"
+        - sh -c "ip route replace default via 10.10.3.203"
+
+    actuator_fuel_valve:
+      image: control-actuator-fuel-valve
+      cap-add: [NET_ADMIN]
+      env: { ACTUATOR_TYPE: valve }
+      exec:
+        - sh -c "ip addr add 10.10.3.51/24 dev eth1 && ip link set eth1 up"
+        - sh -c "ip route replace default via 10.10.3.203"
+
+    actuator_cooling_pump:
+      image: control-actuator-cooling-pump
+      cap-add: [NET_ADMIN]
+      env: { ACTUATOR_TYPE: pump }
+      exec:
+        - sh -c "ip addr add 10.10.3.52/24 dev eth1 && ip link set eth1 up"
+        - sh -c "ip route replace default via 10.10.3.203"
+
+    actuator_breaker_a:
+      image: control-actuator-breaker-a
+      cap-add: [NET_ADMIN]
+      env: { ACTUATOR_TYPE: breaker, FEEDER: "Dolly Sisters" }
+      exec:
+        - sh -c "ip addr add 10.10.3.53/24 dev eth1 && ip link set eth1 up"
+        - sh -c "ip route replace default via 10.10.3.203"
+
+    actuator_breaker_b:
+      image: control-actuator-breaker-b
+      cap-add: [NET_ADMIN]
+      env: { ACTUATOR_TYPE: breaker }
+      exec:
+        - sh -c "ip addr add 10.10.3.54/24 dev eth1 && ip link set eth1 up"
+        - sh -c "ip route replace default via 10.10.3.203"
+
+    hmi_main:
+      image: control-hmi-main
+      binds:
+        - ../certs/client.crt:/run/stunnel-certs/client.crt
+        - ../certs/client.key:/run/stunnel-certs/client.key
+        - ../certs/ca.crt:/run/stunnel-certs/ca.crt
+      env:
+        MYSQL_HOST:     hmi_main-db
+        MYSQL_PORT:     '3306'
+        MYSQL_DATABASE: scadalts
+        MYSQL_USER:     scadalts
+        MYSQL_PASSWORD: scada2015
+        STUNNEL_GW_IP:  10.10.3.50
+        PLC_IP:         10.10.3.21
+      exec:
+        - sh -c "ip addr add 10.10.3.10/24 dev eth1 && ip link set eth1 up"
+        - sh -c "ip route replace default via 10.10.3.203"
+
+    hmi_main-db:
+      image: lab-mysql8
+      env:
+        MYSQL_DATABASE:      scadalts
+        MYSQL_USER:          scadalts
+        MYSQL_PASSWORD:      scada2015
+        MYSQL_ROOT_PASSWORD: scadaroot
+      exec:
+        - sh -c "ip addr add 10.10.3.11/24 dev eth1 && ip link set eth1 up"
+        - sh -c "ip route replace default via 10.10.3.203"
+
+  # Per-topology prefix `vc*` for globally unique veth names.
+  links:
+    - endpoints: [ops-ctrl-fw:eth1, ics_control:vc0]
+    - endpoints: [ops-ctrl-fw:eth2, ics_operational:vc1]
+
+    - endpoints: [mosquitto_broker:eth1,      ics_control:vc2]
+    - endpoints: [turbine_plc:eth1,           ics_control:vc3]
+    - endpoints: [ied_relay_a:eth1,           ics_control:vc4]
+    - endpoints: [ied_relay_b:eth1,           ics_control:vc5]
+    - endpoints: [ied_meter_main:eth1,        ics_control:vc6]
+    - endpoints: [actuator_fuel_valve:eth1,   ics_control:vc7]
+    - endpoints: [actuator_cooling_pump:eth1, ics_control:vc8]
+    - endpoints: [actuator_breaker_a:eth1,    ics_control:vc9]
+    - endpoints: [actuator_breaker_b:eth1,    ics_control:vc10]
+    - endpoints: [hmi_main:eth1,              ics_control:vc11]
+    - endpoints: [hmi_main-db:eth1,           ics_control:vc12]

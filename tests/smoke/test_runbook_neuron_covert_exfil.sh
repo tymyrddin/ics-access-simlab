@@ -74,11 +74,12 @@ assert_contains "$BAST_LOGIN" "SSH_OK" "same uupl2015 password also unlocks cont
 echo "[neuron] Stage 5b: clacks-relay reachable from internet zone for visitor subscribe"
 
 # The runbook's final step is `mosquitto_sub -h 10.10.5.12 -p 1883 -t '#' -v`
-# from unseen-gate. After Stage 4 the gateway publishes; without it the
-# subscribe just hangs. We assert the broker accepts a quick connect/disconnect
-# from attacker-machine using mosquitto_sub with a short timeout, which is
-# enough to prove the visitor's exit path is open.
-MOSQ_OUT="$(in_container "$ATTACKER" timeout 3 mosquitto_sub \
+# from wizzards-retreat (mosquitto-clients lives there, not on the squatted
+# gateway). After Stage 4 the gateway publishes; without it the subscribe just
+# hangs. We assert the broker accepts a quick connect/disconnect using
+# mosquitto_sub with a short timeout, which is enough to prove the visitor's
+# exit path is open.
+MOSQ_OUT="$(in_container "$HOME_BOX" timeout 3 mosquitto_sub \
     -h 10.10.5.12 -p 1883 -t '#' -C 1 -W 2 2>&1 || true)"
 # We do not assert on payload content (no message is required); a successful
 # connect produces no error text. Connection refused or DNS errors do.

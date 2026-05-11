@@ -9,7 +9,6 @@
 #   up        generate + start everything, print SSH command
 #   down      stop and remove all containers
 #   ssh       SSH into unseen-gate  (./ctl ssh [user], default: ponder)
-#   firewall  apply inter-zone iptables rules (needs sudo)
 #   verify    print Step 2 verification commands
 #   generate  regenerate compose files from config (no start)
 #   clean     down + remove generated files
@@ -48,7 +47,8 @@ print(c.get('attacker_machine', {}).get('auth_mode', 'key'))
 
 _compose_up() {
     local f="$1"; shift
-    [ -f "$f" ] && docker compose -f "$f" up -d --build "$@"
+    [ -f "$f" ] || return 0
+    docker compose -f "$f" up -d --build "$@"
 }
 
 _compose_down() {
@@ -59,6 +59,14 @@ _compose_down() {
 _compose_purge() {
     local f="$1"
     [ -f "$f" ] && docker compose -f "$f" down --rmi all 2>/dev/null || true
+}
+
+# Build the application images for a zone via compose. clab/clab-up.sh
+# starts them later from the topology files; compose never does.
+_compose_build() {
+    local f="$1"
+    [ -f "$f" ] || return 0
+    docker compose -f "$f" build
 }
 
 _ensure_keys() {
@@ -97,26 +105,17 @@ case "$CMD" in
     echo "[ctl] Generating compose files from $CONFIG ..."
     python3 orchestrator/generate.py "$CONFIG"
 
-    echo "[ctl] Starting shared networks ..."
-    docker compose -f infrastructure/networks/docker-compose.yml up -d
+    echo "[ctl] Building application images ..."
+    for z in enterprise operational control dmz internet; do
+        _compose_build "zones/$z/docker-compose.yml"
+    done
 
-    echo "[ctl] Starting zone routers ..."
-    _compose_up infrastructure/routers/generated/docker-compose.yml
-
-    echo "[ctl] Starting enterprise zone ..."
-    docker compose -f zones/enterprise/docker-compose.yml up -d --build
-
-    echo "[ctl] Starting operational zone ..."
-    docker compose -f zones/operational/docker-compose.yml up -d --build
-
-    echo "[ctl] Starting control zone ..."
-    docker compose -f zones/control/docker-compose.yml up -d --build
-
-    echo "[ctl] Starting DMZ zone ..."
-    _compose_up zones/dmz/docker-compose.yml
-
-    echo "[ctl] Starting internet zone (unseen-gate + wizzards-retreat) ..."
-    _compose_up zones/internet/docker-compose.yml
+    echo "[ctl] Bringing clab zones up ..."
+    if [ ! -x infrastructure/clab-up.sh ]; then
+        echo "[ctl] ERROR: infrastructure/clab-up.sh missing or not executable. Did generate.py succeed?" >&2
+        exit 1
+    fi
+    bash infrastructure/clab-up.sh
 
     PORT="$(_ssh_port)"
     MODE="$(_auth_mode)"
@@ -130,20 +129,28 @@ case "$CMD" in
     fi
     echo "  Stop:     ./ctl down"
     echo "  Verify:   ./ctl verify"
-    echo ""
-    echo "  Run 'sudo ./ctl firewall' to hide Docker bridge gateway IPs from container network scans."
     ;;
 
   down)
-    echo "[ctl] Stopping internet zone ..."
-    _compose_down zones/internet/docker-compose.yml
-    echo "[ctl] Stopping DMZ zone ..."
-    _compose_down zones/dmz/docker-compose.yml
+    # Tear clab labs down first. Use the generated helper if it exists,
+    # otherwise iterate the topology files directly so we still clean up
+    # if generate.py has not been run since the last edit.
+    if [ -x infrastructure/clab-down.sh ]; then
+        echo "[ctl] Tearing clab zones down ..."
+        bash infrastructure/clab-down.sh
+    else
+        for t in clab/*-zone.clab.yaml; do
+            [ -f "$t" ] && containerlab destroy --topo "$t" 2>/dev/null || true
+        done
+    fi
+    # Defensive compose-down for anything that compose might have started
+    # (host port mappings, leftover services from earlier hybrid runs).
     echo "[ctl] Stopping zones ..."
+    _compose_down zones/internet/docker-compose.yml
+    _compose_down zones/dmz/docker-compose.yml
     _compose_down zones/control/docker-compose.yml
     _compose_down zones/operational/docker-compose.yml
     _compose_down zones/enterprise/docker-compose.yml
-    echo "[ctl] Stopping zone routers ..."
     _compose_down infrastructure/routers/generated/docker-compose.yml
     _compose_down infrastructure/networks/docker-compose.yml
     docker network prune -f
@@ -187,11 +194,6 @@ case "$CMD" in
     echo "  SSH command:  ssh -i cohort-key <user>@<server-ip>"
     echo ""
     echo "  cohort-key is gitignored. Regenerate before each new cohort: ./ctl cohort-keys"
-    ;;
-
-  firewall)
-    echo "[ctl] Applying firewall rules (sudo) ..."
-    sudo bash infrastructure/firewall.sh
     ;;
 
   verify)
@@ -244,16 +246,17 @@ EOF
     echo "[ctl] Removing generated files ..."
     rm -f start.sh stop.sh
     rm -f infrastructure/networks/docker-compose.yml
-    rm -f infrastructure/firewall.sh
+    rm -f infrastructure/clab-up.sh infrastructure/clab-down.sh
     rm -rf infrastructure/routers/generated/
     rm -f zones/enterprise/docker-compose.yml
     rm -f zones/operational/docker-compose.yml
     rm -f zones/control/docker-compose.yml
     rm -f zones/internet/docker-compose.yml
+    rm -f zones/dmz/docker-compose.yml
     rm -f zones/internet/components/attacker-machine/docker-compose.yml
     rm -f zones/internet/components/attacker-machine/adversary-readme.txt
     echo "[ctl] Clean."
-    echo "[ctl] Note: lab-key, cohort-key, and adversary-keys preserved — run './ctl purge' to remove them."
+    echo "[ctl] Note: lab-key, cohort-key, and adversary-keys preserved, run './ctl purge' to remove them."
     ;;
 
   purge)
@@ -282,7 +285,6 @@ Usage: ./ctl <command>
   down          stop and remove all containers
   ssh           SSH into unseen-gate  (./ctl ssh [user], default: ponder)
   cohort-keys   generate a participant keypair for Hetzner deployments
-  firewall      apply inter-zone iptables rules (needs sudo)
   verify        print Step 2 verification commands
   generate      regenerate compose files without starting
   clean         down + remove generated files

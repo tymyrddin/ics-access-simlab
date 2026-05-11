@@ -258,10 +258,8 @@ import paho.mqtt.client as mqtt
 BROKER = sys.argv[1] if len(sys.argv) > 1 else "10.10.3.60"
 TOPIC  = sys.argv[2] if len(sys.argv) > 2 else "uupl/turbine/telemetry"
 
-
 def on_message(client, userdata, msg):
     print(msg.topic, msg.payload.decode())
-
 
 c = mqtt.Client(mqtt.CallbackAPIVersion.VERSION1)
 c.on_message = on_message
@@ -631,7 +629,6 @@ ASSETS = [
     ("meter_power_kw",      "kW"),
 ]
 
-
 def _post(asset, value, unit, ts):
     payload = json.dumps(
         {"timestamp": ts, "asset": asset, "value": value, "unit": unit}
@@ -647,7 +644,6 @@ def _post(asset, value, unit, ts):
         method="POST",
     )
     urllib.request.urlopen(req, timeout=5)
-
 
 def main():
     # Jitter: wait 2-12 s before reading so timestamps are not clock-aligned.
@@ -686,7 +682,6 @@ def main():
         f"volt_a={regs[3]} curr_a={regs[4]} [{tag}, {ingested}/{len(ASSETS)} ingested]"
     )
 
-
 if __name__ == "__main__":
     main()
 EOF
@@ -718,18 +713,6 @@ chmod 600 "$PROFILE/config/plc-access.conf"
 chmod 600 "$PROFILE/backups/PLC_Backup_2019.tar.gz"
 chmod 750 "$PROFILE/Tools/send_alarm.ps1"
 chmod 644 "$PROFILE/Tools/modbus_read.py" "$PROFILE/Tools/modbus_write.py"
-
-_add_route() {
-    local dest="$1" gw="$2"
-    for _i in 1 2 3 4 5; do
-        ip route replace "$dest" via "$gw" 2>/dev/null && return 0
-        sleep 1
-    done
-    echo "[entrypoint] WARNING: could not add route $dest via $gw" >&2
-}
-_add_route 10.10.1.0/24 10.10.2.202
-_add_route 10.10.4.0/24 10.10.2.204
-_add_route 10.10.5.0/24 10.10.2.202
 
 echo "[eng-ws] Waiting for PLC at 10.10.3.21:502..."
 until nc -z 10.10.3.21 502 2>/dev/null; do sleep 2; done

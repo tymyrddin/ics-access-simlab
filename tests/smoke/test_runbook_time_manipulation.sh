@@ -19,9 +19,13 @@ REPO="$(cd "$(dirname "$0")/../.." && pwd)"
 source "$REPO/tests/smoke/lib.sh"
 
 ATTACKER="attacker-machine"
+HOME_BOX="admin-home"
 NTP="ntp_server"
 
-for c in "$ATTACKER" "$NTP"; do
+# ntpq/ntpdate live on wizzards-retreat (Rincewind's admin kit), not on the
+# squatted gateway. Recon-only stages can run from attacker-machine; the
+# protocol tools fire from HOME_BOX.
+for c in "$ATTACKER" "$HOME_BOX" "$NTP"; do
     require_running "$c"
 done
 
@@ -32,7 +36,7 @@ echo "[ntp] Stage 1a: ntpq peer list (mode 6 query, no auth)"
 
 PEER_OUT=""
 for i in 1 2 3 4 5 6; do
-    PEER_OUT="$(in_container "$ATTACKER" ntpq -c "lpeers" -p 10.10.5.30 2>&1)"
+    PEER_OUT="$(in_container "$HOME_BOX" ntpq -c "lpeers" -p 10.10.5.30 2>&1)"
     if printf '%s' "$PEER_OUT" | grep -qE '^[ \*\+\-]'; then
         break
     fi
@@ -48,8 +52,11 @@ fi
 
 echo "[ntp] Stage 1b: ntpdate -q reports an offset"
 
-OFFSET_OUT="$(in_container "$ATTACKER" ntpdate -q 10.10.5.30 2>&1)"
-assert_contains "$OFFSET_OUT" "stratum|offset" "ntpdate -q reports stratum/offset"
+OFFSET_OUT="$(in_container "$HOME_BOX" ntpdate -q 10.10.5.30 2>&1)"
+# ntpdate's terse output looks like:
+#   2026-05-09 15:49:07 (+0000) -0.001395 +/- 0.000056 10.10.5.30 s4 no-leap
+# Match either the stratum tag (sN) or the offset (signed value +/- error).
+assert_contains "$OFFSET_OUT" '\bs[0-9]+\b|\+/-' "ntpdate -q reports stratum/offset"
 
 echo "[ntp] Stage 1c: no symmetric-key authentication configured"
 
@@ -57,7 +64,7 @@ echo "[ntp] Stage 1c: no symmetric-key authentication configured"
 # would include 'authseqno' or non-zero auth-related fields. Without auth,
 # those fields are zero or absent. We assert the response came back at all
 # (mode 6 query is open) and look for auth=disabled-style markers.
-RV_OUT="$(in_container "$ATTACKER" ntpq -c "rv" 10.10.5.30 2>&1)"
+RV_OUT="$(in_container "$HOME_BOX" ntpq -c "rv" 10.10.5.30 2>&1)"
 if [ -z "$RV_OUT" ]; then
     fail "ntpq rv returned no output (mode 6 closed)"
 else

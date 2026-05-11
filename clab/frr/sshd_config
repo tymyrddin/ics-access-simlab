@@ -1,0 +1,8 @@
+# UU P&L ops-ctrl-fw sshd config.
+# Minimal: password auth on, root login off, admin user lands in vtysh.
+PermitRootLogin no
+PasswordAuthentication yes
+ChallengeResponseAuthentication no
+UsePAM no
+PrintMotd no
+Subsystem sftp /usr/lib/ssh/sftp-server

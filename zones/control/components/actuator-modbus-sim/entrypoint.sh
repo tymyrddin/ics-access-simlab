@@ -1,25 +1,20 @@
 #!/bin/sh
+# Actuator Modbus-TCP simulator entrypoint.
+# Routing handled by the FRR fabric; no per-service _add_route.
 set -e
-
-_add_route() {
-    local dest="$1" gw="$2"
-    for _i in 1 2 3 4 5; do
-        ip route replace "$dest" via "$gw" 2>/dev/null && return 0
-        sleep 1
-    done
-    echo "[entrypoint] WARNING: could not add route $dest via $gw" >&2
-}
-_add_route 10.10.2.30/32 10.10.3.203
 
 ACTUATOR_TYPE="${ACTUATOR_TYPE:-valve}"
 PROFILE="/sim/configs/${ACTUATOR_TYPE}-profile.json"
+SCRIPT="/sim/scripts/${ACTUATOR_TYPE}-logic.py"
 
-if [ "$ACTUATOR_TYPE" = "breaker" ]; then
-    exec pymodbus-sim --port 502 \
-        --profile "$PROFILE" \
-        --script /sim/scripts/breaker-logic.py \
-        --delay 0.1
+if [ ! -f "$PROFILE" ]; then
+    echo "[actuator] ERROR: profile $PROFILE not found." >&2
+    exit 1
+fi
+
+if [ -f "$SCRIPT" ]; then
+    exec python3 /sim/runner.py --port 502 --profile "$PROFILE" \
+        --script "$SCRIPT" --delay 0.1
 else
-    exec pymodbus-sim --port 502 \
-        --profile "$PROFILE"
+    exec python3 /sim/runner.py --port 502 --profile "$PROFILE"
 fi

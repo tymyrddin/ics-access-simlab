@@ -31,31 +31,42 @@ require_generated() {
     fi
 }
 
-# TCP connectivity probe using a throw-away alpine container.
-# Usage: probe_tcp <network> <host> <port>
-# Returns 0 if reachable, non-zero otherwise.
+# Map a zone (or docker-network-name) to a representative in-zone container
+# the test framework can `docker exec` into for probes. The data plane no
+# longer runs on docker networks; probes execute from a real lab node.
+_probe_runner() {
+    case "$1" in
+        ics_internet|internet)       echo attacker-machine ;;
+        ics_enterprise|enterprise)   echo enterprise-workstation ;;
+        ics_operational|operational) echo engineering-workstation ;;
+        ics_control|control)         echo turbine_plc ;;
+        ics_dmz|dmz)                 echo ssh_bastion ;;
+        *) echo "$1" ;;  # already a container name
+    esac
+}
+
+# TCP connectivity probe from inside a representative in-zone container.
+# bash /dev/tcp avoids needing nc inside every image.
+# Usage: probe_tcp <zone-or-runner> <host> <port>
 probe_tcp() {
-    local network="$1" host="$2" port="$3"
-    docker run --rm --network "$network" alpine \
-        nc -z -w3 "$host" "$port" 2>/dev/null
+    local runner; runner=$(_probe_runner "$1")
+    local host="$2" port="$3"
+    docker exec "$runner" timeout 3 bash -c "exec 3<>/dev/tcp/$host/$port" 2>/dev/null
 }
 
-# Inverse probe — succeeds when the port is NOT reachable.
-# Usage: probe_tcp_blocked <network> <host> <port>
+# Inverse probe, succeeds when the port is NOT reachable.
+# Usage: probe_tcp_blocked <zone-or-runner> <host> <port>
 probe_tcp_blocked() {
-    local network="$1" host="$2" port="$3"
-    ! docker run --rm --network "$network" alpine \
-        nc -z -w3 "$host" "$port" 2>/dev/null
+    ! probe_tcp "$@"
 }
 
-# UDP probe via SNMP GET (OID sysDescr).
-# Usage: probe_udp_snmp <network> <host> <community>
-# Returns 0 if we get a response, non-zero otherwise.
+# UDP probe via SNMP GET (OID sysDescr) from a representative in-zone
+# container. snmpget needs to live inside that container, see Dockerfiles.
+# Usage: probe_udp_snmp <zone-or-runner> <host> <community>
 probe_udp_snmp() {
-    local network="$1" host="$2" community="${3:-public}"
-    docker run --rm --network "$network" \
-        --entrypoint snmpget \
-        elcolio/net-snmp \
+    local runner; runner=$(_probe_runner "$1")
+    local host="$2" community="${3:-public}"
+    docker exec "$runner" snmpget \
         -v2c -c "$community" -t 3 -r 1 \
         "$host" 1.3.6.1.2.1.1.1.0 2>/dev/null
 }
@@ -70,10 +81,22 @@ container_running() {
 # Get a container's IP on a given network.
 # Usage: container_ip <name> <network>
 container_ip() {
-    local name="$1" network="$2"
-    docker inspect --format \
-        "{{(index .NetworkSettings.Networks \"$network\").IPAddress}}" \
-        "$name" 2>/dev/null
+    local name="$1"
+    local zone="$2" prefix
+    case "$zone" in
+        ics_internet|internet)       prefix='10\.10\.0\.' ;;
+        ics_enterprise|enterprise)   prefix='10\.10\.1\.' ;;
+        ics_operational|operational) prefix='10\.10\.2\.' ;;
+        ics_control|control)         prefix='10\.10\.3\.' ;;
+        ics_wan|wan)                 prefix='10\.10\.4\.' ;;
+        ics_dmz|dmz)                 prefix='10\.10\.5\.' ;;
+        *)                           prefix="$zone" ;;
+    esac
+    docker exec "$name" ip -4 -o addr show 2>/dev/null \
+        | awk '{print $4}' \
+        | sed 's@/.*@@' \
+        | grep -E "^${prefix}" \
+        | head -1
 }
 
 # Run a command inside an existing container.
