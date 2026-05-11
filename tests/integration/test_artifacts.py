@@ -15,16 +15,16 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 CONFIG_PATH = REPO_ROOT / "orchestrator" / "ctf-config.yaml"
 
 GENERATED_FILES = [
-    REPO_ROOT / "infrastructure" / "networks" / "docker-compose.yml",
     REPO_ROOT / "zones" / "enterprise" / "docker-compose.yml",
     REPO_ROOT / "zones" / "operational" / "docker-compose.yml",
     REPO_ROOT / "zones" / "control" / "docker-compose.yml",
     REPO_ROOT / "zones" / "dmz" / "docker-compose.yml",
-    REPO_ROOT / "start.sh",
-    REPO_ROOT / "stop.sh",
-    REPO_ROOT / "infrastructure" / "firewall.sh",
     REPO_ROOT / "zones" / "internet" / "docker-compose.yml",
     REPO_ROOT / "zones" / "internet" / "components" / "attacker-machine" / "adversary-readme.txt",
+    REPO_ROOT / "start.sh",
+    REPO_ROOT / "stop.sh",
+    REPO_ROOT / "infrastructure" / "clab-up.sh",
+    REPO_ROOT / "infrastructure" / "clab-down.sh",
 ]
 
 COMPOSE_FILES = [p for p in GENERATED_FILES if p.suffix in (".yml", ".yaml")]
@@ -88,7 +88,7 @@ def test_operational_ips_in_output():
     assert "10.10.2.30" in content, "engineering-workstation IP 10.10.2.30 missing"
 
 
-def test_jump_host_ip_in_output():
+def test_attacker_machine_ip_in_output():
     """Attacker machine and admin-home IPs both in internet zone compose."""
     content = (REPO_ROOT / "zones" / "internet" / "docker-compose.yml").read_text()
     assert "10.10.0.5" in content, "attacker machine internet IP 10.10.0.5 missing"
@@ -113,14 +113,40 @@ def test_adversary_readme_no_placeholders():
 
 
 # ---------------------------------------------------------------------------
-# Firewall script
+# Router ACLs (clab fabric replacement for the old firewall.sh)
 # ---------------------------------------------------------------------------
 
-def test_firewall_sh_contains_zone_subnets():
-    """firewall.sh must contain all zone subnets including DMZ."""
-    content = (REPO_ROOT / "infrastructure" / "firewall.sh").read_text()
-    for subnet in ("10.10.1.0/24", "10.10.2.0/24", "10.10.3.0/24", "10.10.4.0/24", "10.10.5.0/24"):
-        assert subnet in content, f"subnet {subnet} missing from firewall.sh"
+def test_router_acls_reference_all_zone_subnets():
+    """Per-router ACL scripts collectively cover every zone subnet.
+
+    The clab fabric replaced the old monolithic infrastructure/firewall.sh
+    with one ACL script per L3 boundary under infrastructure/routers/generated/.
+    The realism invariant is the same: zone isolation is enforced for every
+    pair, so each zone subnet must appear in at least one ACL script.
+    """
+    acl_dir = REPO_ROOT / "infrastructure" / "routers" / "generated"
+    assert acl_dir.is_dir(), f"router ACL directory missing: {acl_dir}"
+    acl_scripts = sorted(acl_dir.glob("*-acl.sh"))
+    assert acl_scripts, f"no router ACL scripts under {acl_dir}"
+    combined = "\n".join(p.read_text() for p in acl_scripts)
+    for subnet in ("10.10.1.0/24", "10.10.2.0/24", "10.10.3.0/24",
+                   "10.10.4.0/24", "10.10.5.0/24"):
+        assert subnet in combined, (
+            f"subnet {subnet} missing from any router ACL script "
+            f"(scanned {[p.name for p in acl_scripts]})"
+        )
+
+
+# ---------------------------------------------------------------------------
+# clab-up.sh bridge setup
+# ---------------------------------------------------------------------------
+
+def test_clab_up_sh_creates_zone_bridges():
+    """clab-up.sh must create the six host bridges the clab topologies attach to."""
+    content = (REPO_ROOT / "infrastructure" / "clab-up.sh").read_text()
+    for bridge in ("ics_internet", "ics_enterprise", "ics_operational",
+                   "ics_control", "ics_dmz", "ics_wan"):
+        assert bridge in content, f"bridge {bridge} missing from clab-up.sh"
 
 
 def test_dmz_ips_in_output():
