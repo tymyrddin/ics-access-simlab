@@ -71,16 +71,19 @@ assert_contains "$TRIP_OUT" "WRITE_OK" \
 assert_contains "$TRIP_OUT" "AFTER_COILS \\[True, True\\]" \
     "after write, coil 0 (trip) and coil 1 (breaker) both True"
 
-# The runbook reads HR[10:20] before and after the trip. The lab's relay
-# currently only records protection-loop trips (auto undervoltage/overcurrent/
-# overspeed), not external Modbus coil writes. So the log delta the runbook
-# implies does not fire in the simulator today. Asserting on the read
-# succeeding (above, via PRE_LOG / POST_LOG in $TRIP_OUT) is the closest the
-# test can get without a lab change. The runbook/lab mismatch is tracked in
-# books/to-investigate.md under the ied-relay-force-trip entry.
-assert_contains "$TRIP_OUT" "PRE_LOG \\[" \
-    "Modbus read_holding_registers(10,10) returns the trip log (pre-trip)"
-assert_contains "$TRIP_OUT" "POST_LOG \\[" \
-    "Modbus read_holding_registers(10,10) returns the trip log (post-trip)"
+# Runbook claims "Trip log now shows event" after the external write. The
+# relay loop now detects 0->1 transitions of COIL_TRIP not caused by the loop
+# itself and logs them as cause="remote", so the trip log gains a non-zero
+# entry. (Live PLC fault conditions can also accumulate entries between runs
+# of this test, hence the delta check rather than absolute-value check.)
+PRE_LOG="$(printf '%s\n' "$TRIP_OUT" | grep '^PRE_LOG' || true)"
+POST_LOG="$(printf '%s\n' "$TRIP_OUT" | grep '^POST_LOG' || true)"
+PRE_NONZERO="$(printf '%s' "$PRE_LOG" | grep -oE '[0-9]+' | grep -cv '^0$')"
+POST_NONZERO="$(printf '%s' "$POST_LOG" | grep -oE '[0-9]+' | grep -cv '^0$')"
+if [ "$POST_NONZERO" -gt "$PRE_NONZERO" ]; then
+    ok "trip log HR[10:20] gains non-zero entries after the trip ($PRE_NONZERO -> $POST_NONZERO)"
+else
+    fail "trip log unchanged ($PRE_NONZERO -> $POST_NONZERO non-zero); relay_server.py may not be recording remote-command trips"
+fi
 
 summary

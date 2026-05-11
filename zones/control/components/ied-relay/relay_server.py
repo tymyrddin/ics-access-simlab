@@ -79,11 +79,17 @@ _trip_log = []
 
 
 def _make_store():
+    # zero_mode=True: Modbus protocol address N reads block slot N. Without
+    # this, pymodbus's ModbusSlaveContext applies a 1-based offset that shifts
+    # everything by one, so HR_UV_THRESH=0 reads what looks like HR[1] in the
+    # init list (3300) instead of HR[0] (196). That misalignment had the
+    # relay reading bogus thresholds and self-tripping at every startup.
     return ModbusSlaveContext(
         co=ModbusSequentialDataBlock(0, [0] * 10),
         di=ModbusSequentialDataBlock(0, [0] * 10),
         hr=ModbusSequentialDataBlock(0, [196, 3300, 200] + [0] * 17),
         ir=ModbusSequentialDataBlock(0, [0] * 20),
+        zero_mode=True,
     )
 
 
@@ -93,7 +99,7 @@ def _update_trip_log_registers(store, cause, voltage, current, rpm):
     timestamp = int(time.time())
     cause_codes = {
         "undervoltage": 1, "overcurrent": 2, "overspeed": 3,
-        "manual": 4, "reclose-failed": 5
+        "manual": 4, "reclose-failed": 5, "remote": 6
     }
     cause_code = cause_codes.get(cause, 0)
 
@@ -208,6 +214,29 @@ async def relay_logic_loop(store):
                 _trip_log.pop(0)
             store.setValues(FC_CO, COIL_TRIP, [1])
             store.setValues(FC_CO, COIL_BREAKER, [1])  # breaker open
+            _update_trip_log_registers(store, cause, voltage, current, rpm)
+            await asyncio.get_event_loop().run_in_executor(None, lambda: _breaker_write(0))
+            await asyncio.get_event_loop().run_in_executor(
+                None, lambda: _mqtt_publish_trip(cause, voltage, current, rpm)
+            )
+            tripped_at = time.monotonic()
+            reclosed   = False
+
+        elif tripped and tripped_at is None:
+            # Coil went 0->1 but this loop did not set it. Most likely an
+            # external Modbus write to COIL_TRIP. Real protective relays log
+            # remote commands; emulate that so attacker activity leaves a trace.
+            cause = "remote"
+            _trip_log.append({
+                "time": time.strftime("%Y-%m-%dT%H:%M:%S"),
+                "cause": cause,
+                "voltage": voltage,
+                "current": current,
+                "rpm": rpm,
+            })
+            if len(_trip_log) > 50:
+                _trip_log.pop(0)
+            store.setValues(FC_CO, COIL_BREAKER, [1])  # breaker follows trip coil
             _update_trip_log_registers(store, cause, voltage, current, rpm)
             await asyncio.get_event_loop().run_in_executor(None, lambda: _breaker_write(0))
             await asyncio.get_event_loop().run_in_executor(
