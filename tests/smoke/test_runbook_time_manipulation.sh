@@ -8,6 +8,7 @@
 #   Stage 1a  ntpq peer list returns upstream sources (open mode 6 query)
 #   Stage 1b  ntpdate -q reports an offset (server is reachable, answers v3/v4)
 #   Stage 1c  no symmetric-key authentication configured
+#   Stage 2   ssh-bastion's /etc/ntp.conf names guild-clock as its server
 #
 # Stages 3 and 4 (forging responses, observing TLS / log effects) are on-path
 # attacks and are documented but not directly testable from a smoke probe.
@@ -21,11 +22,13 @@ source "$REPO/tests/smoke/lib.sh"
 ATTACKER="attacker-machine"
 HOME_BOX="admin-home"
 NTP="ntp_server"
+BASTION="ssh_bastion"
 
 # ntpq/ntpdate live on wizzards-retreat (Rincewind's admin kit), not on the
 # squatted gateway. Recon-only stages can run from attacker-machine; the
-# protocol tools fire from HOME_BOX.
-for c in "$ATTACKER" "$HOME_BOX" "$NTP"; do
+# protocol tools fire from HOME_BOX. Stage 2 (NTP client config recon) runs
+# against a DMZ host that uses the NTP server.
+for c in "$ATTACKER" "$HOME_BOX" "$NTP" "$BASTION"; do
     require_running "$c"
 done
 
@@ -77,5 +80,14 @@ if printf '%s' "$RV_OUT" | grep -qE 'authseqno=([1-9])'; then
 else
     ok "no active authseqno: NTP runs unauthenticated as runbook claims"
 fi
+
+echo "[ntp] Stage 2: DMZ client config names guild-clock"
+
+# Runbook: 'cat /etc/ntpsec/ntp.conf | grep server' on a DMZ host. ssh-bastion
+# ships /etc/ntp.conf with 'server 10.10.5.30 iburst' so the recon find is
+# real.
+BASTION_NTP_CONF="$(in_container "$BASTION" cat /etc/ntp.conf 2>&1)"
+assert_contains "$BASTION_NTP_CONF" "server +10\\.10\\.5\\.30" \
+    "bastion /etc/ntp.conf names guild-clock (10.10.5.30) as its NTP server"
 
 summary

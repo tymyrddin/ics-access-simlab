@@ -323,11 +323,5 @@ Python libraries:
 [paramiko](https://github.com/paramiko/paramiko),
 [python-opcua](https://github.com/FreeOpcUa/python-opcua) (FreeOpcUa)
 
-## References
-
-- [UU P&L Company Overview](https://red.tymyrddin.dev/docs/power/territory/company)
-- [ICS access and persistence play and runbooks](https://purple.tymyrddin.dev/docs/ctfs/ot-ics/access/)
-- [Testing Strategy](tests/README.md)
-
 
 *"The thing about electricity is, once it's out of the bottle, you can't put it back."* ~ Archchancellor Ridcully (probably)

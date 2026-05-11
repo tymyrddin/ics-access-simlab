@@ -57,6 +57,12 @@ else
     fail "client.key has perms $WORLD_READABLE_KEY (expected -rw-r--r--)"
 fi
 
+# Runbook also calls 'cat /run/stunnel-certs/client.key' to show the PEM
+# format. The annotation says PKCS#8 (BEGIN PRIVATE KEY).
+KEY_PEM="$(in_container "$SCADA" head -1 /run/stunnel-certs/client.key 2>&1)"
+assert_contains "$KEY_PEM" "BEGIN PRIVATE KEY" \
+    "client.key starts with BEGIN PRIVATE KEY (PKCS#8 as runbook annotates)"
+
 echo "[stunnel] Stage 3 + 4: stolen cert opens TLS to gateway and reads Modbus on PLC"
 
 # The realistic visitor path is scp from scada-server to eng-ws (which has

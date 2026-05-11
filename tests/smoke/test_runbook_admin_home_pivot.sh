@@ -130,6 +130,15 @@ assert_contains "$PLC_CONF" "actuator_cooling_pump"    "plc-access.conf lists co
 PLC_LOG="$(in_container "$ENG_WS" sh -c "cat $WIN_PROFILE/plc_poll.log 2>&1 || true")"
 assert_contains "$PLC_LOG" "poll_and_ingest" "plc_poll.log shows polling activity"
 
+# The runbook's Stage 3 also reads Documents\engineering_notes.txt, which is
+# where the credential cascade (historian/SCADA/HMI/relay logins) actually
+# leaks. Without this, the test would pass while the credential-discovery
+# part of the runbook is unverified.
+ENG_NOTES="$(in_container "$ENG_WS" sh -c "cat '$WIN_PROFILE/Documents/engineering_notes.txt' 2>&1 || true")"
+assert_contains "$ENG_NOTES" "Historian2015"   "engineering_notes.txt leaks historian DB password"
+assert_contains "$ENG_NOTES" "scada_admin"     "engineering_notes.txt leaks SCADA SSH login"
+assert_contains "$ENG_NOTES" "relay1234"       "engineering_notes.txt leaks relay IED password"
+
 echo "[admin-home-pivot] Stage 4: turbine PLC modbus reads"
 
 MODBUS_INPUT="$(in_container "$ENG_WS" /venv/bin/python3 "$WIN_PROFILE/Tools/modbus_read.py" 10.10.3.21 502 input 0 11 2>&1)"

