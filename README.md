@@ -227,6 +227,12 @@ complete, facade shells return command output. Helpers live in
 chain through wizzards-retreat for enterprise / operational targets, so no
 test-only dependencies are added to lab containers.
 
+## Done, doing, going to do
+
+Smoke tests for the L2/L3 attack surface the clab fabric now exposes. ARP poisoning between two containers on the 
+same bridge, STP root takeover, OSPF/BGP misconfig, SNMP write-community, vtysh credential-stuffing. None of these 
+have smoke probes yet, the router admin plane is just sitting there waiting.
+
 ## Configuration
 
 Edit `orchestrator/ctf-config.yaml` to change topology, addressing, or component variants, then run `./ctl up`.
