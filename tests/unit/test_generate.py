@@ -59,28 +59,6 @@ def test_render_templates(config):
 
 
 # ---------------------------------------------------------------------------
-# Networks compose
-# ---------------------------------------------------------------------------
-
-def test_generate_networks_compose(config):
-    """Four networks with correct docker_name keys and IPAM subnets."""
-    compose = gen.generate_networks_compose(config)
-
-    networks = compose["networks"]
-    assert len(networks) == 6, "expected 6 networks"
-
-    for key, net_cfg in config["networks"].items():
-        docker_name = net_cfg["docker_name"]
-        subnet = net_cfg["subnet"]
-        assert docker_name in networks, f"network {docker_name!r} missing"
-        ipam_subnets = [
-            c["subnet"]
-            for c in networks[docker_name].get("ipam", {}).get("config", [])
-        ]
-        assert subnet in ipam_subnets, f"subnet {subnet} not in IPAM for {docker_name}"
-
-
-# ---------------------------------------------------------------------------
 # Enterprise compose
 # ---------------------------------------------------------------------------
 

@@ -1,6 +1,4 @@
 #!/usr/bin/env bash
-# Smoke test: books/ssh-bastion-rce.md
-#
 # Verifies that contractors-gate (10.10.5.20) is reachable from the internet
 # zone, accepts root/uupl2015, is dual-homed into ics_enterprise, and exposes
 # the enterprise zone for lateral movement.
@@ -11,7 +9,7 @@
 #   Stage 3  enterprise zone hosts reachable from bastion
 #   Stage 4  AllowAgentForwarding yes is configured
 #
-# Usage: bash tests/smoke/test_runbook_ssh_bastion_rce.sh
+# Usage: bash tests/smoke/test_ssh_bastion_rce.sh
 set -uo pipefail
 
 REPO="$(cd "$(dirname "$0")/../.." && pwd)"

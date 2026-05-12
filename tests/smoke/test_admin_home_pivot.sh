@@ -1,6 +1,4 @@
 #!/usr/bin/env bash
-# Smoke test: books/admin-home-pivot.md
-#
 # Walks through the runbook stages and asserts each one works end-to-end against
 # a running lab. Assumes './ctl up' has already started the relevant containers.
 #
@@ -11,7 +9,7 @@
 #   Stage 3  plc-access.conf and plc_poll.log readable on eng-ws
 #   Stage 4  modbus reads from turbine PLC return live values
 #
-# Usage: bash tests/smoke/test_runbook_admin_home_pivot.sh
+# Usage: bash tests/smoke/test_admin_home_pivot.sh
 set -uo pipefail
 
 REPO="$(cd "$(dirname "$0")/../.." && pwd)"

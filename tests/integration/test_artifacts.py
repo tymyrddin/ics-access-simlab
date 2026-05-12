@@ -21,8 +21,6 @@ GENERATED_FILES = [
     REPO_ROOT / "zones" / "dmz" / "docker-compose.yml",
     REPO_ROOT / "zones" / "internet" / "docker-compose.yml",
     REPO_ROOT / "zones" / "internet" / "components" / "attacker-machine" / "adversary-readme.txt",
-    REPO_ROOT / "start.sh",
-    REPO_ROOT / "stop.sh",
     REPO_ROOT / "infrastructure" / "clab-up.sh",
     REPO_ROOT / "infrastructure" / "clab-down.sh",
 ]

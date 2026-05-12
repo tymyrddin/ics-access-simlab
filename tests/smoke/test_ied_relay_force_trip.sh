@@ -1,6 +1,4 @@
 #!/usr/bin/env bash
-# Smoke test: books/ied-relay-force-trip.md
-#
 # Force-trip the Dolly Sisters feeder relay (10.10.3.31) by writing coil 0
 # via unauthenticated Modbus. Confirm the relay's own state reflects the
 # trip. Restore state afterwards so subsequent runs see a clean relay.
@@ -11,7 +9,7 @@
 #   read coil 0 = True (relay registers the trip)
 #   reset coil 0 = False so the next run is clean
 #
-# Usage: bash tests/smoke/test_runbook_ied_relay_force_trip.sh
+# Usage: bash tests/smoke/test_ied_relay_force_trip.sh
 set -uo pipefail
 
 REPO="$(cd "$(dirname "$0")/../.." && pwd)"

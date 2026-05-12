@@ -1,6 +1,4 @@
 #!/usr/bin/env bash
-# Smoke test: books/historian-ingest-poison.md
-#
 # The /ingest endpoint accepts authenticated POSTs with hist_read/history2017
 # and writes directly to the readings table. The credential lives in the
 # engineering logbook on hex-legacy-1 (anonymous SMB / FTP).
@@ -11,7 +9,7 @@
 #   Stage 2   POST /ingest with wrong creds is rejected (401)
 #   Stage 2   GET /report reflects the injected reading
 #
-# Usage: bash tests/smoke/test_runbook_historian_ingest_poison.sh
+# Usage: bash tests/smoke/test_historian_ingest_poison.sh
 set -uo pipefail
 
 REPO="$(cd "$(dirname "$0")/../.." && pwd)"

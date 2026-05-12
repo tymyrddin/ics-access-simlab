@@ -27,9 +27,9 @@ Require Docker and a running lab (`./ctl up`). The clab fabric brings the
 whole topology up together: per-zone networks, host bridges, FRR routers,
 and ACLs are all in place before any smoke test runs.
 
-### Runbook smoke tests
+### Lab smoke tests
 
-One smoke script per runbook in `books/`. Each walks the runbook stages and
+One smoke script per attack chain the lab supports. Each walks the chain and
 asserts on visitor-realistic behaviour: passwords work, files leak via the
 expected paths, modbus / IEC-104 / OPC-UA / TLS protocol probes complete,
 facade shells answer `ssh user@host '<cmd>'` with the command output. They
@@ -39,24 +39,24 @@ services with `wait_for_port` before probing.
 Three drivers aggregate the runs:
 
 ```bash
-bash tests/smoke/test_runbooks_phase1.sh   # IT/OT pivot chains
-bash tests/smoke/test_runbooks_phase2.sh   # DMZ-direct chains + neuron exfil
-bash tests/smoke/test_runbooks_phase3.sh   # operational/control Stage 2/3 attacks
+bash tests/smoke/test_phase1.sh   # IT/OT pivot chains
+bash tests/smoke/test_phase2.sh   # DMZ-direct chains + neuron exfil
+bash tests/smoke/test_phase3.sh   # operational/control Stage 2/3 attacks
 ```
 
-Cumulative: 12 runbooks, 124 assertions. Helpers live in
-`tests/smoke/lib.sh`; the SSH probes use paramiko inside `attacker-machine`
-(no test-only software is added to lab containers), with chained transport
-through wizzards-retreat for enterprise/operational targets.
+Helpers live in `tests/smoke/lib.sh`; the SSH probes use paramiko inside
+`attacker-machine` (no test-only software is added to lab containers), with
+chained transport through wizzards-retreat for enterprise/operational
+targets.
 
 ## Dependency order
 
-| Layer                                 | Requires                       |
-|---------------------------------------|--------------------------------|
-| `tests/unit/`                         | Python, PyYAML                 |
-| `tests/integration/`                  | Python, PyYAML                 |
-| `tests/smoke/test_runbook_*.sh`       | Full lab up via `./ctl up`     |
-| `tests/smoke/test_runbooks_phase*.sh` | Full lab up via `./ctl up`     |
+| Layer                          | Requires                       |
+|--------------------------------|--------------------------------|
+| `tests/unit/`                  | Python, PyYAML                 |
+| `tests/integration/`           | Python, PyYAML                 |
+| `tests/smoke/test_*.sh`        | Full lab up via `./ctl up`     |
+| `tests/smoke/test_phase*.sh`   | Full lab up via `./ctl up`     |
 
 To generate compose files before running smoke tests directly:
 

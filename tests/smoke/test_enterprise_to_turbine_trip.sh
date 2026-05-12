@@ -1,6 +1,4 @@
 #!/usr/bin/env bash
-# Smoke test: books/enterprise-to-turbine-trip.md
-#
 # Walks through the full IT/OT chain from internet to turbine PLC. Assumes
 # './ctl up' has been run.
 #
@@ -20,7 +18,7 @@
 # enterprise/operational hosts use paramiko's chained transport from
 # attacker-machine, mirroring 'ssh -J rincewind@10.10.0.10 ...'.
 #
-# Usage: bash tests/smoke/test_runbook_enterprise_to_turbine_trip.sh
+# Usage: bash tests/smoke/test_enterprise_to_turbine_trip.sh
 set -uo pipefail
 
 REPO="$(cd "$(dirname "$0")/../.." && pwd)"

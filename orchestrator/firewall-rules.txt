@@ -1,14 +1,13 @@
 # Inter-zone routing policy, reference only
 #
-# Zone enforcement is handled by the five router containers in
-# infrastructure/routers/. Each router sits at a trust boundary, is dual-homed
-# across exactly two zone networks, and applies iptables FORWARD rules within
-# its own network namespace. No host-level forwarding is involved.
+# Zone enforcement is handled by the FRR + iptables router containers in
+# infrastructure/routers/generated/. Each router sits at a trust boundary, is
+# dual-homed across exactly two zone networks, and applies iptables FORWARD
+# rules within its own network namespace. No host-level forwarding is involved.
 #
-# generate.py still produces infrastructure/firewall.sh. That script now only
-# applies the ICS_HIDE_GW chain, which drops traffic destined for Docker bridge
-# gateway IPs (10.10.x.1). Without it, nmap scans from CTF containers reach the
-# host and reveal its hostname, open ports, and other infrastructure detail.
+# The clab fabric replaced the old docker-bridge gateway-hiding script
+# (infrastructure/firewall.sh): real Linux bridges created by clab-up.sh
+# expose no host-side gateway IP, so there is nothing to hide.
 #
 # Zone policy below is kept for reference. It documents intent, matches the ACL
 # scripts generated for each router, and can be restored as a backstop if the

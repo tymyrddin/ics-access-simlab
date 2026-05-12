@@ -1,6 +1,4 @@
 #!/usr/bin/env bash
-# Smoke test: books/meter-modbus-read.md
-#
 # Read-only Modbus probe of the revenue meter (10.10.3.33). Five input
 # registers expose live turbine telemetry derived from the PLC simulation.
 # No write, no side effects. Reachable from eng-ws's control NIC.
@@ -8,7 +6,7 @@
 # Coverage:
 #   read input registers 0..4 returns 5 values, all non-zero (PLC live)
 #
-# Usage: bash tests/smoke/test_runbook_meter_modbus_read.sh
+# Usage: bash tests/smoke/test_meter_modbus_read.sh
 set -uo pipefail
 
 REPO="$(cd "$(dirname "$0")/../.." && pwd)"

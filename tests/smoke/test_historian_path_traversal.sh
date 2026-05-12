@@ -1,6 +1,4 @@
 #!/usr/bin/env bash
-# Smoke test: books/historian-path-traversal.md
-#
 # /export?tag=<value> joins the value into the export path without
 # sanitisation. Tag traversal returns the raw SQLite database, which holds
 # the alarm_config and config tables. Reachable from operational zone.
@@ -10,7 +8,7 @@
 #   GET /export?tag=../historian.db returns SQLite magic bytes (binary)
 #   the downloaded DB has the alarm_config and config tables visible to sqlite3
 #
-# Usage: bash tests/smoke/test_runbook_historian_path_traversal.sh
+# Usage: bash tests/smoke/test_historian_path_traversal.sh
 set -uo pipefail
 
 REPO="$(cd "$(dirname "$0")/../.." && pwd)"

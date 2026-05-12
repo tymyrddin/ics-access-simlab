@@ -1,6 +1,4 @@
 #!/usr/bin/env bash
-# Smoke test: books/umati-pump-sabotage.md
-#
 # guild-exchange (10.10.5.10:8080) runs umatiGateway pre-fix build with the
 # CVE-2025-27615 unauthenticated management UI. guild-register
 # (10.10.5.13:4840) is the OPC-UA server, anonymous, SecurityMode None.
@@ -16,7 +14,7 @@
 # gateway only publishes after Stage 2's connect call. Tested separately as
 # informational.
 #
-# Usage: bash tests/smoke/test_runbook_umati_pump_sabotage.sh
+# Usage: bash tests/smoke/test_umati_pump_sabotage.sh
 set -uo pipefail
 
 REPO="$(cd "$(dirname "$0")/../.." && pwd)"

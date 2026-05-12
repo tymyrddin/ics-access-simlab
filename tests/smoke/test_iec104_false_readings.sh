@@ -1,6 +1,4 @@
 #!/usr/bin/env bash
-# Smoke test: books/iec104-false-readings.md
-#
 # substation-rtu (10.10.5.14) exposes:
 #   :8080  REST management API, no auth, runbook drives this
 #   :2404  IEC-60870-5-104 protocol endpoint (raw IEC-104, native master path)
@@ -14,7 +12,7 @@
 # Stages 3 and 4 use the same POST mechanism on different datapoints; covered
 # by Stage 2's write-then-read assertion.
 #
-# Usage: bash tests/smoke/test_runbook_iec104_false_readings.sh
+# Usage: bash tests/smoke/test_iec104_false_readings.sh
 set -uo pipefail
 
 REPO="$(cd "$(dirname "$0")/../.." && pwd)"

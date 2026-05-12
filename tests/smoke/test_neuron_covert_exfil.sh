@@ -1,6 +1,4 @@
 #!/usr/bin/env bash
-# Smoke test: books/neuron-covert-exfil.md
-#
 # sorting-office (10.10.5.11) runs Neuron with an API on :7000 and a
 # pre-configured MQTT northbound to clacks-relay (10.10.5.12:1883). The
 # runbook's chain reaches the API from uupl-eng-ws (operational zone) since
@@ -20,7 +18,7 @@
 # After Stage 3 returns a token, the visitor still needs to set up socat and
 # Modbus south node by hand; the auth check is the smoke gate for that flow.
 #
-# Usage: bash tests/smoke/test_runbook_neuron_covert_exfil.sh
+# Usage: bash tests/smoke/test_neuron_covert_exfil.sh
 set -uo pipefail
 
 REPO="$(cd "$(dirname "$0")/../.." && pwd)"

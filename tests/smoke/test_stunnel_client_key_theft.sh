@@ -1,6 +1,4 @@
 #!/usr/bin/env bash
-# Smoke test: books/stunnel-client-key-theft.md
-#
 # The SCADA container holds a world-readable mTLS client key in
 # /run/stunnel-certs/. With the key, an attacker can connect directly to the
 # stunnel gateway (uupl-modbus-gw, 10.10.2.50:8502) which forwards plain
@@ -14,7 +12,7 @@
 #   Stage 4   Modbus read through a TLS tunnel using the stolen cert reaches
 #             the turbine PLC behind the gateway
 #
-# Usage: bash tests/smoke/test_runbook_stunnel_client_key_theft.sh
+# Usage: bash tests/smoke/test_stunnel_client_key_theft.sh
 set -uo pipefail
 
 REPO="$(cd "$(dirname "$0")/../.." && pwd)"

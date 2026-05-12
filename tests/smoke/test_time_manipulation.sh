@@ -1,6 +1,4 @@
 #!/usr/bin/env bash
-# Smoke test: books/time-manipulation.md
-#
 # guild-clock (10.10.5.30) runs cturra/ntp on UDP 123 with no authentication
 # and open ntpq queries. The internet zone has direct access.
 #
@@ -13,7 +11,7 @@
 # Stages 3 and 4 (forging responses, observing TLS / log effects) are on-path
 # attacks and are documented but not directly testable from a smoke probe.
 #
-# Usage: bash tests/smoke/test_runbook_time_manipulation.sh
+# Usage: bash tests/smoke/test_time_manipulation.sh
 set -uo pipefail
 
 REPO="$(cd "$(dirname "$0")/../.." && pwd)"
