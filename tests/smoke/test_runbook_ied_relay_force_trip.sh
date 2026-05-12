@@ -41,7 +41,14 @@ import time
 c = ModbusTcpClient('10.10.3.31', port=502)
 c.connect()
 
-# Pre-trip trip-log read (runbook step). Recently-up relay has HR[10:20] zeros.
+# Reset coil first: the relay's auto-reclose runs every 10s and the test may
+# re-run inside that window, leaving the coil already tripped from a prior
+# run. Without a clean 0->1 transition, the 'remote' branch in the relay
+# loop does not fire and the trip log does not gain a new entry.
+c.write_coil(address=0, value=False, slave=1)
+time.sleep(0.5)  # let the relay loop observe the reset (loop period 0.2s)
+
+# Pre-trip trip-log read (runbook step).
 pre = c.read_holding_registers(address=10, count=10, slave=1)
 if pre.isError():
     print('PRE_LOG_ERROR', pre); raise SystemExit(1)
@@ -73,17 +80,16 @@ assert_contains "$TRIP_OUT" "AFTER_COILS \\[True, True\\]" \
 
 # Runbook claims "Trip log now shows event" after the external write. The
 # relay loop now detects 0->1 transitions of COIL_TRIP not caused by the loop
-# itself and logs them as cause="remote", so the trip log gains a non-zero
-# entry. (Live PLC fault conditions can also accumulate entries between runs
-# of this test, hence the delta check rather than absolute-value check.)
+# itself and logs them as cause="remote", which shifts the existing entries
+# and writes the new event at HR[10:11]. We compare full PRE_LOG vs POST_LOG
+# rather than non-zero counts: once the 5-entry ring buffer is full from
+# prior runs, the count doesn't change but the contents do.
 PRE_LOG="$(printf '%s\n' "$TRIP_OUT" | grep '^PRE_LOG' || true)"
 POST_LOG="$(printf '%s\n' "$TRIP_OUT" | grep '^POST_LOG' || true)"
-PRE_NONZERO="$(printf '%s' "$PRE_LOG" | grep -oE '[0-9]+' | grep -cv '^0$')"
-POST_NONZERO="$(printf '%s' "$POST_LOG" | grep -oE '[0-9]+' | grep -cv '^0$')"
-if [ "$POST_NONZERO" -gt "$PRE_NONZERO" ]; then
-    ok "trip log HR[10:20] gains non-zero entries after the trip ($PRE_NONZERO -> $POST_NONZERO)"
+if [ -n "$PRE_LOG" ] && [ -n "$POST_LOG" ] && [ "$PRE_LOG" != "$POST_LOG" ]; then
+    ok "trip log HR[10:20] contents changed after the external trip write"
 else
-    fail "trip log unchanged ($PRE_NONZERO -> $POST_NONZERO non-zero); relay_server.py may not be recording remote-command trips"
+    fail "trip log unchanged across the trip write; relay_server.py may not be recording remote-command trips"
 fi
 
 summary
