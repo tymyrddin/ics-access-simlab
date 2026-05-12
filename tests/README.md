@@ -11,7 +11,7 @@ pip install -r requirements.txt
 pytest tests/unit/ -v
 ```
 
-Covers: required config keys, distinct subnets, template rendering, compose generation for all zones, firewall script structure.
+Covers: required config keys, distinct subnets, template rendering, compose generation for all zones, per-router ACL script structure.
 
 ## Integration tests
 
@@ -23,42 +23,9 @@ pytest tests/integration/ -v
 
 ## Smoke tests
 
-Require Docker. Each script starts what it needs and tears down on exit.
-
-### Networks
-
-No images needed. Starts the networks stack and checks all zone networks exist with correct names and subnets.
-
-```bash
-bash tests/smoke/test_networks.sh
-```
-
-### Zone containers
-
-Images needed. Starts enterprise and operational zones, checks containers are running, IPs are correct, and dual-homed containers have a foot in both expected networks.
-
-```bash
-bash tests/smoke/test_zones.sh
-```
-
-### Inter-zone connectivity
-
-Images needed. Starts all zones without firewall rules applied. Verifies intra-zone reachability and that dual-homed containers respond on both their network interfaces.
-
-Cross-zone routing at Layer 3 through a dual-homed container is intentionally not tested here. The realistic attack path is to SSH in and connect from there.
-
-```bash
-bash tests/smoke/test_connectivity.sh
-```
-
-### Firewall policy (legacy)
-
-`tests/smoke/test_firewall.sh` exists from the docker-bridge fabric era when
-`infrastructure/firewall.sh` was applied on the host. The clab fabric moves
-forwarding policy into the FRR + iptables router containers, where the
-runbook smoke tests already exercise it implicitly (e.g. cross-zone paths
-blocked vs. allowed). The legacy script may now skip or fail; the
-runbook-phase suites are the active acceptance tests.
+Require Docker and a running lab (`./ctl up`). The clab fabric brings the
+whole topology up together: per-zone networks, host bridges, FRR routers,
+and ACLs are all in place before any smoke test runs.
 
 ### Runbook smoke tests
 
@@ -77,22 +44,19 @@ bash tests/smoke/test_runbooks_phase2.sh   # DMZ-direct chains + neuron exfil
 bash tests/smoke/test_runbooks_phase3.sh   # operational/control Stage 2/3 attacks
 ```
 
-Cumulative: 13 runbooks, 109 assertions. Helpers live in
+Cumulative: 12 runbooks, 124 assertions. Helpers live in
 `tests/smoke/lib.sh`; the SSH probes use paramiko inside `attacker-machine`
 (no test-only software is added to lab containers), with chained transport
 through wizzards-retreat for enterprise/operational targets.
 
 ## Dependency order
 
-| Layer                              | Requires                        |
-|------------------------------------|---------------------------------|
-| `tests/unit/`                      | Python, PyYAML                  |
-| `tests/integration/`               | Python, PyYAML                  |
-| `tests/smoke/test_networks.sh`     | Docker, generated compose files |
-| `tests/smoke/test_zones.sh`        | Docker, images built            |
-| `tests/smoke/test_connectivity.sh` | Docker, images built            |
-| `tests/smoke/test_firewall.sh`     | Legacy (docker-bridge fabric), no longer maintained |
-| `tests/smoke/test_runbooks_phase*.sh` | Full lab up via `./ctl up`    |
+| Layer                                 | Requires                       |
+|---------------------------------------|--------------------------------|
+| `tests/unit/`                         | Python, PyYAML                 |
+| `tests/integration/`                  | Python, PyYAML                 |
+| `tests/smoke/test_runbook_*.sh`       | Full lab up via `./ctl up`     |
+| `tests/smoke/test_runbooks_phase*.sh` | Full lab up via `./ctl up`     |
 
 To generate compose files before running smoke tests directly:
 

@@ -87,7 +87,4 @@ test-artifacts: generate
 test-smoke:
 	@for f in tests/smoke/test_*.sh; do bash "$$f" || true; done
 
-test-firewall:
-	sudo bash tests/smoke/test_firewall.sh
-
 test: test-unit test-artifacts test-smoke

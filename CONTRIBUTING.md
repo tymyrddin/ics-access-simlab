@@ -43,7 +43,7 @@ Follow these conventions:
 - New devices and zones are added via `ctf-config.yaml` and the corresponding generator logic in `generate.py`
 - Network attachments, IPs, and port mappings come from config, not hardcoded values
 - Vulnerabilities are properties of device containers, not toggleable config flags
-- Zone boundaries are enforced by the generated firewall rules
+- Zone boundaries are enforced by the generated per-router ACL scripts loaded into the clab FRR routers
 
 If `./ctl generate` produces valid compose files and `./ctl up` brings them up cleanly, you are on the right track.
 
@@ -81,7 +81,7 @@ New device or container:
 New zone or CTF scenario:
 - Adds a zone block to `ctf-config.yaml`
 - Has a corresponding generator function in `generate.py`
-- Has network and firewall entries
+- Has a clab topology file in `clab/` and per-router ACL entries
 - Is described in `docs/PLAN.md`
 
 ## What not to contribute
@@ -197,13 +197,15 @@ zones/
 └── field-devices/       # WAN-side RTUs
 
 infrastructure/
-├── networks/            # Docker Compose for shared bridge networks
-└── firewall.sh          # generated iptables rules for DOCKER-USER chain
+├── clab-up.sh           # generated: create host bridges + deploy clab topologies
+├── clab-down.sh         # generated: destroy topologies + remove bridges
+├── networks/            # network-marker dir used by generate.py
+└── routers/generated/   # generated per-router iptables ACL scripts (FRR fabric)
 
 tests/
 ├── unit/                # config schema and generator function tests
 ├── integration/         # end-to-end generate.py output checks
-└── smoke/               # Docker-based network and connectivity tests
+└── smoke/               # per-runbook end-to-end smoke tests (lab must be up)
 
 books/                   # CTF walkthrough and attack path guides
 docs/                    # Architecture, plan, requirements, resources

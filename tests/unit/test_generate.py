@@ -151,23 +151,6 @@ def test_generate_operational_compose(config, operational_output_path):
 
 
 # ---------------------------------------------------------------------------
-# Firewall script
-# ---------------------------------------------------------------------------
-
-def test_generate_firewall_sh(config):
-    """All zone subnets present; root-check and iptables flush present."""
-    script = gen.generate_firewall_sh(config)
-
-    for key in ("internet", "enterprise", "operational", "control", "wan", "dmz"):
-        subnet = config["networks"][key]["subnet"]
-        assert subnet in script, f"subnet {subnet} ({key}) missing from firewall.sh"
-
-    assert 'if [ "$EUID" -ne 0 ]' in script, "root check block missing"
-    assert "iptables -F DOCKER-USER" in script, "iptables flush missing"
-    assert "-A DOCKER-USER -j RETURN" in script, "final RETURN rule missing"
-
-
-# ---------------------------------------------------------------------------
 # Adversary README
 # ---------------------------------------------------------------------------
 
