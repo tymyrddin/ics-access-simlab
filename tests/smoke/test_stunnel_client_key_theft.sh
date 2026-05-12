@@ -1,6 +1,4 @@
 #!/usr/bin/env bash
-# Smoke test: books/stunnel-client-key-theft.md
-#
 # The SCADA container holds a world-readable mTLS client key in
 # /run/stunnel-certs/. With the key, an attacker can connect directly to the
 # stunnel gateway (uupl-modbus-gw, 10.10.2.50:8502) which forwards plain
@@ -14,7 +12,7 @@
 #   Stage 4   Modbus read through a TLS tunnel using the stolen cert reaches
 #             the turbine PLC behind the gateway
 #
-# Usage: bash tests/smoke/test_runbook_stunnel_client_key_theft.sh
+# Usage: bash tests/smoke/test_stunnel_client_key_theft.sh
 set -uo pipefail
 
 REPO="$(cd "$(dirname "$0")/../.." && pwd)"
@@ -56,6 +54,12 @@ if printf '%s' "$WORLD_READABLE_KEY" | grep -qE '^-rw-r--r--'; then
 else
     fail "client.key has perms $WORLD_READABLE_KEY (expected -rw-r--r--)"
 fi
+
+# Runbook also calls 'cat /run/stunnel-certs/client.key' to show the PEM
+# format. The annotation says PKCS#8 (BEGIN PRIVATE KEY).
+KEY_PEM="$(in_container "$SCADA" head -1 /run/stunnel-certs/client.key 2>&1)"
+assert_contains "$KEY_PEM" "BEGIN PRIVATE KEY" \
+    "client.key starts with BEGIN PRIVATE KEY (PKCS#8 as runbook annotates)"
 
 echo "[stunnel] Stage 3 + 4: stolen cert opens TLS to gateway and reads Modbus on PLC"
 

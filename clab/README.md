@@ -46,6 +46,70 @@ Every topology sets `prefix: ""` so docker container names match what
 compose's `container_name` produced. `docker exec turbine_plc ...` works
 the same as it always did; tests and runbooks stay fabric-agnostic.
 
+## Network addressing
+
+Authoritative IP plan, mirrored across the per-zone clab topologies:
+
+```
+ics_internet (10.10.0.0/24)     public / city network (Purdue: external)
+  unseen-gate       10.10.0.5   attacker machine (SSH entry point)
+  wizzards-retreat  10.10.0.10  admin@home, triple-homed (simulates VPN)
+  inet-dmz-fw       10.10.0.200 internet/dmz boundary router
+
+ics_enterprise (10.10.1.0/24)   corporate IT (Purdue L4)
+  wizzards-retreat  10.10.1.3   second NIC (VPN tunnel endpoint)
+  hex-legacy-1      10.10.1.10  legacy workstation
+  bursar-desk       10.10.1.20  enterprise workstation (also on ops: 10.10.2.100)
+  contractors-gate  10.10.1.30  ssh bastion (also on dmz: 10.10.5.20)
+  dmz-ent-fw        10.10.1.201 dmz/enterprise boundary router
+  ent-ops-fw        10.10.1.202 enterprise/operational boundary router
+
+ics_operational (10.10.2.0/24)  site operations management (Purdue L3)
+  uupl-historian     10.10.2.10  process historian (SQLite, time-series)
+  scada-db           10.10.2.19  MySQL backing DB for operations Scada-LTS
+  distribution-scada 10.10.2.20  Scada-LTS, operations SCADA (admin/admin)
+  uupl-eng-ws        10.10.2.30  engineering workstation (also on control)
+  uupl-modbus-gw     10.10.2.50  stunnel TLS gateway, ops NIC
+  wizzards-retreat   10.10.2.3   admin@home third NIC
+  bursar-desk        10.10.2.100 enterprise workstation second NIC
+  ent-ops-fw         10.10.2.202 enterprise/operational boundary router
+  ops-ctrl-fw        10.10.2.203 operational/control boundary router
+  ops-wan-router     10.10.2.204 operational/wan boundary router
+
+ics_control (10.10.3.0/24)      area supervisory + field (Purdue L1-2)
+  uupl-hmi           10.10.3.10  Scada-LTS, control SCADA/HMI (admin/admin)
+  hmi_main-db        10.10.3.11  MySQL backing DB for control Scada-LTS
+  hex-turbine-plc    10.10.3.21  turbine PLC (Modbus :502, OPC-UA :4840, MQTT)
+  uupl-relay-a       10.10.3.31  protective relay IED, Dolly Sisters feeder
+  uupl-relay-b       10.10.3.32  protective relay IED, Nap Hill feeder
+  uupl-meter         10.10.3.33  revenue meter IED
+  uupl-modbus-gw     10.10.3.50  stunnel TLS gateway, ctrl NIC
+  uupl-fuel-valve    10.10.3.51  custom pymodbus actuator (HR: valve position)
+  uupl-cooling-pump  10.10.3.52  custom pymodbus actuator (HR: pump speed)
+  uupl-breaker-a     10.10.3.53  custom pymodbus actuator (COILS, Dolly Sisters)
+  uupl-breaker-b     10.10.3.54  custom pymodbus actuator (COILS, Nap Hill)
+  uupl-mqtt          10.10.3.60  Mosquitto (allow_anonymous, uupl/# topics)
+  uupl-eng-ws        10.10.3.100 engineering workstation second NIC
+  ops-ctrl-fw        10.10.3.203 operational/control boundary router
+
+ics_wan (10.10.4.0/24)          OT/RTU WAN (placeholder)
+  ops-wan-router    10.10.4.204  operational/wan boundary router
+
+ics_dmz (10.10.5.0/24)          Guild Quarter, externally-reachable attack surface
+  guild-exchange     10.10.5.10  umatiGateway (CVE-2025-27615, no auth UI :8080)
+  sorting-office     10.10.5.11  Neuron protocol gateway (admin/0000, :7000)
+  clacks-relay       10.10.5.12  MQTT broker (allow_anonymous, :1883)
+  guild-register     10.10.5.13  OPC-UA server (anonymous, SecurityMode=None, :4840)
+  substation-rtu     10.10.5.14  IEC-104 RTU (no-auth REST :8080, IEC-104 :2404)
+  contractors-gate   10.10.5.20  SSH bastion (CVE-2024-6387, root/uupl2015)
+  dispatch-box       10.10.5.21  SFTP drop (anonymous/anonymous, no chroot)
+  guild-clock        10.10.5.30  NTP server (no NTP auth)
+  city-directory     10.10.5.31  DNS forwarder (open recursion, DNSSEC off)
+  scribes-post       10.10.5.32  Syslog relay (UDP 514, no TLS, no source auth)
+  inet-dmz-fw        10.10.5.200 internet/dmz boundary router
+  dmz-ent-fw         10.10.5.201 dmz/enterprise boundary router
+```
+
 ## Running the lab
 
 ```bash
@@ -134,10 +198,10 @@ patch upstream or ship a per-migration alter-table shim.
 
 ## Verifying
 
-The Phase 1, 2, and 3 runbook smoke tests are the acceptance suite:
+The Phase 1, 2, and 3 smoke tests are the acceptance suite:
 
 ```bash
-bash tests/smoke/test_runbooks_phase1.sh
-bash tests/smoke/test_runbooks_phase2.sh
-bash tests/smoke/test_runbooks_phase3.sh
+bash tests/smoke/test_phase1.sh
+bash tests/smoke/test_phase2.sh
+bash tests/smoke/test_phase3.sh
 ```

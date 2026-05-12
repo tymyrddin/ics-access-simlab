@@ -1,6 +1,4 @@
 #!/usr/bin/env bash
-# Smoke test: books/meter-modbus-read.md
-#
 # Read-only Modbus probe of the revenue meter (10.10.3.33). Five input
 # registers expose live turbine telemetry derived from the PLC simulation.
 # No write, no side effects. Reachable from eng-ws's control NIC.
@@ -8,7 +6,7 @@
 # Coverage:
 #   read input registers 0..4 returns 5 values, all non-zero (PLC live)
 #
-# Usage: bash tests/smoke/test_runbook_meter_modbus_read.sh
+# Usage: bash tests/smoke/test_meter_modbus_read.sh
 set -uo pipefail
 
 REPO="$(cd "$(dirname "$0")/../.." && pwd)"
@@ -55,5 +53,14 @@ if [ "$NONZERO_COUNT" -ge 3 ]; then
 else
     fail "meter values mostly zero ($NONZERO_COUNT/5 non-zero), PLC simulation not warming up"
 fi
+
+echo "[meter] Stage 1 alternative: mbpoll -a 1 -r 0 -c 5 -t 4 10.10.3.33"
+
+# The runbook offers mbpoll as an alternative to the Python snippet. eng-ws
+# ships a pymodbus-backed wrapper at /usr/local/bin/mbpoll; verify it produces
+# the same five-register read.
+MBPOLL_OUT="$(in_container "$ENG_WS" mbpoll -a 1 -r 0 -c 5 -t 4 10.10.3.33 2>&1)"
+assert_contains "$MBPOLL_OUT" "\\[0\\]:" "mbpoll prints register [0]"
+assert_contains "$MBPOLL_OUT" "\\[4\\]:" "mbpoll prints register [4] (covers all 5 reads)"
 
 summary

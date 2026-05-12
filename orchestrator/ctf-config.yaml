@@ -6,8 +6,8 @@
 # of the simulated systems, baked into their implementations.
 #
 # Usage:
-#   python orchestrator/generate.py [this-file]
-#   bash start.sh
+#   ./ctl up                                  # day-to-day
+#   python orchestrator/generate.py [this-file]   # regenerate artefacts only
 
 meta:
   name: "UU P&L Operations Network"

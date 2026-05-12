@@ -59,28 +59,6 @@ def test_render_templates(config):
 
 
 # ---------------------------------------------------------------------------
-# Networks compose
-# ---------------------------------------------------------------------------
-
-def test_generate_networks_compose(config):
-    """Four networks with correct docker_name keys and IPAM subnets."""
-    compose = gen.generate_networks_compose(config)
-
-    networks = compose["networks"]
-    assert len(networks) == 6, "expected 6 networks"
-
-    for key, net_cfg in config["networks"].items():
-        docker_name = net_cfg["docker_name"]
-        subnet = net_cfg["subnet"]
-        assert docker_name in networks, f"network {docker_name!r} missing"
-        ipam_subnets = [
-            c["subnet"]
-            for c in networks[docker_name].get("ipam", {}).get("config", [])
-        ]
-        assert subnet in ipam_subnets, f"subnet {subnet} not in IPAM for {docker_name}"
-
-
-# ---------------------------------------------------------------------------
 # Enterprise compose
 # ---------------------------------------------------------------------------
 
@@ -148,23 +126,6 @@ def test_generate_operational_compose(config, operational_output_path):
     assert ctrl_net in eng["networks"]
     assert eng["networks"][ops_net]["ipv4_address"] == eng_ip
     assert eng["networks"][ctrl_net]["ipv4_address"] == eng_ctrl_ip
-
-
-# ---------------------------------------------------------------------------
-# Firewall script
-# ---------------------------------------------------------------------------
-
-def test_generate_firewall_sh(config):
-    """All zone subnets present; root-check and iptables flush present."""
-    script = gen.generate_firewall_sh(config)
-
-    for key in ("internet", "enterprise", "operational", "control", "wan", "dmz"):
-        subnet = config["networks"][key]["subnet"]
-        assert subnet in script, f"subnet {subnet} ({key}) missing from firewall.sh"
-
-    assert 'if [ "$EUID" -ne 0 ]' in script, "root check block missing"
-    assert "iptables -F DOCKER-USER" in script, "iptables flush missing"
-    assert "-A DOCKER-USER -j RETURN" in script, "final RETURN rule missing"
 
 
 # ---------------------------------------------------------------------------

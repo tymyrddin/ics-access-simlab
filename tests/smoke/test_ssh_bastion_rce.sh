@@ -1,6 +1,4 @@
 #!/usr/bin/env bash
-# Smoke test: books/ssh-bastion-rce.md
-#
 # Verifies that contractors-gate (10.10.5.20) is reachable from the internet
 # zone, accepts root/uupl2015, is dual-homed into ics_enterprise, and exposes
 # the enterprise zone for lateral movement.
@@ -11,7 +9,7 @@
 #   Stage 3  enterprise zone hosts reachable from bastion
 #   Stage 4  AllowAgentForwarding yes is configured
 #
-# Usage: bash tests/smoke/test_runbook_ssh_bastion_rce.sh
+# Usage: bash tests/smoke/test_ssh_bastion_rce.sh
 set -uo pipefail
 
 REPO="$(cd "$(dirname "$0")/../.." && pwd)"
@@ -27,12 +25,21 @@ done
 echo "[ssh-bastion] Waiting for bastion sshd..."
 wait_for_port "$ATTACKER" 10.10.5.20 22 30 || fail "contractors-gate sshd not ready"
 
-echo "[ssh-bastion] Stage 1: target reachable from internet zone"
+echo "[ssh-bastion] Stage 1a: target reachable from internet zone"
 
 NMAP_OUT="$(in_container "$ATTACKER" nmap -sV -p 22 10.10.5.20 2>&1)"
 assert_contains "$NMAP_OUT" "22/tcp +open"  "contractors-gate 22/tcp open"
 assert_contains "$NMAP_OUT" "OpenSSH 9\.2p1" "banner reports OpenSSH 9.2p1"
 assert_contains "$NMAP_OUT" "Debian"         "banner reports Debian build (vulnerable to CVE-2024-6387)"
+
+echo "[ssh-bastion] Stage 1b: explicit banner grab via netcat"
+
+# Runbook: 'echo | nc 10.10.5.20 22' returns the SSH banner directly. The
+# runbook specifically uses this because ssh itself does not print the banner
+# to stderr without -v.
+NC_BANNER="$(in_container "$ATTACKER" sh -c 'echo | nc -w 3 10.10.5.20 22 2>&1' || true)"
+assert_contains "$NC_BANNER" "SSH-2\.0-OpenSSH" \
+    "nc banner grab returns SSH-2.0-OpenSSH protocol string"
 
 echo "[ssh-bastion] Stage 2: root/uupl2015 logs in"
 

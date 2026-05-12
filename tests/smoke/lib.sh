@@ -278,7 +278,11 @@ jump.close()
 # Usage: assert_contains "<output>" "<pattern>" "<description>"
 assert_contains() {
     local output="$1" pattern="$2" desc="$3"
-    if printf '%s' "$output" | grep -qE -- "$pattern"; then
+    # Here-string avoids the printf|grep pipeline. With `set -o pipefail`, a
+    # large output (> pipe buffer) plus an early `grep -q` match triggers
+    # SIGPIPE on printf, which propagates as a non-zero pipeline exit and the
+    # if-branch incorrectly takes the false path.
+    if grep -qE -- "$pattern" <<< "$output"; then
         ok "$desc"
     else
         fail "$desc (pattern '$pattern' not found)"
@@ -288,7 +292,7 @@ assert_contains() {
 # Assert that a given pattern does NOT appear in output.
 assert_absent() {
     local output="$1" pattern="$2" desc="$3"
-    if ! printf '%s' "$output" | grep -qE -- "$pattern"; then
+    if ! grep -qE -- "$pattern" <<< "$output"; then
         ok "$desc"
     else
         fail "$desc (pattern '$pattern' unexpectedly found)"

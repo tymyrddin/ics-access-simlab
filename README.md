@@ -209,16 +209,15 @@ pytest tests/integration/ -v
 make test
 ```
 
-### Runbook smoke tests
+### Lab smoke tests
 
-Once the lab is up (`./ctl up`), the per-runbook smoke tests verify each
-attack chain end-to-end against the running stack. Three drivers cover the
-13 runbooks in `books/`:
+Once the lab is up (`./ctl up`), the smoke tests verify each attack chain
+end-to-end against the running stack. Three drivers cover the 13 chains:
 
 ```bash
-bash tests/smoke/test_runbooks_phase1.sh   # IT/OT pivot chains
-bash tests/smoke/test_runbooks_phase2.sh   # DMZ-direct + neuron covert exfil
-bash tests/smoke/test_runbooks_phase3.sh   # inner-zone Stage 2/3 attacks
+bash tests/smoke/test_phase1.sh   # IT/OT pivot chains
+bash tests/smoke/test_phase2.sh   # DMZ-direct + neuron covert exfil
+bash tests/smoke/test_phase3.sh   # inner-zone Stage 2/3 attacks
 ```
 
 Each test asserts on visitor-realistic behaviour: passwords authenticate,
@@ -227,6 +226,12 @@ complete, facade shells return command output. Helpers live in
 `tests/smoke/lib.sh`; SSH probes run paramiko inside `attacker-machine` and
 chain through wizzards-retreat for enterprise / operational targets, so no
 test-only dependencies are added to lab containers.
+
+## Done, doing, going to do
+
+Smoke tests for the L2/L3 attack surface the clab fabric now exposes. ARP poisoning between two containers on the 
+same bridge, STP root takeover, OSPF/BGP misconfig, SNMP write-community, vtysh credential-stuffing. None of these 
+have smoke probes yet, the router admin plane is just sitting there waiting.
 
 ## Configuration
 
@@ -322,12 +327,6 @@ Python libraries:
 [Flask](https://github.com/pallets/flask),
 [paramiko](https://github.com/paramiko/paramiko),
 [python-opcua](https://github.com/FreeOpcUa/python-opcua) (FreeOpcUa)
-
-## References
-
-- [UU P&L Company Overview](https://red.tymyrddin.dev/docs/power/territory/company)
-- [ICS access and persistence play and runbooks](https://purple.tymyrddin.dev/docs/ctfs/ot-ics/access/)
-- [Testing Strategy](tests/README.md)
 
 
 *"The thing about electricity is, once it's out of the bottle, you can't put it back."* ~ Archchancellor Ridcully (probably)

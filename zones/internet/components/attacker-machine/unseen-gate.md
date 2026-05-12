@@ -106,7 +106,6 @@ cp infrastructure/attacker-machine/adversary-keys.example \
 Then:
 ```bash
 ./ctl up          # generates, builds, starts, prints SSH command
-./ctl firewall    # apply inter-zone rules (sudo)
 ```
 
 ## Folder tree

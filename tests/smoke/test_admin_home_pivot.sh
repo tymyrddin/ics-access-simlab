@@ -1,6 +1,4 @@
 #!/usr/bin/env bash
-# Smoke test: books/admin-home-pivot.md
-#
 # Walks through the runbook stages and asserts each one works end-to-end against
 # a running lab. Assumes './ctl up' has already started the relevant containers.
 #
@@ -11,7 +9,7 @@
 #   Stage 3  plc-access.conf and plc_poll.log readable on eng-ws
 #   Stage 4  modbus reads from turbine PLC return live values
 #
-# Usage: bash tests/smoke/test_runbook_admin_home_pivot.sh
+# Usage: bash tests/smoke/test_admin_home_pivot.sh
 set -uo pipefail
 
 REPO="$(cd "$(dirname "$0")/../.." && pwd)"
@@ -129,6 +127,15 @@ assert_contains "$PLC_CONF" "actuator_cooling_pump"    "plc-access.conf lists co
 
 PLC_LOG="$(in_container "$ENG_WS" sh -c "cat $WIN_PROFILE/plc_poll.log 2>&1 || true")"
 assert_contains "$PLC_LOG" "poll_and_ingest" "plc_poll.log shows polling activity"
+
+# The runbook's Stage 3 also reads Documents\engineering_notes.txt, which is
+# where the credential cascade (historian/SCADA/HMI/relay logins) actually
+# leaks. Without this, the test would pass while the credential-discovery
+# part of the runbook is unverified.
+ENG_NOTES="$(in_container "$ENG_WS" sh -c "cat '$WIN_PROFILE/Documents/engineering_notes.txt' 2>&1 || true")"
+assert_contains "$ENG_NOTES" "Historian2015"   "engineering_notes.txt leaks historian DB password"
+assert_contains "$ENG_NOTES" "scada_admin"     "engineering_notes.txt leaks SCADA SSH login"
+assert_contains "$ENG_NOTES" "relay1234"       "engineering_notes.txt leaks relay IED password"
 
 echo "[admin-home-pivot] Stage 4: turbine PLC modbus reads"
 
