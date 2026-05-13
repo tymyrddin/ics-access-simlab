@@ -987,7 +987,16 @@ def generate_clab_helpers(config: dict) -> None:
         f"sudo bash -c '"
         f'for b in {bridges}; do '
         'ip link show "$b" >/dev/null 2>&1 || ip link add "$b" type bridge; '
-        'ip link set "$b" up; done; '
+        'ip link set "$b" up; '
+        # STP on by default, realistic OT switch posture. BPDU guard is
+        # intentionally absent: that is the attack surface (root takeover).
+        'ip link set "$b" type bridge stp_state 1; '
+        # IGMP snooping off so unsolicited multicast (OSPF Hello to
+        # 224.0.0.5, etc.) floods between ports. With snooping on and no
+        # IGMP querier the bridge drops it, breaking routing-protocol
+        # adjacency. Realistic for an unmanaged OT switch.
+        'ip link set "$b" type bridge mcast_snooping 0; '
+        'done; '
         f"{nat_setup}'\n\n"
         'echo "[clab] Building clab-router image..."\n'
         'docker build -q -t clab-router "$REPO/clab/frr"\n\n'

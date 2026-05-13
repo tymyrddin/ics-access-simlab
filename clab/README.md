@@ -204,4 +204,5 @@ The Phase 1, 2, and 3 smoke tests are the acceptance suite:
 bash tests/smoke/test_phase1.sh
 bash tests/smoke/test_phase2.sh
 bash tests/smoke/test_phase3.sh
+bash tests/smoke/test_phase4.sh
 ```

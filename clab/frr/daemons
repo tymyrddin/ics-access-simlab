@@ -1,13 +1,14 @@
-# FRR daemons file for ops-ctrl-fw.
+# FRR daemons file for the lab's inter-zone routers.
 #
-# Only zebra (kernel route programming) and staticd (static route handling)
-# are enabled in this PoC. OSPF / BGP are disabled deliberately: this lab's
-# inter-zone routing is static today, and the runbook chains do not test
-# routing-protocol attacks yet. Future work that adds OSPF or BGP
-# misconfiguration as attack surface enables ospfd / bgpd here.
+# zebra and staticd carry the existing inter-zone fabric (statically routed
+# via the gateway addresses in each frr.conf). ospfd is enabled to expose
+# a realistic OT-vendor-default routing-protocol attack surface: area 0,
+# no MD5 auth, no passive-interface, no route filtering on redistribute.
+# Static routes win on overlap (lower admin-distance), so OSPF runs as a
+# parallel control plane that visitors can manipulate.
 
-bgpd=no
-ospfd=no
+bgpd=yes
+ospfd=yes
 ospf6d=no
 ripd=no
 ripngd=no
@@ -28,7 +29,8 @@ zebra=yes
 staticd=yes
 
 # Common option overrides. Each daemon-specific *_options line is honoured
-# when that daemon is yes; with the daemons disabled above, only zebra and
-# staticd options apply.
+# when that daemon is yes.
 zebra_options="  -A 127.0.0.1 -s 90000000"
 staticd_options="-A 127.0.0.1"
+ospfd_options=" -A 127.0.0.1"
+bgpd_options="  -A 127.0.0.1"
