@@ -218,6 +218,7 @@ end-to-end against the running stack. Three drivers cover the 13 chains:
 bash tests/smoke/test_phase1.sh   # IT/OT pivot chains
 bash tests/smoke/test_phase2.sh   # DMZ-direct + neuron covert exfil
 bash tests/smoke/test_phase3.sh   # inner-zone Stage 2/3 attacks
+bash tests/smoke/test_phase4.sh   # L2/L3 fabric (FRR admin plane, etc.)
 ```
 
 Each test asserts on visitor-realistic behaviour: passwords authenticate,
