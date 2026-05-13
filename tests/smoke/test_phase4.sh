@@ -19,7 +19,8 @@ FAILED=0
 SKIPPED=0
 for t in \
     test_vtysh_credential_stuffing.sh \
-    test_arp_poisoning.sh
+    test_arp_poisoning.sh \
+    test_stp_root_takeover.sh
 do
     echo ""
     echo "=========================================="
