@@ -991,6 +991,11 @@ def generate_clab_helpers(config: dict) -> None:
         # STP on by default, realistic OT switch posture. BPDU guard is
         # intentionally absent: that is the attack surface (root takeover).
         'ip link set "$b" type bridge stp_state 1; '
+        # IGMP snooping off so unsolicited multicast (OSPF Hello to
+        # 224.0.0.5, etc.) floods between ports. With snooping on and no
+        # IGMP querier the bridge drops it, breaking routing-protocol
+        # adjacency. Realistic for an unmanaged OT switch.
+        'ip link set "$b" type bridge mcast_snooping 0; '
         'done; '
         f"{nat_setup}'\n\n"
         'echo "[clab] Building clab-router image..."\n'

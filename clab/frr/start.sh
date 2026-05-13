@@ -22,6 +22,12 @@ if [ -f /acl.sh ]; then
     # these source IPs.
     iptables -A INPUT -p tcp --dport 22  -j ACCEPT
     iptables -A INPUT -p udp --dport 161 -j ACCEPT
+    # OSPF protocol (IP 89), unicast Hellos in/out under NBMA. Conntrack
+    # does not track IP 89 so RELATED,ESTABLISHED never matches; explicit
+    # ACCEPT on both directions. No source filter: realistic OT vendor
+    # default, this is the attack surface.
+    iptables -A INPUT  -p ospf             -j ACCEPT
+    iptables -A OUTPUT -p ospf             -j ACCEPT
     . /acl.sh
     echo "[ops-ctrl-fw] iptables policy applied from /acl.sh"
 else
