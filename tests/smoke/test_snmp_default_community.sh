@@ -24,43 +24,15 @@ ROUTER_IP="10.10.0.200"
 require_running "$ATTACKER"
 require_running "$ROUTER"
 
-echo "[snmp] Stage 0: UDP/161 reachable on $ROUTER from $ATTACKER"
-# UDP has no SYN/ACK so we probe via a real SNMP query with a short timeout.
-# If snmpd isn't running yet (router image pre-rebuild), this fails and the
-# whole test skips.
-PROBE="$(docker exec "$ATTACKER" /opt/attacker-env/bin/python3 - "$ROUTER_IP" <<'PY' 2>&1
-import sys
-from scapy.all import IP, UDP, SNMP, SNMPget, SNMPvarbind, ASN1_OID, ASN1_NULL, sr1
-host = sys.argv[1]
-pkt = IP(dst=host)/UDP(sport=44440, dport=161)/SNMP(
-    version=1, community=b'public',
-    PDU=SNMPget(id=1, varbindlist=[
-        SNMPvarbind(oid=ASN1_OID('1.3.6.1.2.1.1.1.0'), value=ASN1_NULL())]))
-r = sr1(pkt, timeout=3, verbose=False)
-print('REACHABLE' if r is not None and r.haslayer(SNMP) else 'UNREACHABLE')
-PY
-)"
-if ! echo "$PROBE" | grep -q REACHABLE; then
-    echo "  [skip] snmpd on $ROUTER not reachable on UDP/161."
-    echo "         Rebuild clab-router image and './ctl down && ./ctl up' to redeploy."
-    exit 2
-fi
-ok "$ROUTER UDP/161 responds to SNMPv2c"
-
-snmp_query() {
-    # snmp_query <community> <oid>           → prints string value or 'ERR:<msg>'
-    # snmp_query <community> <oid> set <val> → snmpset, prints set value or error
-    local community="$1" oid="$2" op="${3:-get}" newval="${4:-}"
-    docker exec "$ATTACKER" /opt/attacker-env/bin/python3 - \
-        "$ROUTER_IP" "$community" "$oid" "$op" "$newval" <<'PY' 2>&1
+SNMP_PY='
 import sys, random
 from scapy.all import (IP, UDP, SNMP, SNMPget, SNMPset, SNMPvarbind,
                        ASN1_OID, ASN1_NULL, ASN1_STRING, sr1)
 host, community, oid, op, newval = sys.argv[1:6]
 xid = random.randint(1, 0xFFFF)
-if op == 'get':
+if op == "get":
     pdu = SNMPget(id=xid, varbindlist=[
-        SNMPvarbind(oid=ASN1_OID(oid), value=ASN1_NULL())])
+        SNMPvarbind(oid=ASN1_OID(oid), value=ASN1_NULL(0))])
 else:
     pdu = SNMPset(id=xid, varbindlist=[
         SNMPvarbind(oid=ASN1_OID(oid), value=ASN1_STRING(newval))])
@@ -68,20 +40,37 @@ pkt = IP(dst=host)/UDP(sport=random.randint(40000, 60000), dport=161)/SNMP(
     version=1, community=community.encode(), PDU=pdu)
 r = sr1(pkt, timeout=3, verbose=False)
 if r is None:
-    print('ERR:no-response'); sys.exit(0)
+    print("ERR:no-response"); sys.exit(0)
 if not r.haslayer(SNMP):
-    print('ERR:no-snmp-layer'); sys.exit(0)
+    print("ERR:no-snmp-layer"); sys.exit(0)
 err = r[SNMP].PDU.error.val
 if err != 0:
-    # 0=noError, 2=noSuchName, 4=readOnly, 5=genErr, 16=noAccess (v2c)
-    print(f'ERR:status={err}'); sys.exit(0)
+    print(f"ERR:status={err}"); sys.exit(0)
 vb = r[SNMP].PDU.varbindlist[0]
 val = vb.value.val
 if isinstance(val, bytes):
-    val = val.decode('utf-8', 'replace')
+    val = val.decode("utf-8", "replace")
 print(val)
-PY
+'
+
+snmp_query() {
+    # snmp_query <community> <oid>           → prints string value or 'ERR:<msg>'
+    # snmp_query <community> <oid> set <val> → snmpset, prints set value or error
+    local community="$1" oid="$2" op="${3:-get}" newval="${4:-}"
+    docker exec "$ATTACKER" /opt/attacker-env/bin/python3 -c "$SNMP_PY" \
+        "$ROUTER_IP" "$community" "$oid" "$op" "$newval" 2>&1
 }
+
+echo "[snmp] Stage 0: UDP/161 reachable on $ROUTER from $ATTACKER"
+# UDP has no SYN/ACK so we probe with a real SNMPv2c get. If snmpd isn't
+# running yet (router image pre-rebuild), this errors and the test skips.
+PROBE="$(snmp_query public 1.3.6.1.2.1.1.1.0)"
+if echo "$PROBE" | grep -q '^ERR:'; then
+    echo "  [skip] snmpd on $ROUTER not reachable on UDP/161 ($PROBE)."
+    echo "         Rebuild clab-router image and './ctl down && ./ctl up' to redeploy."
+    exit 2
+fi
+ok "$ROUTER UDP/161 responds to SNMPv2c"
 
 SYS_DESCR_OID='1.3.6.1.2.1.1.1.0'
 SYS_CONTACT_OID='1.3.6.1.2.1.1.4.0'
