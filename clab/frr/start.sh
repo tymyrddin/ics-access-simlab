@@ -28,6 +28,11 @@ if [ -f /acl.sh ]; then
     # default, this is the attack surface.
     iptables -A INPUT  -p ospf             -j ACCEPT
     iptables -A OUTPUT -p ospf             -j ACCEPT
+    # BGP listens on TCP/179. Conntrack catches the return traffic for the
+    # established session; the initial SYN going either way needs explicit
+    # accept on both INPUT and OUTPUT.
+    iptables -A INPUT  -p tcp --dport 179  -j ACCEPT
+    iptables -A OUTPUT -p tcp --dport 179  -j ACCEPT
     . /acl.sh
     echo "[ops-ctrl-fw] iptables policy applied from /acl.sh"
 else

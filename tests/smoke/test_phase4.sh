@@ -21,9 +21,12 @@ for t in \
     test_vtysh_credential_stuffing.sh \
     test_arp_poisoning.sh \
     test_arp_poisoning_control_zone.sh \
+    test_modbus_mitm_via_arp.sh \
     test_stp_root_takeover.sh \
     test_snmp_default_community.sh \
-    test_ospf_route_injection.sh
+    test_ospf_route_injection.sh \
+    test_ospf_md5_misconfig.sh \
+    test_bgp_route_hijack.sh
 do
     echo ""
     echo "=========================================="
