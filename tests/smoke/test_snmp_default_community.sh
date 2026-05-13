@@ -8,8 +8,14 @@
 #   Stage 0  UDP/161 reachable on inet-dmz-fw from internet zone (skip if not)
 #   Stage 1  sysDescr readable with community 'public'
 #   Stage 2  sysContact readable with community 'private'
-#   Stage 3  sysContact writable with community 'private', read-back confirms
-#   Stage 4  cleanup: sysContact restored
+#   Stage 3  ifAlias.2 (eth0 description) writable with community 'private'
+#   Stage 4  cleanup: ifAlias.2 restored to its original value
+#
+# Net-SNMP locks sysContact / sysLocation / sysName as RO when those are
+# declared via snmpd.conf directives. ifAlias is writable by default with
+# rwcommunity, mirroring the real-world attack where a visitor re-labels
+# an interface description (visible in monitoring dashboards, surprising
+# the next operator who runs `show interface description`).
 #
 # Usage: bash tests/smoke/test_snmp_default_community.sh
 set -uo pipefail
@@ -74,26 +80,33 @@ ok "$ROUTER UDP/161 responds to SNMPv2c"
 
 SYS_DESCR_OID='1.3.6.1.2.1.1.1.0'
 SYS_CONTACT_OID='1.3.6.1.2.1.1.4.0'
+# ifAlias.2 = description of eth0 (clab out-of-band mgmt NIC, stable index).
+IFALIAS_OID='1.3.6.1.2.1.31.1.1.1.18.2'
 
 echo "[snmp] Stage 1: sysDescr readable with community 'public'"
 DESCR="$(snmp_query public "$SYS_DESCR_OID")"
 assert_contains "$DESCR" "UU P&L" "sysDescr discloses vendor stock firmware string"
 
 echo "[snmp] Stage 2: sysContact readable with community 'private'"
-ORIG_CONTACT="$(snmp_query private "$SYS_CONTACT_OID")"
-assert_contains "$ORIG_CONTACT" "@uupl.am" "sysContact discloses an internal email"
+CONTACT="$(snmp_query private "$SYS_CONTACT_OID")"
+assert_contains "$CONTACT" "@uupl.am" "sysContact discloses an internal email"
 
-echo "[snmp] Stage 3: sysContact writable with community 'private'"
-POISONED='attacker@example.invalid'
-SET_OUT="$(snmp_query private "$SYS_CONTACT_OID" set "$POISONED")"
-assert_contains "$SET_OUT" "$POISONED" "snmpset(sysContact) returns the new value"
-READBACK="$(snmp_query public "$SYS_CONTACT_OID")"
-assert_contains "$READBACK" "$POISONED" "subsequent snmpget(sysContact) reflects the write"
+echo "[snmp] Stage 3: ifAlias.2 writable with community 'private'"
+ORIG_ALIAS="$(snmp_query public "$IFALIAS_OID")"
+POISONED='attacker-was-here'
+SET_OUT="$(snmp_query private "$IFALIAS_OID" set "$POISONED")"
+assert_contains "$SET_OUT" "$POISONED" "snmpset(ifAlias.2) returns the new value"
+READBACK="$(snmp_query public "$IFALIAS_OID")"
+assert_contains "$READBACK" "$POISONED" "subsequent snmpget(ifAlias.2) reflects the write"
 
-echo "[snmp] Stage 4: restore sysContact"
-RESTORE="$(snmp_query private "$SYS_CONTACT_OID" set "$ORIG_CONTACT")"
-assert_contains "$RESTORE" "$ORIG_CONTACT" "snmpset(sysContact) restored"
-FINAL="$(snmp_query public "$SYS_CONTACT_OID")"
-assert_contains "$FINAL" "$ORIG_CONTACT" "sysContact back to original value"
+echo "[snmp] Stage 4: restore ifAlias.2"
+snmp_query private "$IFALIAS_OID" set "$ORIG_ALIAS" >/dev/null
+FINAL="$(snmp_query public "$IFALIAS_OID")"
+if [ -z "$ORIG_ALIAS" ]; then
+    # Original value was empty; readback should also be empty (no poison residue).
+    assert_absent "$FINAL" "$POISONED" "ifAlias.2 back to its original empty value"
+else
+    assert_contains "$FINAL" "$ORIG_ALIAS" "ifAlias.2 back to original value"
+fi
 
 summary
