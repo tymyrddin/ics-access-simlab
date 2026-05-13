@@ -20,6 +20,7 @@ SKIPPED=0
 for t in \
     test_vtysh_credential_stuffing.sh \
     test_arp_poisoning.sh \
+    test_arp_poisoning_control_zone.sh \
     test_stp_root_takeover.sh \
     test_snmp_default_community.sh
 do
