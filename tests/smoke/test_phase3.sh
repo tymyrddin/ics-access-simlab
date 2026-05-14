@@ -20,7 +20,10 @@ for t in \
     test_ied_relay_force_trip.sh \
     test_historian_path_traversal.sh \
     test_historian_ingest_poison.sh \
-    test_stunnel_client_key_theft.sh
+    test_stunnel_client_key_theft.sh \
+    test_fuxa_unauth_project_access.sh \
+    test_fuxa_path_traversal.sh \
+    test_fuxa_stored_xss.sh
 do
     echo ""
     echo "=========================================="

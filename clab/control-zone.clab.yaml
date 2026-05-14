@@ -116,31 +116,10 @@ topology:
 
     hmi_main:
       image: control-hmi-main
-      binds:
-        - ../certs/client.crt:/run/stunnel-certs/client.crt
-        - ../certs/client.key:/run/stunnel-certs/client.key
-        - ../certs/ca.crt:/run/stunnel-certs/ca.crt
       env:
-        MYSQL_HOST:     hmi_main-db
-        MYSQL_PORT:     '3306'
-        MYSQL_DATABASE: scadalts
-        MYSQL_USER:     scadalts
-        MYSQL_PASSWORD: scada2015
-        STUNNEL_GW_IP:  10.10.3.50
-        PLC_IP:         10.10.3.21
+        PLC_IP: 10.10.3.21
       exec:
         - sh -c "ip addr add 10.10.3.10/24 dev eth1 && ip link set eth1 up"
-        - sh -c "ip route replace default via 10.10.3.203"
-
-    hmi_main-db:
-      image: lab-mysql8
-      env:
-        MYSQL_DATABASE:      scadalts
-        MYSQL_USER:          scadalts
-        MYSQL_PASSWORD:      scada2015
-        MYSQL_ROOT_PASSWORD: scadaroot
-      exec:
-        - sh -c "ip addr add 10.10.3.11/24 dev eth1 && ip link set eth1 up"
         - sh -c "ip route replace default via 10.10.3.203"
 
   # Per-topology prefix `vc*` for globally unique veth names.
@@ -158,4 +137,3 @@ topology:
     - endpoints: [actuator_breaker_a:eth1,    ics_control:vc9]
     - endpoints: [actuator_breaker_b:eth1,    ics_control:vc10]
     - endpoints: [hmi_main:eth1,              ics_control:vc11]
-    - endpoints: [hmi_main-db:eth1,           ics_control:vc12]

@@ -259,6 +259,87 @@ wget() { /usr/bin/wget "$@"; printf '\n'; }
 nmap() { /usr/bin/nmap "$@"; }
 nc()   { /usr/bin/nc "$@"; }
 
+cmd_schtasks() {
+    # Vendor-default Windows Task Scheduler CLI surface. The facade pipes
+    # everything through the user's crontab, so a "scheduled task" is a
+    # cron entry tagged with `# SCHTASK:<name>` for identification on
+    # delete and query. Real Windows uses Task Scheduler XML; we keep the
+    # surface argument-compatible enough that runbook visitors who know
+    # `schtasks /create /tn ... /tr ... /sc minute` find what they expect.
+    local args="$*"
+    local action=""
+    case "${args,,}" in
+        /create*) action=create ;;
+        /delete*) action=delete ;;
+        /query*)  action=query  ;;
+        ""|/?|/help)
+            cat <<'HLP'
+SCHTASKS /Create /TN <taskname> /TR "<command>" /SC MINUTE [/MO <n>]
+SCHTASKS /Delete /TN <taskname> [/F]
+SCHTASKS /Query
+HLP
+            return
+            ;;
+        *) printf 'ERROR: Invalid argument/option - %s.\n' "${args%% *}"; return ;;
+    esac
+
+    if [[ "$action" == "create" ]]; then
+        local name="" cmd=""
+        local rest="${args#/[Cc][Rr][Ee][Aa][Tt][Ee]}"
+        # /TN <name>
+        if [[ "$rest" =~ /[Tt][Nn][[:space:]]+([^[:space:]]+) ]]; then
+            name="${BASH_REMATCH[1]}"
+        fi
+        # /TR "..."  (quoted) or unquoted single token
+        if [[ "$rest" =~ /[Tt][Rr][[:space:]]+\"([^\"]+)\" ]]; then
+            cmd="${BASH_REMATCH[1]}"
+        elif [[ "$rest" =~ /[Tt][Rr][[:space:]]+([^[:space:]]+) ]]; then
+            cmd="${BASH_REMATCH[1]}"
+        fi
+        if [[ -z "$name" || -z "$cmd" ]]; then
+            echo "ERROR: /TN and /TR are required."
+            return
+        fi
+        local marker="# SCHTASK:$name"
+        local current; current="$(/usr/bin/crontab -l 2>/dev/null)"
+        # Drop any existing entry with the same name, then append fresh.
+        current="$(printf '%s\n' "$current" | grep -v "$marker"'$' || true)"
+        { [[ -n "$current" ]] && printf '%s\n' "$current"
+          printf '* * * * * %s  %s\n' "$cmd" "$marker"
+        } | /usr/bin/crontab -
+        printf 'SUCCESS: The scheduled task "%s" has successfully been created.\n' "$name"
+    elif [[ "$action" == "delete" ]]; then
+        local name=""
+        if [[ "$args" =~ /[Tt][Nn][[:space:]]+([^[:space:]]+) ]]; then
+            name="${BASH_REMATCH[1]}"
+        fi
+        if [[ -z "$name" ]]; then
+            echo "ERROR: /TN is required."
+            return
+        fi
+        local marker="# SCHTASK:$name"
+        local current; current="$(/usr/bin/crontab -l 2>/dev/null | grep -v "$marker"'$' || true)"
+        if [[ -z "$current" ]]; then
+            /usr/bin/crontab -r 2>/dev/null
+        else
+            printf '%s\n' "$current" | /usr/bin/crontab -
+        fi
+        printf 'SUCCESS: The scheduled task "%s" was successfully deleted.\n' "$name"
+    elif [[ "$action" == "query" ]]; then
+        local listing; listing="$(/usr/bin/crontab -l 2>/dev/null | grep '# SCHTASK:' || true)"
+        if [[ -z "$listing" ]]; then
+            echo "INFO: There are no scheduled tasks on the computer."
+            return
+        fi
+        printf '\n%-32s %-9s\n' "TaskName" "Schedule"
+        printf '%-32s %-9s\n' "--------" "--------"
+        while IFS= read -r line; do
+            local n="${line##*# SCHTASK:}"
+            printf '%-32s %-9s\n' "$n" "Per Minute"
+        done <<< "$listing"
+    fi
+}
+
 cmd_iwr() {
     local uri="" outfile=""
     while [[ $# -gt 0 ]]; do
@@ -338,6 +419,7 @@ _dispatch() {
         nc)                         eval "$line" ;;
         python|python3)             cmd_python "$rest" ;;
         *.py)                       cmd_python "$cmd $rest" ;;
+        schtasks)                   cmd_schtasks $rest ;;
         help|get-help)              cmd_help ;;
         exit|quit|logout)           printf '\n'; exit 0 ;;
         "")                         true ;;

@@ -8,8 +8,7 @@ valve, opens a breaker, or changes a setpoint the turbine governor is actively r
 
 | Hostname          | IP         | Role                                                                                                                                                     |
 |-------------------|------------|----------------------------------------------------------------------------------------------------------------------------------------------------------|
-| uupl-hmi          | 10.10.3.10 | Control Scada-LTS (Mango Automation base). Operators issue commands from here. Modbus data source via stunnel gateway. Default credentials: admin/admin. |
-| hmi-main-db       | 10.10.3.11 | MySQL sidecar for the control Scada-LTS instance.                                                                                                        |
+| uupl-hmi          | 10.10.3.10 | Control HMI, FUXA 1.1.7 (pinned, vulnerable). Web UI on :1881. CVE-2023-32545 path traversal via /api/upload, CVE-2023-32546 stored XSS via /api/project, CVE-2023-32547 unauthenticated /api/project read. |
 | uupl-modbus-gw    | 10.10.3.50 | Stunnel TLS gateway, control NIC. Also on operational as 10.10.2.50. Forwards port 8502 to the PLC at 502.                                               |
 | hex-turbine-plc   | 10.10.3.21 | Turbine PLC. Modbus :502, DNP3 :20000, IEC-104 :2404, SNMP :161. No authentication on any of these. Publishes telemetry to the MQTT broker.              |
 | uupl-relay-a      | 10.10.3.31 | Protective relay IED, Dolly Sisters feeder. Modbus :502, web UI admin/relay1234. Undervoltage, overcurrent, and overspeed thresholds all writable.       |

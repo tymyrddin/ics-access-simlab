@@ -77,8 +77,7 @@ ics_operational (10.10.2.0/24)  site operations management (Purdue L3)
   ops-wan-router     10.10.2.204 operational/wan boundary router
 
 ics_control (10.10.3.0/24)      area supervisory + field (Purdue L1-2)
-  uupl-hmi           10.10.3.10  Scada-LTS, control SCADA/HMI (admin/admin)
-  hmi_main-db        10.10.3.11  MySQL backing DB for control Scada-LTS
+  uupl-hmi           10.10.3.10  FUXA 1.1.7 control HMI (CVE-2023-32545/6/7, :1881)
   hex-turbine-plc    10.10.3.21  turbine PLC (Modbus :502, OPC-UA :4840, MQTT)
   uupl-relay-a       10.10.3.31  protective relay IED, Dolly Sisters feeder
   uupl-relay-b       10.10.3.32  protective relay IED, Nap Hill feeder
@@ -205,4 +204,5 @@ bash tests/smoke/test_phase1.sh
 bash tests/smoke/test_phase2.sh
 bash tests/smoke/test_phase3.sh
 bash tests/smoke/test_phase4.sh
+bash tests/smoke/test_phase5.sh
 ```
