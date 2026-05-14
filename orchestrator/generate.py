@@ -946,9 +946,28 @@ def generate_clab_helpers(config: dict) -> None:
     )
     # Do not silence clab's stderr; the per-container "Removed container"
     # lines are how operators verify the teardown actually happened.
-    destroy = "\n".join(
-        f'containerlab destroy --topo "$REPO/clab/{z}-zone.clab.yaml"'
+    # --cleanup wipes the clab state dir under clab/clab-uupl-<zone>/ so
+    # the next deploy is not blocked by a stale "lab already deployed"
+    # registration when image content changes.
+    destroy_topos = "\n".join(
+        f'containerlab destroy --cleanup --topo "$REPO/clab/{z}-zone.clab.yaml"'
         for z in reversed(_CLAB_ZONES)
+    )
+    # Belt-and-braces: drop any docker container still tagged with our
+    # lab labels after the topology-driven destroy. Catches nodes that
+    # were removed from a YAML file between deploys (the topology
+    # destroy only sees nodes still listed). Without this, the next
+    # deploy aborts with "lab already deployed".
+    destroy_labels = "\n".join(
+        (
+            f'leftover=$(docker ps -aq --filter "label=containerlab=uupl-{z}" 2>/dev/null) && '
+            f'[ -n "$leftover" ] && docker rm -f $leftover >/dev/null 2>&1 || true'
+        )
+        for z in _CLAB_ZONES
+    )
+    destroy = destroy_topos + "\n\n" + (
+        'echo "[clab] Removing any containers still labeled containerlab=uupl-*..."\n'
+        + destroy_labels
     )
 
     # Host-side plumbing for the SSH entry point. attacker-machine runs

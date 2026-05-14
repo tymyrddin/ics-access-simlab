@@ -139,8 +139,10 @@ case "$CMD" in
         echo "[ctl] Tearing clab zones down ..."
         bash infrastructure/clab-down.sh
     else
+        # Fallback path: clab-down.sh has not been generated yet. Use the
+        # same --cleanup flag so a stale state dir cannot block redeploy.
         for t in clab/*-zone.clab.yaml; do
-            [ -f "$t" ] && containerlab destroy --topo "$t" 2>/dev/null || true
+            [ -f "$t" ] && containerlab destroy --cleanup --topo "$t" 2>/dev/null || true
         done
     fi
     # Defensive compose-down for anything that compose might have started

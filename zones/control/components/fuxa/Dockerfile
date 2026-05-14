@@ -10,6 +10,10 @@
 
 FROM frangoteam/fuxa:1.1.7
 
+# Install modbus-serial package so the ModbusTCP device plugin works.
+# FUXA's modbus device driver requires this at runtime.
+RUN npm install --save modbus-serial --prefix /usr/src/app/FUXA/server
+
 COPY entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 
