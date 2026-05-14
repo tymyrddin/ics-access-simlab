@@ -36,13 +36,14 @@ facade shells answer `ssh user@host '<cmd>'` with the command output. They
 assume `./ctl up` has already been run; each test waits for its required
 services with `wait_for_port` before probing.
 
-Four drivers aggregate the runs:
+Five drivers aggregate the runs:
 
 ```bash
 bash tests/smoke/test_phase1.sh   # IT/OT pivot chains
 bash tests/smoke/test_phase2.sh   # DMZ-direct chains + neuron exfil
 bash tests/smoke/test_phase3.sh   # operational/control Stage 2/3 attacks
 bash tests/smoke/test_phase4.sh   # L2/L3 fabric (FRR admin plane, etc.)
+bash tests/smoke/test_phase5.sh   # persistence (keys, cron, scheduled tasks)
 ```
 
 Helpers live in `tests/smoke/lib.sh`; the SSH probes use paramiko inside

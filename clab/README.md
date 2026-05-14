@@ -205,4 +205,5 @@ bash tests/smoke/test_phase1.sh
 bash tests/smoke/test_phase2.sh
 bash tests/smoke/test_phase3.sh
 bash tests/smoke/test_phase4.sh
+bash tests/smoke/test_phase5.sh
 ```
