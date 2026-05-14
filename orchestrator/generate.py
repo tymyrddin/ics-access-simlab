@@ -62,6 +62,7 @@ COMPONENT_DIRS = {
     "mosquitto-broker":        ZONES_DIR / "control" / "components" / "mosquitto-broker",
     "stunnel-gateway":         ZONES_DIR / "control" / "components" / "stunnel-gateway",
     "scada-lts-ctrl":          ZONES_DIR / "control" / "components" / "scada-lts-ctrl",
+    "fuxa":                    ZONES_DIR / "control" / "components" / "fuxa",
     "opcua-sidecar":           ZONES_DIR / "control" / "components" / "opcua-sidecar",
     # field devices (deferred, vendor-specific builds)
     # dmz zone

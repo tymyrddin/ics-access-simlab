@@ -156,9 +156,9 @@ control_zone:
     - name: hmi_main
       hostname: uupl-hmi
       ip: 10.10.3.10
-      implementation: scada-lts-ctrl
+      implementation: fuxa
       env:
-        PLC_IP: "10.10.3.21"   # informational, Scada-LTS polls via stunnel on localhost:5020
+        PLC_IP: "10.10.3.21"   # informational, displayed in the seeded HMI project
 
     - name: turbine_plc
       hostname: hex-turbine-plc
