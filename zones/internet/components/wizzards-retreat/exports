@@ -1,0 +1,1 @@
+/nfs-export *(ro,all_squash,no_subtree_check,insecure)

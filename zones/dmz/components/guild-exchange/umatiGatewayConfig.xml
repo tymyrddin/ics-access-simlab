@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<umatiGatewayConfig version="2.0" logLevel="Debug">
+  <!-- Auto-connects on boot: a long-lived production gateway is the
+       realistic shape, and it makes the MQTT northbound observation in
+       the runbook (Stage 5: mosquitto_sub against clacks-relay) actually
+       receive published values without needing the attacker to trigger
+       Connect through the no-auth UI first (CVE-2025-27615). The UI is
+       still unauthenticated, so reconfiguration attacks are unchanged. -->
+  <StartConfiguration startWebUI="True" startOPCConnection="True" startMqttProvider="True" startPubSubProvider="False"/>
+  <WebUI url="http://0.0.0.0:8080"></WebUI>
+  <OPCConnection serverendpoint="opc.tcp://10.10.5.13:4840" authentication="None" user="" password="" ReadExtraLibs="False" resolveBinariesOnly="false" certPath="" certPassword=""/>
+  <MqttProvider serverendpoint="mqtt://10.10.5.12:1883" user="" password="" clientId="umati-guild-exchange" prefix="umati/v2" includeStructuredComponents="False" upperCaseRange="False" publishInterval="5000" serverCertificatePath="" customCaCertificatePath="">
+    <!-- Numeric node ids match guild-register's Pump01: 7=operatingLevel,
+         9=flow, 11=power. Namespace 2 on guild-register is
+         http://www.cumulocity.com (the thin-edge demo server's pump
+         namespace). -->
+    <PublishedNodes>
+      <PublishedNode type="Numeric" namespaceurl="http://www.cumulocity.com" nodeId="7" baseType="" />
+      <PublishedNode type="Numeric" namespaceurl="http://www.cumulocity.com" nodeId="9" baseType="" />
+      <PublishedNode type="Numeric" namespaceurl="http://www.cumulocity.com" nodeId="11" baseType="" />
+    </PublishedNodes>
+    <CustomEncodings/>
+    <IgnoredPlaceholderTags/>
+  </MqttProvider>
+  <PubSubProvider serverendpoint="mqtt://10.10.5.12:1883" user="" password="" clientId="umati-guild-exchange" prefix="umati/v3" allowUntrustedCertificates="false" publishInterval="10000" metaDataUpdateTime="10000" jsonEncoding="LEGACY">
+    <PublishedNodes>
+      <PublishedNode type="Numeric" namespaceurl="http://www.cumulocity.com" nodeId="7" baseType="" />
+    </PublishedNodes>
+  </PubSubProvider>
+</umatiGatewayConfig>
