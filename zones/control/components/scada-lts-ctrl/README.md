@@ -13,7 +13,7 @@ operational-zone instance because the image and the build process are the same.
 ## In real generation sites
 
 Many generation sites run two SCADA tiers: an operational (Level 3) instance
-for historian queries and reporting, and a control (Level 2) instance for direct
+for uupl-historian queries and reporting, and a control (Level 2) instance for direct
 operator interaction with field devices. In practice, both often end up with the
 same credentials and the same security posture because they were deployed from
 the same template.

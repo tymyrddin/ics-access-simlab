@@ -173,7 +173,7 @@ attacker writes relay HR[0] = 230 (undervoltage threshold = nominal voltage)
         ↓
 relay poll detects voltage < threshold
         ↓
-relay sets coil[0] = 1, sends trip command to actuator_breaker_a/b
+relay sets coil[0] = 1, sends trip command to uupl-breaker-a/b
         ↓
 breaker opens → feeder A or B offline → generator loses load
         ↓

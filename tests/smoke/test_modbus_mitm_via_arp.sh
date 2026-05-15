@@ -22,13 +22,13 @@ set -uo pipefail
 REPO="$(cd "$(dirname "$0")/../.." && pwd)"
 source "$REPO/tests/smoke/lib.sh"
 
-PIVOT="engineering-workstation"
+PIVOT="uupl-eng-ws"
 PIVOT_IFACE="eth2"
-VICTIM="turbine_plc"
+VICTIM="hex-turbine-plc"
 VICTIM_IP="10.10.3.21"
 VICTIM_NEIGH_IFACE="eth1"
-TARGET_IP="10.10.3.52"          # actuator_cooling_pump
-TARGET_CONTAINER="actuator_cooling_pump"
+TARGET_IP="10.10.3.52"          # uupl-cooling-pump
+TARGET_CONTAINER="uupl-cooling-pump"
 TARGET_IFACE="eth1"
 MODBUS_PORT=502
 

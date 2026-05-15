@@ -61,13 +61,13 @@ enterprise_zone:
     ip: 10.10.1.10
     # Implementation variant. Different variants = different era / vendor.
     # Each has its own realistic configuration and service stack.
-    implementation: win95-era
+    implementation: hex-legacy-1
 
   enterprise_workstation:
     hostname: bursar-desk
     ip: 10.10.1.20
     ops_ip: 10.10.2.100   # this machine sits on both networks (IT/OT boundary)
-    implementation: enterprise-generic
+    implementation: bursar-desk
 
 # Operational Zone
 operational_zone:
@@ -75,7 +75,7 @@ operational_zone:
   historian:
     hostname: uupl-historian
     ip: 10.10.2.10
-    implementation: historian-v1
+    implementation: uupl-historian
     # What ICS data to populate at startup.
     # Must match ics_process above so the data makes sense.
     data_source: "{{ ics_process }}"
@@ -86,7 +86,7 @@ operational_zone:
     implementation: scada-lts
     # historian_ip not used by scada-lts (Scada-LTS has its own MySQL DB)
 
-  # stunnel-gateway: TLS termination proxy between SCADA and control zone PLCs.
+  # uupl-modbus-gw: TLS termination proxy between SCADA and control zone PLCs.
   # Dual-homed: accepts TLS on ops network, forwards plain Modbus on control network.
   # Attack path: compromise SCADA → steal /run/stunnel-certs/client.key (world-readable)
   #              → authenticate directly to gateway → write PLC registers via Modbus.
@@ -94,14 +94,14 @@ operational_zone:
     hostname: uupl-modbus-gw
     ops_ip:  10.10.2.50   # operational-facing (SCADA connects here)
     ctrl_ip: 10.10.3.50   # control-facing (forwards to PLCs)
-    implementation: stunnel-gateway
-    forward_to: "10.10.3.21:502"   # turbine_plc
+    implementation: uupl-modbus-gw
+    forward_to: "10.10.3.21:502"   # hex-turbine-plc
 
   engineering_workstation:
     hostname: uupl-eng-ws
     ip: 10.10.2.30
     ctrl_ip: 10.10.3.100   # this machine sits on both networks (ops/control boundary)
-    implementation: engineering-workstation-generic
+    implementation: uupl-eng-ws
     # The engineering workstation needs to know what it manages.
     # This drives what's in its config files, tool setup, etc.
     ics_process: "{{ ics_process }}"
@@ -144,26 +144,26 @@ internet_zone:
     internet_ip: 10.10.0.10
     enterprise_ip: 10.10.1.3
     operational_ip: 10.10.2.3
-    implementation: admin-home
+    implementation: wizzards-retreat
 
 # Control Zone
-# Each device has its own container. The turbine_plc owns the physics simulation;
+# Each device has its own container. The hex-turbine-plc owns the physics simulation;
 # everything else reads from or writes to its Modbus registers.
-# engineering-workstation (ctrl_ip: 10.10.3.100) is managed by operational_zone.
+# uupl-eng-ws (ctrl_ip: 10.10.3.100) is managed by operational_zone.
 control_zone:
 
   devices:
-    - name: hmi_main
+    - name: uupl-hmi
       hostname: uupl-hmi
       ip: 10.10.3.10
-      implementation: fuxa
+      implementation: uupl-hmi
       env:
         PLC_IP: "10.10.3.21"   # informational, displayed in the seeded HMI project
 
-    - name: turbine_plc
+    - name: hex-turbine-plc
       hostname: hex-turbine-plc
       ip: 10.10.3.21
-      implementation: turbine-plc
+      implementation: hex-turbine-plc
       env:
         ACTUATOR_FUEL_VALVE_IP:   "10.10.3.51"
         ACTUATOR_COOLING_PUMP_IP: "10.10.3.52"
@@ -171,10 +171,10 @@ control_zone:
         ACTUATOR_BREAKER_B_IP:    "10.10.3.54"
         MQTT_BROKER_IP:           "10.10.3.60"
       sidecars:
-        - name: turbine_opcua
-          implementation: opcua-sidecar
+        - name: hex-turbine-opcua
+          implementation: hex-turbine-opcua
 
-    - name: ied_relay_a
+    - name: uupl-relay-a
       hostname: uupl-relay-a
       ip: 10.10.3.31
       implementation: ied-relay
@@ -187,7 +187,7 @@ control_zone:
         CURRENT_REG: "4"
         MQTT_BROKER_IP: "10.10.3.60"
 
-    - name: ied_relay_b
+    - name: uupl-relay-b
       hostname: uupl-relay-b
       ip: 10.10.3.32
       implementation: ied-relay
@@ -200,14 +200,14 @@ control_zone:
         CURRENT_REG: "6"
         MQTT_BROKER_IP: "10.10.3.60"
 
-    - name: ied_meter_main
+    - name: uupl-meter
       hostname: uupl-meter
       ip: 10.10.3.33
-      implementation: ied-meter
+      implementation: uupl-meter
       env:
         PLC_IP: "10.10.3.21"
 
-    - name: actuator_fuel_valve
+    - name: uupl-fuel-valve
       hostname: uupl-fuel-valve
       ip: 10.10.3.51
       implementation: actuator-modbus-sim
@@ -215,7 +215,7 @@ control_zone:
         ACTUATOR_NAME: "fuel_valve"
         ACTUATOR_TYPE: "valve"
 
-    - name: actuator_cooling_pump
+    - name: uupl-cooling-pump
       hostname: uupl-cooling-pump
       ip: 10.10.3.52
       implementation: actuator-modbus-sim
@@ -223,7 +223,7 @@ control_zone:
         ACTUATOR_NAME: "cooling_pump"
         ACTUATOR_TYPE: "pump"
 
-    - name: actuator_breaker_a
+    - name: uupl-breaker-a
       hostname: uupl-breaker-a
       ip: 10.10.3.53
       implementation: actuator-modbus-sim
@@ -232,7 +232,7 @@ control_zone:
         ACTUATOR_TYPE: "breaker"
         FEEDER: "Dolly Sisters"
 
-    - name: actuator_breaker_b
+    - name: uupl-breaker-b
       hostname: uupl-breaker-b
       ip: 10.10.3.54
       implementation: actuator-modbus-sim
@@ -241,10 +241,10 @@ control_zone:
         ACTUATOR_TYPE: "breaker"
         FEEDER: "Nap Hill"
 
-    - name: mosquitto_broker
+    - name: uupl-mqtt
       hostname: uupl-mqtt
       ip: 10.10.3.60
-      implementation: mosquitto-broker
+      implementation: uupl-mqtt
 
 # Field Devices Zone, DEFERRED
 # City RTUs, smart grid end devices, and substation equipment are built later,
@@ -256,54 +256,54 @@ control_zone:
 # Devices simulate realistic boundary infrastructure with intentional misconfigurations.
 dmz_zone:
   devices:
-    - name: umati_gateway
+    - name: guild-exchange
       hostname: guild-exchange
       ip: 10.10.5.10
-      implementation: umati-gateway
+      implementation: guild-exchange
 
-    - name: neuron_gateway
+    - name: sorting-office
       hostname: sorting-office
       ip: 10.10.5.11
-      implementation: neuron-gateway
+      implementation: sorting-office
       syslog_logging: true
 
-    - name: mqtt_dmz
+    - name: clacks-relay
       hostname: clacks-relay
       ip: 10.10.5.12
-      implementation: mqtt-dmz
+      implementation: clacks-relay
 
-    - name: opcua_server
+    - name: guild-register
       hostname: guild-register
       ip: 10.10.5.13
-      implementation: opcua-server
+      implementation: guild-register
 
-    - name: iec104_rtu
+    - name: substation-rtu
       hostname: substation-rtu
       ip: 10.10.5.14
-      implementation: iec104-rtu
+      implementation: substation-rtu
 
-    - name: ssh_bastion
+    - name: contractors-gate
       hostname: contractors-gate
       ip: 10.10.5.20
       enterprise_ip: 10.10.1.30
-      implementation: ssh-bastion-vuln
+      implementation: contractors-gate
 
-    - name: sftp_drop
+    - name: dispatch-box
       hostname: dispatch-box
       ip: 10.10.5.21
-      implementation: sftp-drop
+      implementation: dispatch-box
 
-    - name: ntp_server
+    - name: guild-clock
       hostname: guild-clock
       ip: 10.10.5.30
-      implementation: ntp-server
+      implementation: guild-clock
 
-    - name: dns_forwarder
+    - name: city-directory
       hostname: city-directory
       ip: 10.10.5.31
-      implementation: dns-forwarder
+      implementation: city-directory
 
-    - name: syslog_relay
+    - name: scribes-post
       hostname: scribes-post
       ip: 10.10.5.32
-      implementation: syslog-relay
+      implementation: scribes-post

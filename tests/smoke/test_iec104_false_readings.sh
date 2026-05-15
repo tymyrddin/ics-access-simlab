@@ -2,7 +2,7 @@
 # substation-rtu (10.10.5.14) exposes:
 #   :8080  REST management API, no auth, runbook drives this
 #   :2404  IEC-60870-5-104 protocol endpoint (raw IEC-104, native master path)
-# Both reachable from the internet zone (attacker-machine).
+# Both reachable from the internet zone (unseen-gate).
 #
 # Coverage:
 #   Stage 1  REST API enumeration (GET /, GET /datapoints lists 6 datapoints)
@@ -18,8 +18,8 @@ set -uo pipefail
 REPO="$(cd "$(dirname "$0")/../.." && pwd)"
 source "$REPO/tests/smoke/lib.sh"
 
-ATTACKER="attacker-machine"
-RTU="iec104_rtu"
+ATTACKER="unseen-gate"
+RTU="substation-rtu"
 
 for c in "$ATTACKER" "$RTU"; do
     require_running "$c"

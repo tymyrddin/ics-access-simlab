@@ -25,12 +25,12 @@ set -uo pipefail
 REPO="$(cd "$(dirname "$0")/../.." && pwd)"
 source "$REPO/tests/smoke/lib.sh"
 
-PIVOT="engineering-workstation"
+PIVOT="uupl-eng-ws"
 PIVOT_IFACE="eth2"              # eng-ws control NIC
-VICTIM="turbine_plc"
+VICTIM="hex-turbine-plc"
 VICTIM_NEIGH_IFACE="eth1"
-SPOOFED_IP="10.10.3.52"          # actuator_cooling_pump
-SPOOFED_CONTAINER="actuator_cooling_pump"
+SPOOFED_IP="10.10.3.52"          # uupl-cooling-pump
+SPOOFED_CONTAINER="uupl-cooling-pump"
 SPOOFED_REAL_IFACE="eth1"
 
 require_running "$PIVOT"

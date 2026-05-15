@@ -18,10 +18,10 @@ chmod 644 "${CERT_DIR}/ca.crt"
 echo "[scada-lts-ctrl] Starting stunnel Modbus-TLS client → ${GATEWAY_HOST}:8502"
 stunnel "${CONF}"
 
-# Wait for MySQL on hmi_main-db:3306 before letting Tomcat boot. Without
+# Wait for MySQL on scada-db:3306 before letting Tomcat boot. Without
 # this the WAR's Spring context fails on the first connection attempt and
 # Tomcat happily serves 404s for the rest of its life.
-DB_HOST="${MYSQL_HOST:-hmi_main-db}"
+DB_HOST="${MYSQL_HOST:-scada-db}"
 DB_PORT="${MYSQL_PORT:-3306}"
 echo "[scada-lts-ctrl] Waiting for ${DB_HOST}:${DB_PORT} ..."
 for i in $(seq 1 60); do
@@ -45,7 +45,7 @@ echo "[scada-lts-ctrl] Modbus data source: 127.0.0.1:5020 → PLC via TLS gatewa
 #
 # Watchdog: launch Tomcat, watch the flyway log; on migration failure,
 # patch schema_version and relaunch. One automatic retry, then give up.
-DB_HOST="${MYSQL_HOST:-hmi_main-db}"
+DB_HOST="${MYSQL_HOST:-scada-db}"
 DB_USER="${MYSQL_USER:-scadalts}"
 DB_PASS="${MYSQL_PASSWORD:-scada2015}"
 

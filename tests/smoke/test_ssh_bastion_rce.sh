@@ -15,8 +15,8 @@ set -uo pipefail
 REPO="$(cd "$(dirname "$0")/../.." && pwd)"
 source "$REPO/tests/smoke/lib.sh"
 
-ATTACKER="attacker-machine"
-BASTION="ssh_bastion"
+ATTACKER="unseen-gate"
+BASTION="contractors-gate"
 
 for c in "$ATTACKER" "$BASTION"; do
     require_running "$c"

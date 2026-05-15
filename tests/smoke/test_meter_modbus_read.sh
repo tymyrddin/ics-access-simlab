@@ -12,9 +12,9 @@ set -uo pipefail
 REPO="$(cd "$(dirname "$0")/../.." && pwd)"
 source "$REPO/tests/smoke/lib.sh"
 
-ENG_WS="engineering-workstation"
-METER="ied_meter_main"
-PLC="turbine_plc"
+ENG_WS="uupl-eng-ws"
+METER="uupl-meter"
+PLC="hex-turbine-plc"
 
 for c in "$ENG_WS" "$METER" "$PLC"; do
     require_running "$c"

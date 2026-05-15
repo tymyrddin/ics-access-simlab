@@ -43,7 +43,7 @@ clab/
 ```
 
 Every topology sets `prefix: ""` so docker container names match what
-compose's `container_name` produced. `docker exec turbine_plc ...` works
+compose's `container_name` produced. `docker exec hex-turbine-plc ...` works
 the same as it always did; tests and runbooks stay fabric-agnostic.
 
 ## Network addressing
@@ -65,7 +65,7 @@ ics_enterprise (10.10.1.0/24)   corporate IT (Purdue L4)
   ent-ops-fw        10.10.1.202 enterprise/operational boundary router
 
 ics_operational (10.10.2.0/24)  site operations management (Purdue L3)
-  uupl-historian     10.10.2.10  process historian (SQLite, time-series)
+  uupl-historian     10.10.2.10  process uupl-historian (SQLite, time-series)
   scada-db           10.10.2.19  MySQL backing DB for operations Scada-LTS
   distribution-scada 10.10.2.20  Scada-LTS, operations SCADA (admin/admin)
   uupl-eng-ws        10.10.2.30  engineering workstation (also on control)

@@ -13,10 +13,10 @@
 #   Stage 5  modbus reads from turbine PLC return live values
 #
 # All probes that need to run from inside the enterprise zone use
-# wizzards-retreat (admin-home) directly, since rincewind's machine has the
+# wizzards-retreat (wizzards-retreat) directly, since rincewind's machine has the
 # recon tools the runbook tells the visitor to use. SSH login probes against
 # enterprise/operational hosts use paramiko's chained transport from
-# attacker-machine, mirroring 'ssh -J rincewind@10.10.0.10 ...'.
+# unseen-gate, mirroring 'ssh -J rincewind@10.10.0.10 ...'.
 #
 # Usage: bash tests/smoke/test_enterprise_to_turbine_trip.sh
 set -uo pipefail
@@ -24,14 +24,14 @@ set -uo pipefail
 REPO="$(cd "$(dirname "$0")/../.." && pwd)"
 source "$REPO/tests/smoke/lib.sh"
 
-ATTACKER="attacker-machine"
-HOME_BOX="admin-home"
-LEGACY="legacy-workstation"
-ENT_WS="enterprise-workstation"
-HISTORIAN="historian"
-ENG_WS="engineering-workstation"
+ATTACKER="unseen-gate"
+HOME_BOX="wizzards-retreat"
+LEGACY="hex-legacy-1"
+ENT_WS="bursar-desk"
+HISTORIAN="uupl-historian"
+ENG_WS="uupl-eng-ws"
 
-for c in "$ATTACKER" "$HOME_BOX" "$LEGACY" "$ENT_WS" "$HISTORIAN" "$ENG_WS" turbine_plc; do
+for c in "$ATTACKER" "$HOME_BOX" "$LEGACY" "$ENT_WS" "$HISTORIAN" "$ENG_WS" hex-turbine-plc; do
     require_running "$c"
 done
 
@@ -39,7 +39,7 @@ echo "[ent-to-trip] Waiting for services to come up..."
 wait_for_port "$ATTACKER" 10.10.0.10 22 30 || fail "wizzards-retreat sshd not ready"
 wait_for_port "$HOME_BOX"  10.10.1.10 21 30 || fail "hex-legacy-1 ftp not ready"
 wait_for_port "$HOME_BOX"  10.10.1.20 22 30 || fail "bursar-desk sshd not ready"
-wait_for_port "$ENT_WS"    10.10.2.10 8080 30 || fail "historian web not ready"
+wait_for_port "$ENT_WS"    10.10.2.10 8080 30 || fail "uupl-historian web not ready"
 
 echo "[ent-to-trip] Stage 0a: SSH rincewind/wizzard"
 
@@ -49,9 +49,9 @@ assert_contains "$LOGIN_OUT" "SSH_OK" "ssh rincewind/wizzard authenticates"
 echo "[ent-to-trip] Stage 0b: HTTP status endpoint (admin:admin recon path)"
 
 # The runbook lists 'curl -u admin:admin http://10.10.0.10/status' as Path B,
-# a recon-only entry that confirms admin-home is alive without compromising it.
+# a recon-only entry that confirms wizzards-retreat is alive without compromising it.
 STATUS_OUT="$(in_container "$ATTACKER" curl -sf -u admin:admin -m 5 http://10.10.0.10/status 2>&1)"
-assert_contains "$STATUS_OUT" "hostname: admin-home" "/status returns admin-home identity"
+assert_contains "$STATUS_OUT" "hostname: wizzards-retreat" "/status returns wizzards-retreat identity"
 assert_contains "$STATUS_OUT" "vpn_status" "/status exposes vpn_status field"
 
 echo "[ent-to-trip] Stage 1a: hex-legacy-1 service ports open"
@@ -90,7 +90,7 @@ assert_contains "$FTP_DUMP" "10\.10\.2\.30" "NETWORK.TXT names eng-ws (10.10.2.3
 
 echo "[ent-to-trip] Stage 1c: SMB guest read on //10.10.1.10/public"
 
-# legacy-workstation serves SMB1 (NT1) which modern smbclient refuses by
+# hex-legacy-1 serves SMB1 (NT1) which modern smbclient refuses by
 # default. Pass the protocol option through sh -c so the embedded space
 # survives docker exec arg-splitting. The flag itself is realistic OT
 # pentest knowledge: the runbook needs to mention it for visitors using a
@@ -125,20 +125,20 @@ BURSAR_CAT="$(ssh_password_login_via_jump "$ATTACKER" \
 assert_contains "$BURSAR_CAT" "Historian2015" "bursar-desk facade -c cat returns file content"
 
 OPS_CONF="$(in_container "$ENT_WS" cat /opt/win10/C/Users/bursardesk/AppData/Roaming/UUPLOps/ops-access.conf 2>&1)"
-assert_contains "$OPS_CONF" "Historian2015" "ops-access.conf contains historian password"
-assert_contains "$OPS_CONF" "10\.10\.2\.10" "ops-access.conf names historian host"
+assert_contains "$OPS_CONF" "Historian2015" "ops-access.conf contains uupl-historian password"
+assert_contains "$OPS_CONF" "10\.10\.2\.10" "ops-access.conf names uupl-historian host"
 
 # Alternate credential discovery path the runbook calls out: PowerShell history
 # at AppData\Roaming\Microsoft\Windows\PowerShell\PSReadLine\ConsoleHost_history.txt
 # is meant to expose the same credentials in a different shape.
 PS_HISTORY="$(in_container "$ENT_WS" cat "/opt/win10/C/Users/bursardesk/AppData/Roaming/Microsoft/Windows/PowerShell/PSReadLine/ConsoleHost_history.txt" 2>&1)"
-assert_contains "$PS_HISTORY" "10\.10\.2\.10|historian|Historian2015" \
-    "PowerShell history leaks historian credentials"
+assert_contains "$PS_HISTORY" "10\.10\.2\.10|uupl-historian|Historian2015" \
+    "PowerShell history leaks uupl-historian credentials"
 
-echo "[ent-to-trip] Stage 3a: historian /assets endpoint"
+echo "[ent-to-trip] Stage 3a: uupl-historian /assets endpoint"
 
 ASSETS="$(in_container "$ENT_WS" curl -sf http://10.10.2.10:8080/assets 2>&1)"
-assert_contains "$ASSETS" "turbine_main|turbine_rpm" "historian /assets returns a turbine asset"
+assert_contains "$ASSETS" "turbine_main|turbine_rpm" "uupl-historian /assets returns a turbine asset"
 
 echo "[ent-to-trip] Stage 3a': SQL injection enumerates sqlite_master schema"
 
@@ -184,7 +184,7 @@ assert_contains "$TRAV_OUT" "MAGIC=SQLite" "path traversal serves the SQLite dat
 echo "[ent-to-trip] Stage 3e: SSH hist_admin via jump, facade -c works"
 
 # The runbook reuses Historian2015 from /config as the SSH password. Verify
-# auth works AND the facade returns the historian whoami output rather than
+# auth works AND the facade returns the uupl-historian whoami output rather than
 # the banner.
 HIST_LOGIN="$(ssh_password_login_via_jump "$ATTACKER" \
     rincewind 10.10.0.10 wizzard \
@@ -195,7 +195,7 @@ HIST_WHOAMI="$(ssh_password_login_via_jump "$ATTACKER" \
     rincewind 10.10.0.10 wizzard \
     hist_admin 10.10.2.10 Historian2015 \
     'whoami')"
-assert_contains "$HIST_WHOAMI" "hist_admin" "historian facade -c whoami returns identity"
+assert_contains "$HIST_WHOAMI" "hist_admin" "uupl-historian facade -c whoami returns identity"
 
 echo "[ent-to-trip] Stage 4: SSH engineer/spanner99 via wizzards-retreat jump"
 

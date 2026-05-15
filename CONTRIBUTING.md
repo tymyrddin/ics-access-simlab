@@ -191,7 +191,7 @@ orchestrator/
 zones/
 ├── internet/            # unseen-gate (attacker), wizzards-retreat (admin@home)
 ├── enterprise/          # legacy workstations, enterprise hosts
-├── operational/         # historian, SCADA, engineering workstation
+├── operational/         # uupl-historian, SCADA, engineering workstation
 ├── control/             # PLCs, relays, HMI, actuators, MQTT broker
 ├── dmz/                 # 10 DMZ devices (Neuron, umati, syslog, etc.)
 └── field-devices/       # WAN-side RTUs

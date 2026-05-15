@@ -63,7 +63,7 @@ def test_render_templates(config):
 # ---------------------------------------------------------------------------
 
 def test_generate_enterprise_compose(config, enterprise_output_path):
-    """Legacy workstation on enterprise only; enterprise-workstation dual-homed."""
+    """hex-legacy-1 on enterprise only; bursar-desk dual-homed."""
     compose = gen.generate_enterprise_compose(config, enterprise_output_path)
     services = compose["services"]
 
@@ -74,17 +74,17 @@ def test_generate_enterprise_compose(config, enterprise_output_path):
     ew_ops_ip = config["enterprise_zone"]["enterprise_workstation"]["ops_ip"]
 
     # Legacy workstation — enterprise only
-    assert "legacy-workstation" in services
-    lw = services["legacy-workstation"]
-    assert ent_net in lw["networks"], "legacy-workstation should be on enterprise network"
-    assert ops_net not in lw["networks"], "legacy-workstation should not be on ops network"
+    assert "hex-legacy-1" in services
+    lw = services["hex-legacy-1"]
+    assert ent_net in lw["networks"], "hex-legacy-1 should be on enterprise network"
+    assert ops_net not in lw["networks"], "hex-legacy-1 should not be on ops network"
     assert lw["networks"][ent_net]["ipv4_address"] == lw_ip
 
     # Enterprise workstation — dual-homed
-    assert "enterprise-workstation" in services
-    ew = services["enterprise-workstation"]
-    assert ent_net in ew["networks"], "enterprise-workstation missing enterprise network"
-    assert ops_net in ew["networks"], "enterprise-workstation missing operational network"
+    assert "bursar-desk" in services
+    ew = services["bursar-desk"]
+    assert ent_net in ew["networks"], "bursar-desk missing enterprise network"
+    assert ops_net in ew["networks"], "bursar-desk missing operational network"
     assert ew["networks"][ent_net]["ipv4_address"] == ew_ip
     assert ew["networks"][ops_net]["ipv4_address"] == ew_ops_ip
 
@@ -94,34 +94,34 @@ def test_generate_enterprise_compose(config, enterprise_output_path):
 # ---------------------------------------------------------------------------
 
 def test_generate_operational_compose(config, operational_output_path):
-    """Historian/SCADA on ops only; engineering-workstation dual-homed to control."""
+    """uupl-historian/distribution-scada on ops only; uupl-eng-ws dual-homed to control."""
     compose = gen.generate_operational_compose(config, operational_output_path)
     services = compose["services"]
 
     ops_net = gen._net(config, "operational")
     ctrl_net = gen._net(config, "control")
-    hist_ip = config["operational_zone"]["historian"]["ip"]
+    hist_ip = config["operational_zone"]["uupl-historian"]["ip"]
     scada_ip = config["operational_zone"]["scada_server"]["ip"]
     eng_ip = config["operational_zone"]["engineering_workstation"]["ip"]
     eng_ctrl_ip = config["operational_zone"]["engineering_workstation"]["ctrl_ip"]
 
     # Historian — ops only
-    assert "historian" in services
-    hist = services["historian"]
+    assert "uupl-historian" in services
+    hist = services["uupl-historian"]
     assert ops_net in hist["networks"]
     assert ctrl_net not in hist["networks"]
     assert hist["networks"][ops_net]["ipv4_address"] == hist_ip
 
     # SCADA — ops only
-    assert "scada-server" in services
-    scada = services["scada-server"]
+    assert "distribution-scada" in services
+    scada = services["distribution-scada"]
     assert ops_net in scada["networks"]
     assert ctrl_net not in scada["networks"]
     assert scada["networks"][ops_net]["ipv4_address"] == scada_ip
 
     # Eng workstation — dual-homed
-    assert "engineering-workstation" in services
-    eng = services["engineering-workstation"]
+    assert "uupl-eng-ws" in services
+    eng = services["uupl-eng-ws"]
     assert ops_net in eng["networks"]
     assert ctrl_net in eng["networks"]
     assert eng["networks"][ops_net]["ipv4_address"] == eng_ip
@@ -158,8 +158,8 @@ def test_generate_dmz_compose(config, dmz_output_path):
     assert len(services) == 10, f"expected 10 DMZ services, got {len(services)}"
 
     # ssh-bastion is dual-homed
-    assert "ssh-bastion" in services
-    bastion = services["ssh-bastion"]
+    assert "contractors-gate" in services
+    bastion = services["contractors-gate"]
     assert dmz_net in bastion["networks"], "ssh-bastion missing dmz network"
     assert ent_net in bastion["networks"], "ssh-bastion missing enterprise network"
     assert bastion["networks"][dmz_net]["ipv4_address"] == "10.10.5.20"
@@ -167,15 +167,15 @@ def test_generate_dmz_compose(config, dmz_output_path):
 
     # All other services are dmz-only
     for svc_name, svc in services.items():
-        if svc_name == "ssh-bastion":
+        if svc_name == "contractors-gate":
             continue
         assert dmz_net in svc["networks"], f"{svc_name} missing dmz network"
         assert ent_net not in svc["networks"], f"{svc_name} should not be on enterprise network"
 
     # Spot-check a few IPs
-    assert "umati-gateway" in services
-    assert services["umati-gateway"]["networks"][dmz_net]["ipv4_address"] == "10.10.5.10"
-    assert services["syslog-relay"]["networks"][dmz_net]["ipv4_address"] == "10.10.5.32"
+    assert "guild-exchange" in services
+    assert services["guild-exchange"]["networks"][dmz_net]["ipv4_address"] == "10.10.5.10"
+    assert services["scribes-post"]["networks"][dmz_net]["ipv4_address"] == "10.10.5.32"
 
 
 # ---------------------------------------------------------------------------
@@ -187,19 +187,19 @@ def test_generate_attacker_machine_compose(config, attacker_machine_output_path)
     compose = gen.generate_internet_zone_compose(config, attacker_machine_output_path)
     services = compose["services"]
 
-    assert "attacker-machine" in services, "attacker-machine missing from internet zone compose"
-    jh = services["attacker-machine"]
+    assert "unseen-gate" in services, "unseen-gate missing from internet zone compose"
+    jh = services["unseen-gate"]
 
     inet_net = gen._net(config, "internet")
     ent_net  = gen._net(config, "enterprise")
     jh_internet_ip = config["attacker_machine"]["internet_ip"]
 
-    assert inet_net in jh["networks"], "attacker-machine missing internet network"
+    assert inet_net in jh["networks"], "unseen-gate missing internet network"
     assert jh["networks"][inet_net]["ipv4_address"] == jh_internet_ip
-    assert ent_net not in jh["networks"], "attacker-machine must NOT be on enterprise network"
+    assert ent_net not in jh["networks"], "unseen-gate must NOT be on enterprise network"
 
     ssh_host_port = config["attacker_machine"].get("ssh_host_port", 22)
-    assert f"{ssh_host_port}:22" in jh["ports"], "attacker-machine SSH port mapping missing"
+    assert f"{ssh_host_port}:22" in jh["ports"], "unseen-gate SSH port mapping missing"
 
     volumes_str = " ".join(jh.get("volumes", []))
     assert "adversary-keys" in volumes_str, "adversary-keys volume missing"

@@ -5,4 +5,4 @@ contact_links:
     about: Report serious security vulnerabilities in the platform itself (not the intentional ones, those are features)
   - name: General Questions
     url: https://github.com/ninabarzh/ics-access-simlab/discussions
-    about: Ask questions about usage, scenario design, CTF deployment, or why the historian keeps lying
+    about: Ask questions about usage, scenario design, CTF deployment, or why the uupl-historian keeps lying

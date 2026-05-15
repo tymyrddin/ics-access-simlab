@@ -57,7 +57,7 @@ HEX-4421).
 - `ics_operational`: 10.10.2.20
 - Modbus-TLS via stunnel: port 5020 local to gateway at 10.10.2.50 / 8502 (then
   onward to turbine PLC at 10.10.3.21 / 502)
-- Queries historian at 10.10.2.10:8080 for trend data
+- Queries uupl-historian at 10.10.2.10:8080 for trend data
 - Reachable from `uupl-eng-ws` (10.10.2.30) for configuration
 - Reachable from `bursar-desk` (10.10.2.100) on the operational NIC
 

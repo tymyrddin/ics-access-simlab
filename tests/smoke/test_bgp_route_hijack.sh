@@ -19,7 +19,7 @@ set -uo pipefail
 REPO="$(cd "$(dirname "$0")/../.." && pwd)"
 source "$REPO/tests/smoke/lib.sh"
 
-ATTACKER="attacker-machine"
+ATTACKER="unseen-gate"
 ROUTER_A="10.10.0.200"
 ROUTER_B="10.10.5.201"
 INJECTED_PREFIX="198.51.100.0/24"

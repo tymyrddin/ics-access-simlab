@@ -47,7 +47,7 @@ bash tests/smoke/test_phase5.sh   # persistence (keys, cron, scheduled tasks)
 ```
 
 Helpers live in `tests/smoke/lib.sh`; the SSH probes use paramiko inside
-`attacker-machine` (no test-only software is added to lab containers), with
+`unseen-gate` (no test-only software is added to lab containers), with
 chained transport through wizzards-retreat for enterprise/operational
 targets.
 

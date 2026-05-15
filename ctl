@@ -70,7 +70,7 @@ _compose_build() {
 }
 
 _ensure_keys() {
-    local keys="zones/internet/components/attacker-machine/adversary-keys"
+    local keys="zones/internet/components/unseen-gate/adversary-keys"
     # Fix Docker-created directory (happens on first run before file exists)
     [ -d "$keys" ] && rmdir "$keys" 2>/dev/null || true
 
@@ -173,7 +173,7 @@ case "$CMD" in
     ;;
 
   cohort-keys)
-    KEYS="zones/internet/components/attacker-machine/adversary-keys"
+    KEYS="zones/internet/components/unseen-gate/adversary-keys"
 
     ssh-keygen -t ed25519 -f "$REPO/cohort-key" -N "" -C "ics-simlab-cohort-key" -q
     echo "[ctl] Generated cohort-key / cohort-key.pub (gitignored)"
@@ -255,15 +255,15 @@ EOF
     rm -f zones/control/docker-compose.yml
     rm -f zones/internet/docker-compose.yml
     rm -f zones/dmz/docker-compose.yml
-    rm -f zones/internet/components/attacker-machine/docker-compose.yml
-    rm -f zones/internet/components/attacker-machine/adversary-readme.txt
+    rm -f zones/internet/components/unseen-gate/docker-compose.yml
+    rm -f zones/internet/components/unseen-gate/adversary-readme.txt
     echo "[ctl] Clean."
     echo "[ctl] Note: lab-key, cohort-key, and adversary-keys preserved, run './ctl purge' to remove them."
     ;;
 
   purge)
     echo "[ctl] Removing containers and images ..."
-    _compose_purge zones/internet/components/attacker-machine/docker-compose.yml
+    _compose_purge zones/internet/components/unseen-gate/docker-compose.yml
     _compose_purge zones/internet/docker-compose.yml
     _compose_purge zones/dmz/docker-compose.yml
     _compose_purge zones/control/docker-compose.yml
@@ -276,7 +276,7 @@ EOF
     "$0" clean
     echo "[ctl] Removing lab keypair, cohort keypair, and adversary-keys ..."
     rm -f lab-key lab-key.pub cohort-key cohort-key.pub
-    rm -f zones/internet/components/attacker-machine/adversary-keys
+    rm -f zones/internet/components/unseen-gate/adversary-keys
     ;;
 
   help|*)

@@ -20,8 +20,8 @@ orchestrator/
 meta                      display name, description, version
 ics_process               which ICS physical process to run in the control zone
 networks                  subnet + docker network name for each of the five zones
-enterprise_zone           legacy-workstation, enterprise-workstation
-operational_zone          historian, scada-server, engineering-workstation
+enterprise_zone           hex-legacy-1, bursar-desk
+operational_zone          uupl-historian, distribution-scada, uupl-eng-ws
 control_zone              device list for the IED network (patched into configuration.json)
 field_devices_zone        city RTUs on ics_wan (the OT/RTU network)
 attacker_machine          hostname, internet IP, SSH port, and auth mode for the attacker machine
@@ -73,7 +73,7 @@ Selects the physical process that runs in the control zone:
 
 Changing `ics_process` affects three things:
 - Which `configuration.json` is patched and passed to ICS-SimLab
-- Which seed data the historian loads at startup (`DATA_SOURCE` env var)
+- Which seed data the uupl-historian loads at startup (`DATA_SOURCE` env var)
 - What device names and logic the engineering workstation expects
 
 The config dir for each process is resolved in `generate.py:ICS_PROCESS_CONFIGS`.
@@ -121,10 +121,10 @@ the accumulated result of "temporary" network access never revoked.
 Three machines. Not directly reachable from the enterprise zone (firewall),
 but reachable via the enterprise_workstation's `ops_ip`.
 
-### historian
+### uupl-historian
 
 ```yaml
-historian:
+uupl-historian:
   hostname: uupl-historian
   ip: 10.10.2.10
   implementation: historian-v1
@@ -133,7 +133,7 @@ historian:
 
 Single-homed on `ics_operational`. Runs a Flask + SQLite service. The
 `data_source` template resolves to the `ics_process` value, telling the
-historian which time-series seed data to load at startup.
+uupl-historian which time-series seed data to load at startup.
 `{{ ics_process }}` is a template reference: `generate.py` resolves
 `{{ key.path }}` patterns from the config before writing compose files.
 
@@ -149,7 +149,7 @@ scada_server:
 
 Single-homed on `ics_operational`. `historian_ip` is passed as an environment
 variable so the SCADA server knows where to pull aggregated data from. If you
-change the historian's IP, update `historian_ip` here too.
+change the uupl-historian's IP, update `historian_ip` here too.
 
 ### engineering_workstation
 
@@ -176,7 +176,7 @@ automatically.
 ```yaml
 control_zone:
   devices:
-    - { name: hmi_main,               ip: 10.10.3.10 }
+    - { name: uupl-hmi,               ip: 10.10.3.10 }
     - { name: hex_turbine_controller,  ip: 10.10.3.21 }
     ...
 ```
@@ -193,29 +193,29 @@ starts with the addresses from the config.
 
 | Name | Type | IP | Role |
 |---|---|---|---|
-| `hmi_main` | HMI | 10.10.3.10 | Operator display. Polls PLC and IEDs. Accepts governor setpoint and emergency stop commands. |
-| `hex_turbine_controller` | PLC | 10.10.3.21 | Runs `turbine_plc.py`. Reads RPM/temp/pressure from sensors, commands throttle valve and governor. Raises overspeed/overtemp/overpressure alarms. |
-| `ied_relay_a` | IED | 10.10.3.31 | Protective relay, Dolly Sisters feeder. Monitors line A voltage and current. Trips `breaker_a` on overcurrent. |
-| `ied_relay_b` | IED | 10.10.3.32 | Protective relay, Nap Hill feeder. Same logic as relay_a on line B. |
-| `ied_meter_main` | IED | 10.10.3.33 | Revenue meter. Reads voltage and current from line A sensors, computes kW. No actuation. |
+| `uupl-hmi` | HMI | 10.10.3.10 | Operator display. Polls PLC and IEDs. Accepts governor setpoint and emergency stop commands. |
+| `hex_turbine_controller` | PLC | 10.10.3.21 | Runs `hex-turbine-plc.py`. Reads RPM/temp/pressure from sensors, commands throttle valve and governor. Raises overspeed/overtemp/overpressure alarms. |
+| `uupl-relay-a` | IED | 10.10.3.31 | Protective relay, Dolly Sisters feeder. Monitors line A voltage and current. Trips `breaker_a` on overcurrent. |
+| `uupl-relay-b` | IED | 10.10.3.32 | Protective relay, Nap Hill feeder. Same logic as relay_a on line B. |
+| `uupl-meter` | IED | 10.10.3.33 | Revenue meter. Reads voltage and current from line A sensors, computes kW. No actuation. |
 | `turbine_rpm_sensor` | Sensor | 10.10.3.41 | Modbus TCP endpoint. Publishes `turbine_rpm` from the HIL. |
 | `turbine_temp_sensor` | Sensor | 10.10.3.42 | Publishes `turbine_temperature`. |
 | `turbine_pressure_sensor` | Sensor | 10.10.3.43 | Publishes `turbine_pressure`. |
-| `line_voltage_sensor_a` | Sensor | 10.10.3.44 | Publishes `line_voltage_a`. Used by both `ied_relay_a` and `ied_meter_main`. |
-| `line_current_sensor_a` | Sensor | 10.10.3.45 | Publishes `line_current_a`. Used by both `ied_relay_a` and `ied_meter_main`. |
-| `line_voltage_sensor_b` | Sensor | 10.10.3.46 | Publishes `line_voltage_b`. Used by `ied_relay_b`. |
-| `line_current_sensor_b` | Sensor | 10.10.3.47 | Publishes `line_current_b`. Used by `ied_relay_b`. |
+| `line_voltage_sensor_a` | Sensor | 10.10.3.44 | Publishes `line_voltage_a`. Used by both `uupl-relay-a` and `uupl-meter`. |
+| `line_current_sensor_a` | Sensor | 10.10.3.45 | Publishes `line_current_a`. Used by both `uupl-relay-a` and `uupl-meter`. |
+| `line_voltage_sensor_b` | Sensor | 10.10.3.46 | Publishes `line_voltage_b`. Used by `uupl-relay-b`. |
+| `line_current_sensor_b` | Sensor | 10.10.3.47 | Publishes `line_current_b`. Used by `uupl-relay-b`. |
 | `throttle_valve` | Actuator | 10.10.3.51 | Accepts `throttle_position` from the PLC. Feeds the HIL. |
 | `governor_actuator` | Actuator | 10.10.3.52 | Accepts `governor_setpoint`. Feeds the HIL. |
-| `breaker_a` | Actuator | 10.10.3.53 | Accepts `breaker_a_state` (open/closed) from `ied_relay_a`. |
-| `breaker_b` | Actuator | 10.10.3.54 | Accepts `breaker_b_state` from `ied_relay_b`. |
+| `breaker_a` | Actuator | 10.10.3.53 | Accepts `breaker_a_state` (open/closed) from `uupl-relay-a`. |
+| `breaker_b` | Actuator | 10.10.3.54 | Accepts `breaker_b_state` from `uupl-relay-b`. |
 
-**What does NOT go here:** `engineering-workstation` (`ctrl_ip: 10.10.3.100`) is on the
+**What does NOT go here:** `uupl-eng-ws` (`ctrl_ip: 10.10.3.100`) is on the
 control network but is managed by `operational_zone`. It is not an ICS field
 device and does not get a `configuration.json` entry.
 
 **What does NOT change when you edit this list:** register maps, logic files
-(`turbine_plc.py`, `relay_logic.py`, `meter_logic.py`), and the physics
+(`hex-turbine-plc.py`, `relay_logic.py`, `meter_logic.py`), and the physics
 simulation (`turbine_hil.py`) all live in `zones/control/config/uupl_ied/` and
 are not generated. Only the IP addresses in `configuration.json` are patched.
 
@@ -321,7 +321,7 @@ machine. Resolved by `generate.py:generate_adversary_readme()` using the same
 | `{legacy_ws_ip}` | `enterprise_zone.legacy_workstation.ip` |
 | `{ent_ws_ip}` | `enterprise_zone.enterprise_workstation.ip` |
 
-The resolved file is written to `zones/internet/components/attacker-machine/adversary-readme.txt`
+The resolved file is written to `zones/internet/components/unseen-gate/adversary-readme.txt`
 (gitignored) and mounted read-only into the attacker machine container at runtime.
 
 ## Adding a new component variant

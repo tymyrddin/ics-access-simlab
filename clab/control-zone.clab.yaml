@@ -43,83 +43,83 @@ topology:
         role: gateway
 
     # ── Control-zone services ───────────────────────────────────────────
-    mosquitto_broker:
-      image: control-mosquitto-broker
+    uupl-mqtt:
+      image: control-uupl-mqtt
       exec:
-        - sh -c "ip addr add 10.10.3.60/24 dev eth1 && ip link set eth1 up"
+        - sh -c "n=0; until ip link show eth1 >/dev/null 2>&1; do n=$((n+1)); [ $n -ge 30 ] && break; sleep 1; done; ip addr add 10.10.3.60/24 dev eth1 && ip link set eth1 up"
         - sh -c "ip route replace default via 10.10.3.203"
 
-    turbine_plc:
-      image: control-turbine-plc
+    hex-turbine-plc:
+      image: control-hex-turbine-plc
       cap-add: [NET_ADMIN]
       exec:
-        - sh -c "ip addr add 10.10.3.21/24 dev eth1 && ip link set eth1 up"
+        - sh -c "n=0; until ip link show eth1 >/dev/null 2>&1; do n=$((n+1)); [ $n -ge 30 ] && break; sleep 1; done; ip addr add 10.10.3.21/24 dev eth1 && ip link set eth1 up"
         - sh -c "ip route replace default via 10.10.3.203"
 
-    # OPC-UA shares turbine_plc's netns, OPC-UA on opc.tcp://10.10.3.21:4840.
-    turbine_opcua:
-      image: control-turbine-opcua
-      network-mode: container:turbine_plc
+    # OPC-UA shares hex-turbine-plc's netns, OPC-UA on opc.tcp://10.10.3.21:4840.
+    hex-turbine-opcua:
+      image: control-hex-turbine-opcua
+      network-mode: container:hex-turbine-plc
 
-    ied_relay_a:
-      image: control-ied-relay-a
+    uupl-relay-a:
+      image: control-uupl-relay-a
       cap-add: [NET_ADMIN]
       exec:
-        - sh -c "ip addr add 10.10.3.31/24 dev eth1 && ip link set eth1 up"
+        - sh -c "n=0; until ip link show eth1 >/dev/null 2>&1; do n=$((n+1)); [ $n -ge 30 ] && break; sleep 1; done; ip addr add 10.10.3.31/24 dev eth1 && ip link set eth1 up"
         - sh -c "ip route replace default via 10.10.3.203"
 
-    ied_relay_b:
-      image: control-ied-relay-b
+    uupl-relay-b:
+      image: control-uupl-relay-b
       cap-add: [NET_ADMIN]
       exec:
-        - sh -c "ip addr add 10.10.3.32/24 dev eth1 && ip link set eth1 up"
+        - sh -c "n=0; until ip link show eth1 >/dev/null 2>&1; do n=$((n+1)); [ $n -ge 30 ] && break; sleep 1; done; ip addr add 10.10.3.32/24 dev eth1 && ip link set eth1 up"
         - sh -c "ip route replace default via 10.10.3.203"
 
-    ied_meter_main:
-      image: control-ied-meter-main
+    uupl-meter:
+      image: control-uupl-meter
       cap-add: [NET_ADMIN]
       exec:
-        - sh -c "ip addr add 10.10.3.33/24 dev eth1 && ip link set eth1 up"
+        - sh -c "n=0; until ip link show eth1 >/dev/null 2>&1; do n=$((n+1)); [ $n -ge 30 ] && break; sleep 1; done; ip addr add 10.10.3.33/24 dev eth1 && ip link set eth1 up"
         - sh -c "ip route replace default via 10.10.3.203"
 
-    actuator_fuel_valve:
-      image: control-actuator-fuel-valve
+    uupl-fuel-valve:
+      image: control-uupl-fuel-valve
       cap-add: [NET_ADMIN]
       env: { ACTUATOR_TYPE: valve }
       exec:
-        - sh -c "ip addr add 10.10.3.51/24 dev eth1 && ip link set eth1 up"
+        - sh -c "n=0; until ip link show eth1 >/dev/null 2>&1; do n=$((n+1)); [ $n -ge 30 ] && break; sleep 1; done; ip addr add 10.10.3.51/24 dev eth1 && ip link set eth1 up"
         - sh -c "ip route replace default via 10.10.3.203"
 
-    actuator_cooling_pump:
-      image: control-actuator-cooling-pump
+    uupl-cooling-pump:
+      image: control-uupl-cooling-pump
       cap-add: [NET_ADMIN]
       env: { ACTUATOR_TYPE: pump }
       exec:
-        - sh -c "ip addr add 10.10.3.52/24 dev eth1 && ip link set eth1 up"
+        - sh -c "n=0; until ip link show eth1 >/dev/null 2>&1; do n=$((n+1)); [ $n -ge 30 ] && break; sleep 1; done; ip addr add 10.10.3.52/24 dev eth1 && ip link set eth1 up"
         - sh -c "ip route replace default via 10.10.3.203"
 
-    actuator_breaker_a:
-      image: control-actuator-breaker-a
+    uupl-breaker-a:
+      image: control-uupl-breaker-a
       cap-add: [NET_ADMIN]
       env: { ACTUATOR_TYPE: breaker, FEEDER: "Dolly Sisters" }
       exec:
-        - sh -c "ip addr add 10.10.3.53/24 dev eth1 && ip link set eth1 up"
+        - sh -c "n=0; until ip link show eth1 >/dev/null 2>&1; do n=$((n+1)); [ $n -ge 30 ] && break; sleep 1; done; ip addr add 10.10.3.53/24 dev eth1 && ip link set eth1 up"
         - sh -c "ip route replace default via 10.10.3.203"
 
-    actuator_breaker_b:
-      image: control-actuator-breaker-b
+    uupl-breaker-b:
+      image: control-uupl-breaker-b
       cap-add: [NET_ADMIN]
       env: { ACTUATOR_TYPE: breaker }
       exec:
-        - sh -c "ip addr add 10.10.3.54/24 dev eth1 && ip link set eth1 up"
+        - sh -c "n=0; until ip link show eth1 >/dev/null 2>&1; do n=$((n+1)); [ $n -ge 30 ] && break; sleep 1; done; ip addr add 10.10.3.54/24 dev eth1 && ip link set eth1 up"
         - sh -c "ip route replace default via 10.10.3.203"
 
-    hmi_main:
-      image: control-hmi-main
+    uupl-hmi:
+      image: control-uupl-hmi
       env:
         PLC_IP: 10.10.3.21
       exec:
-        - sh -c "ip addr add 10.10.3.10/24 dev eth1 && ip link set eth1 up"
+        - sh -c "n=0; until ip link show eth1 >/dev/null 2>&1; do n=$((n+1)); [ $n -ge 30 ] && break; sleep 1; done; ip addr add 10.10.3.10/24 dev eth1 && ip link set eth1 up"
         - sh -c "ip route replace default via 10.10.3.203"
 
   # Per-topology prefix `vc*` for globally unique veth names.
@@ -127,13 +127,13 @@ topology:
     - endpoints: [ops-ctrl-fw:eth1, ics_control:vc0]
     - endpoints: [ops-ctrl-fw:eth2, ics_operational:vc1]
 
-    - endpoints: [mosquitto_broker:eth1,      ics_control:vc2]
-    - endpoints: [turbine_plc:eth1,           ics_control:vc3]
-    - endpoints: [ied_relay_a:eth1,           ics_control:vc4]
-    - endpoints: [ied_relay_b:eth1,           ics_control:vc5]
-    - endpoints: [ied_meter_main:eth1,        ics_control:vc6]
-    - endpoints: [actuator_fuel_valve:eth1,   ics_control:vc7]
-    - endpoints: [actuator_cooling_pump:eth1, ics_control:vc8]
-    - endpoints: [actuator_breaker_a:eth1,    ics_control:vc9]
-    - endpoints: [actuator_breaker_b:eth1,    ics_control:vc10]
-    - endpoints: [hmi_main:eth1,              ics_control:vc11]
+    - endpoints: [uupl-mqtt:eth1,      ics_control:vc2]
+    - endpoints: [hex-turbine-plc:eth1,           ics_control:vc3]
+    - endpoints: [uupl-relay-a:eth1,           ics_control:vc4]
+    - endpoints: [uupl-relay-b:eth1,           ics_control:vc5]
+    - endpoints: [uupl-meter:eth1,        ics_control:vc6]
+    - endpoints: [uupl-fuel-valve:eth1,   ics_control:vc7]
+    - endpoints: [uupl-cooling-pump:eth1, ics_control:vc8]
+    - endpoints: [uupl-breaker-a:eth1,    ics_control:vc9]
+    - endpoints: [uupl-breaker-b:eth1,    ics_control:vc10]
+    - endpoints: [uupl-hmi:eth1,              ics_control:vc11]

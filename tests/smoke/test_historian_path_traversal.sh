@@ -14,15 +14,15 @@ set -uo pipefail
 REPO="$(cd "$(dirname "$0")/../.." && pwd)"
 source "$REPO/tests/smoke/lib.sh"
 
-ENT_WS="enterprise-workstation"   # bursar-desk has direct ops zone access
-HISTORIAN="historian"
+ENT_WS="bursar-desk"   # bursar-desk has direct ops zone access
+HISTORIAN="uupl-historian"
 
 for c in "$ENT_WS" "$HISTORIAN"; do
     require_running "$c"
 done
 
-echo "[hist-trav] Waiting for historian..."
-wait_for_port "$ENT_WS" 10.10.2.10 8080 30 || fail "historian :8080 not ready from bursar-desk"
+echo "[hist-trav] Waiting for uupl-historian..."
+wait_for_port "$ENT_WS" 10.10.2.10 8080 30 || fail "uupl-historian :8080 not ready from bursar-desk"
 
 echo "[hist-trav] Stage 1: /assets returns asset list (no auth)"
 

@@ -1,7 +1,7 @@
 # UU P&L enterprise zone, structural clab edition.
 #
 # ics_enterprise (own) plus ics_operational for ent-ops-fw and the
-# dual-homed enterprise-workstation.
+# dual-homed bursar-desk.
 
 name: uupl-enterprise
 prefix: ""
@@ -30,21 +30,21 @@ topology:
         role: gateway
 
     # ── Workstations ────────────────────────────────────────────────────
-    legacy-workstation:
-      image: enterprise-legacy-workstation
+    hex-legacy-1:
+      image: enterprise-hex-legacy-1
       cap-add: [NET_ADMIN]
       exec:
-        - sh -c "ip addr add 10.10.1.10/24 dev eth1 && ip link set eth1 up"
+        - sh -c "n=0; until ip link show eth1 >/dev/null 2>&1; do n=$((n+1)); [ $n -ge 30 ] && break; sleep 1; done; ip addr add 10.10.1.10/24 dev eth1 && ip link set eth1 up"
         - sh -c "ip route replace default via 10.10.1.202"
 
     # bursar-desk, dual-homed enterprise + operational. eth1 = enterprise,
     # eth2 = operational.
-    enterprise-workstation:
-      image: enterprise-enterprise-workstation
+    bursar-desk:
+      image: enterprise-bursar-desk
       cap-add: [NET_ADMIN]
       exec:
-        - sh -c "ip addr add 10.10.1.20/24  dev eth1 && ip link set eth1 up"
-        - sh -c "ip addr add 10.10.2.100/24 dev eth2 && ip link set eth2 up"
+        - sh -c "n=0; until ip link show eth1 >/dev/null 2>&1; do n=$((n+1)); [ $n -ge 30 ] && break; sleep 1; done; ip addr add 10.10.1.20/24 dev eth1 && ip link set eth1 up"
+        - sh -c "n=0; until ip link show eth2 >/dev/null 2>&1; do n=$((n+1)); [ $n -ge 30 ] && break; sleep 1; done; ip addr add 10.10.2.100/24 dev eth2 && ip link set eth2 up"
         - sh -c "ip route replace default via 10.10.1.202"
 
   # Per-topology prefix `ve*` for globally unique veth names.
@@ -52,6 +52,6 @@ topology:
     - endpoints: [ent-ops-fw:eth1, ics_enterprise:ve0]
     - endpoints: [ent-ops-fw:eth2, ics_operational:ve1]
 
-    - endpoints: [legacy-workstation:eth1,     ics_enterprise:ve2]
-    - endpoints: [enterprise-workstation:eth1, ics_enterprise:ve3]
-    - endpoints: [enterprise-workstation:eth2, ics_operational:ve4]
+    - endpoints: [hex-legacy-1:eth1,     ics_enterprise:ve2]
+    - endpoints: [bursar-desk:eth1, ics_enterprise:ve3]
+    - endpoints: [bursar-desk:eth2, ics_operational:ve4]

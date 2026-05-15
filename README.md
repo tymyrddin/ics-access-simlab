@@ -159,7 +159,7 @@ limitations (notably the upstream Scada-LTS schema migration bug).
 
 One-time host setup (run once as root on a fresh instance):
 ```bash
-bash zones/internet/components/attacker-machine/setup.sh
+bash zones/internet/components/unseen-gate/setup.sh
 ```
 This moves the host sshd to port 2222. Reconnect on 2222 for all future host admin.
 
@@ -225,15 +225,9 @@ bash tests/smoke/test_phase5.sh   # persistence (keys, cron, scheduled tasks)
 Each test asserts on visitor-realistic behaviour: passwords authenticate,
 files leak via the documented paths, modbus / IEC-104 / OPC-UA / TLS probes
 complete, facade shells return command output. Helpers live in
-`tests/smoke/lib.sh`; SSH probes run paramiko inside `attacker-machine` and
+`tests/smoke/lib.sh`; SSH probes run paramiko inside `unseen-gate` and
 chain through wizzards-retreat for enterprise / operational targets, so no
 test-only dependencies are added to lab containers.
-
-## Done, doing, going to do
-
-Smoke tests for the L2/L3 attack surface the clab fabric now exposes. ARP poisoning between two containers on the 
-same bridge, STP root takeover, OSPF/BGP misconfig, SNMP write-community, vtysh credential-stuffing. None of these 
-have smoke probes yet, the router admin plane is just sitting there waiting.
 
 ## Configuration
 
@@ -252,15 +246,6 @@ Contributions welcome:
 
 Before adding tests, read [tests/README.md](tests/README.md) for dependency ordering.
 Respect the layering: *fix the architecture, not the test*.
-
-## Disclaimer
-
-This platform is for *authorised security research, education, and testing only*.
-Use it to develop and validate PoCs in a safe environment before engaging with real systems
-under proper authorisation.
-
-The authors take no responsibility for misuse. If you're testing real ICS/SCADA systems,
-make sure you have explicit written permission and understand the physical consequences.
 
 ## License and usage
 
@@ -293,42 +278,5 @@ The licence ensures that:
 - Commercial exploitation is fair and sustainable
 
 If you are unsure whether your use case is commercial, ask. [Ambiguity is solvable](https://tymyrddin.dev/contact/); silence is not.
-
-## Acknowledgements
-
-This project is built on the shoulders of a considerable pile of open source
-work. Thank you to the authors and maintainers of:
-
-SCADA and HMI:
-[Scada-LTS](https://github.com/SCADA-LTS/Scada-LTS)
-
-Protocol simulators and gateways:
-[Neuron](https://github.com/emqx/neuron) (EMQ Technologies),
-[umatiGateway](https://github.com/umati/umatiGateway) (umati community),
-[opc-ua-demo-server](https://github.com/thin-edge/opc-ua-demo-server) (thin-edge.io)
-
-IEC-60870-5-104 stack:
-[lib60870](https://github.com/mz-automation/lib60870) (MZ Automation),
-[c104](https://github.com/Fraunhofer-FIT-DIEN/iec104-python) (Fraunhofer FIT-DIEN, Python wrapper around lib60870)
-
-Messaging and transport:
-[Eclipse Mosquitto](https://github.com/eclipse/mosquitto),
-[stunnel](https://hub.docker.com/r/dweomer/stunnel) (dweomer image),
-[BIND9](https://hub.docker.com/r/internetsystemsconsortium/bind9) (ISC official image),
-[cturra/ntp](https://hub.docker.com/r/cturra/ntp),
-[atmoz/sftp](https://github.com/atmoz/sftp),
-[syslog-ng](https://github.com/syslog-ng/syslog-ng)
-
-Network fabric:
-[containerlab](https://containerlab.dev/) (Nokia),
-[FRRouting](https://frrouting.org/) (FRR community)
-
-Python libraries:
-[pymodbus](https://github.com/pymodbus-dev/pymodbus),
-[paho-mqtt](https://github.com/eclipse/paho.mqtt.python),
-[Flask](https://github.com/pallets/flask),
-[paramiko](https://github.com/paramiko/paramiko),
-[python-opcua](https://github.com/FreeOpcUa/python-opcua) (FreeOpcUa)
-
 
 *"The thing about electricity is, once it's out of the bottle, you can't put it back."* ~ Archchancellor Ridcully (probably)

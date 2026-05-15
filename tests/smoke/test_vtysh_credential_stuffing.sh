@@ -7,7 +7,7 @@
 # already, no enable step required.
 #
 # Coverage:
-#   Stage 1  tcp/22 reachable on inet-dmz-fw from attacker-machine
+#   Stage 1  tcp/22 reachable on inet-dmz-fw from unseen-gate
 #   Stage 2  admin/admin authenticates, FRR version banner visible
 #   Stage 3  show running-config exposes interface IPs and static routes
 #   Stage 4  show ip route exposes the FIB header
@@ -19,7 +19,7 @@ set -uo pipefail
 REPO="$(cd "$(dirname "$0")/../.." && pwd)"
 source "$REPO/tests/smoke/lib.sh"
 
-ATTACKER="attacker-machine"
+ATTACKER="unseen-gate"
 ROUTER="inet-dmz-fw"
 ROUTER_IP="10.10.0.200"
 

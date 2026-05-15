@@ -20,7 +20,7 @@ GENERATED_FILES = [
     REPO_ROOT / "zones" / "control" / "docker-compose.yml",
     REPO_ROOT / "zones" / "dmz" / "docker-compose.yml",
     REPO_ROOT / "zones" / "internet" / "docker-compose.yml",
-    REPO_ROOT / "zones" / "internet" / "components" / "attacker-machine" / "adversary-readme.txt",
+    REPO_ROOT / "zones" / "internet" / "components" / "unseen-gate" / "adversary-readme.txt",
     REPO_ROOT / "infrastructure" / "clab-up.sh",
     REPO_ROOT / "infrastructure" / "clab-down.sh",
 ]
@@ -79,18 +79,18 @@ def test_enterprise_ips_in_output():
 
 
 def test_operational_ips_in_output():
-    """Historian, SCADA, and engineering-workstation IPs in operational compose."""
+    """uupl-historian, distribution-scada, and uupl-eng-ws IPs in operational compose."""
     content = (REPO_ROOT / "zones" / "operational" / "docker-compose.yml").read_text()
     assert "10.10.2.10" in content, "historian IP 10.10.2.10 missing"
     assert "10.10.2.20" in content, "SCADA IP 10.10.2.20 missing"
-    assert "10.10.2.30" in content, "engineering-workstation IP 10.10.2.30 missing"
+    assert "10.10.2.30" in content, "uupl-eng-ws IP 10.10.2.30 missing"
 
 
 def test_attacker_machine_ip_in_output():
-    """Attacker machine and admin-home IPs both in internet zone compose."""
+    """unseen-gate and wizzards-retreat IPs both in internet zone compose."""
     content = (REPO_ROOT / "zones" / "internet" / "docker-compose.yml").read_text()
     assert "10.10.0.5" in content, "attacker machine internet IP 10.10.0.5 missing"
-    assert "10.10.0.10" in content, "admin-home internet IP 10.10.0.10 missing"
+    assert "10.10.0.10" in content, "wizzards-retreat internet IP 10.10.0.10 missing"
     assert "10.10.1.5" not in content, "attacker machine must not have enterprise IP"
 
 
@@ -100,7 +100,7 @@ def test_attacker_machine_ip_in_output():
 
 def test_adversary_readme_no_placeholders():
     """Generated adversary-readme.txt must have no unresolved {placeholders}."""
-    content = (REPO_ROOT / "zones" / "internet" / "components" / "attacker-machine" / "adversary-readme.txt").read_text()
+    content = (REPO_ROOT / "zones" / "internet" / "components" / "unseen-gate" / "adversary-readme.txt").read_text()
     assert "{enterprise_subnet}" not in content, "{enterprise_subnet} not resolved"
     assert "{legacy_ws_ip}" not in content, "{legacy_ws_ip} not resolved"
     assert "{ent_ws_ip}" not in content, "{ent_ws_ip} not resolved"

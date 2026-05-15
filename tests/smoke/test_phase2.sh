@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Driver: run all Phase 2 (DMZ chain) smoke tests.
 #
-# Phase 1 covers IT/OT pivot chains (admin-home, enterprise-to-turbine-trip,
+# Phase 1 covers IT/OT pivot chains (wizzards-retreat, enterprise-to-turbine-trip,
 # ssh-bastion). Phase 2 covers the DMZ-direct chains plus neuron-covert-exfil
 # (which depends on a Phase 1 foothold).
 #

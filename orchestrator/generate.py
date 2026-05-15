@@ -43,39 +43,39 @@ ROUTERS_DIR = INFRA_DIR / "routers"
 # Adding a new component variant means adding an entry here and a Dockerfile.
 COMPONENT_DIRS = {
     # internet zone
-    "admin-home":              ZONES_DIR / "internet" / "components" / "admin-home",
+    "wizzards-retreat":        ZONES_DIR / "internet" / "components" / "wizzards-retreat",
     # enterprise zone
-    "win95-era":               ZONES_DIR / "enterprise" / "components" / "legacy-workstation",
-    "enterprise-generic":      ZONES_DIR / "enterprise" / "components" / "enterprise-workstation",
+    "hex-legacy-1":            ZONES_DIR / "enterprise" / "components" / "hex-legacy-1",
+    "bursar-desk":             ZONES_DIR / "enterprise" / "components" / "bursar-desk",
     # operational zone
-    "historian-v1":            ZONES_DIR / "operational" / "components" / "historian",
-    "scada-generic":           ZONES_DIR / "operational" / "components" / "scada-server",
+    "uupl-historian":          ZONES_DIR / "operational" / "components" / "uupl-historian",
+    "distribution-scada":      ZONES_DIR / "operational" / "components" / "distribution-scada",
     "scada-lts":               ZONES_DIR / "operational" / "components" / "scada-lts",
-    "engineering-workstation-generic": ZONES_DIR / "operational" / "components" / "engineering-workstation",
+    "uupl-eng-ws":             ZONES_DIR / "operational" / "components" / "uupl-eng-ws",
     # control zone devices
-    "turbine-plc":             ZONES_DIR / "control" / "components" / "turbine-plc",
-    "ied-relay":               ZONES_DIR / "control" / "components" / "ied-relay",
-    "ied-meter":               ZONES_DIR / "control" / "components" / "ied-meter",
-    "hmi":                     ZONES_DIR / "control" / "components" / "hmi",
-    "actuator":                ZONES_DIR / "control" / "components" / "actuator",
-    "actuator-modbus-sim":     ZONES_DIR / "control" / "components" / "actuator-modbus-sim",
-    "mosquitto-broker":        ZONES_DIR / "control" / "components" / "mosquitto-broker",
-    "stunnel-gateway":         ZONES_DIR / "control" / "components" / "stunnel-gateway",
-    "scada-lts-ctrl":          ZONES_DIR / "control" / "components" / "scada-lts-ctrl",
-    "fuxa":                    ZONES_DIR / "control" / "components" / "fuxa",
-    "opcua-sidecar":           ZONES_DIR / "control" / "components" / "opcua-sidecar",
+    "hex-turbine-plc":         ZONES_DIR / "control" / "components" / "hex-turbine-plc",
+    "ied-relay":               ZONES_DIR / "control" / "components" / "ied-relay",          # 1:N (relay-a + relay-b), generic
+    "uupl-meter":              ZONES_DIR / "control" / "components" / "uupl-meter",
+    "hmi":                     ZONES_DIR / "control" / "components" / "hmi",                # legacy/unused, kept for back-compat
+    "actuator":                ZONES_DIR / "control" / "components" / "actuator",           # legacy/unused
+    "actuator-modbus-sim":     ZONES_DIR / "control" / "components" / "actuator-modbus-sim",# 1:N (4 actuators), generic
+    "uupl-mqtt":               ZONES_DIR / "control" / "components" / "uupl-mqtt",
+    "uupl-modbus-gw":          ZONES_DIR / "control" / "components" / "uupl-modbus-gw",
+    "scada-lts-ctrl":          ZONES_DIR / "control" / "components" / "scada-lts-ctrl",     # legacy/unused
+    "uupl-hmi":                ZONES_DIR / "control" / "components" / "uupl-hmi",
+    "hex-turbine-opcua":       ZONES_DIR / "control" / "components" / "hex-turbine-opcua",
     # field devices (deferred, vendor-specific builds)
-    # dmz zone
-    "umati-gateway":    ZONES_DIR / "dmz" / "components" / "umati-gateway",
-    "neuron-gateway":   ZONES_DIR / "dmz" / "components" / "neuron-gateway",
-    "mqtt-dmz":         ZONES_DIR / "dmz" / "components" / "mqtt-dmz",
-    "opcua-server":     ZONES_DIR / "dmz" / "components" / "opcua-server",
-    "iec104-rtu":       ZONES_DIR / "dmz" / "components" / "iec104-rtu",
-    "ssh-bastion-vuln": ZONES_DIR / "dmz" / "components" / "ssh-bastion",
-    "sftp-drop":        ZONES_DIR / "dmz" / "components" / "sftp-drop",
-    "ntp-server":       ZONES_DIR / "dmz" / "components" / "ntp-server",
-    "dns-forwarder":    ZONES_DIR / "dmz" / "components" / "dns-forwarder",
-    "syslog-relay":     ZONES_DIR / "dmz" / "components" / "syslog-relay",
+    # dmz zone (all 1:1 with their container, dir == container name)
+    "guild-exchange":   ZONES_DIR / "dmz" / "components" / "guild-exchange",
+    "sorting-office":   ZONES_DIR / "dmz" / "components" / "sorting-office",
+    "clacks-relay":     ZONES_DIR / "dmz" / "components" / "clacks-relay",
+    "guild-register":   ZONES_DIR / "dmz" / "components" / "guild-register",
+    "substation-rtu":   ZONES_DIR / "dmz" / "components" / "substation-rtu",
+    "contractors-gate": ZONES_DIR / "dmz" / "components" / "contractors-gate",
+    "dispatch-box":     ZONES_DIR / "dmz" / "components" / "dispatch-box",
+    "guild-clock":      ZONES_DIR / "dmz" / "components" / "guild-clock",
+    "city-directory":   ZONES_DIR / "dmz" / "components" / "city-directory",
+    "scribes-post":     ZONES_DIR / "dmz" / "components" / "scribes-post",
 }
 
 
@@ -187,9 +187,9 @@ def generate_enterprise_compose(config: dict, output_path: Path) -> dict:
     # implementation, not of this config.
     lw = ez["legacy_workstation"]
     _check_impl(lw["implementation"])
-    services["legacy-workstation"] = {
+    services["hex-legacy-1"] = {
         "build": {"context": _rel(COMPONENT_DIRS[lw["implementation"]], base_dir)},
-        "container_name": "legacy-workstation",
+        "container_name": "hex-legacy-1",
         "hostname": lw["hostname"],
         "restart": "unless-stopped",
         "networks": {ent_net: {"ipv4_address": lw["ip"]}},
@@ -201,9 +201,9 @@ def generate_enterprise_compose(config: dict, output_path: Path) -> dict:
     # by the gradual accumulation of "temporary" network access never revoked).
     ew = ez["enterprise_workstation"]
     _check_impl(ew["implementation"])
-    services["enterprise-workstation"] = {
+    services["bursar-desk"] = {
         "build": {"context": _rel(COMPONENT_DIRS[ew["implementation"]], base_dir)},
-        "container_name": "enterprise-workstation",
+        "container_name": "bursar-desk",
         "hostname": ew["hostname"],
         "restart": "unless-stopped",
         "networks": {
@@ -223,7 +223,7 @@ def generate_enterprise_compose(config: dict, output_path: Path) -> dict:
 
 
 # ---------------------------------------------------------------------------
-# TLS certificate generation (for stunnel-gateway / scada-lts)
+# TLS certificate generation (for uupl-modbus-gw / scada-lts)
 # ---------------------------------------------------------------------------
 
 def generate_certs(repo_root: Path) -> Path:
@@ -264,7 +264,7 @@ def generate_certs(repo_root: Path) -> Path:
     run(["openssl", "req", "-new", "-x509", "-days", "3650",
          "-key", str(ca_key), "-out", str(ca_crt), "-subj", subj_ca])
 
-    # Server cert (stunnel-gateway)
+    # Server cert (uupl-modbus-gw)
     srv_csr = certs_dir / "server.csr"
     run(["openssl", "genrsa", "-out", str(srv_key), "2048"])
     run(["openssl", "req", "-new", "-key", str(srv_key),
@@ -306,13 +306,13 @@ def generate_operational_compose(config: dict, output_path: Path) -> dict:
     services = {}
     named_volumes = {}
 
-    # Historian, operational network only, reachable from enterprise-workstation
+    # Historian, operational network only, reachable from bursar-desk
     # via its dual-homed ops_ip.
     hist = oz["historian"]
     _check_impl(hist["implementation"])
-    services["historian"] = {
+    services["uupl-historian"] = {
         "build": {"context": _rel(COMPONENT_DIRS[hist["implementation"]], base_dir)},
-        "container_name": "historian",
+        "container_name": "uupl-historian",
         "hostname": hist["hostname"],
         "restart": "unless-stopped",
         "networks": {ops_net: {"ipv4_address": hist["ip"]}},
@@ -353,7 +353,7 @@ def generate_operational_compose(config: dict, output_path: Path) -> dict:
         gw_ops_ip = oz.get("stunnel_gateway", {}).get("ops_ip", "10.10.2.50")
         scada_svc = {
             "build": {"context": _rel(COMPONENT_DIRS[scada["implementation"]], base_dir)},
-            "container_name": "scada-server",
+            "container_name": "distribution-scada",
             "hostname": scada["hostname"],
             "restart": "unless-stopped",
             "networks": {ops_net: {"ipv4_address": scada["ip"]}},
@@ -380,7 +380,7 @@ def generate_operational_compose(config: dict, output_path: Path) -> dict:
     else:
         scada_svc = {
             "build": {"context": _rel(COMPONENT_DIRS[scada["implementation"]], base_dir)},
-            "container_name": "scada-server",
+            "container_name": "distribution-scada",
             "hostname": scada["hostname"],
             "restart": "unless-stopped",
             "networks": {ops_net: {"ipv4_address": scada["ip"]}},
@@ -390,18 +390,18 @@ def generate_operational_compose(config: dict, output_path: Path) -> dict:
             },
         }
 
-    services["scada-server"] = scada_svc
+    services["distribution-scada"] = scada_svc
 
-    # stunnel-gateway, TLS termination proxy between SCADA and control zone PLCs.
+    # uupl-modbus-gw, TLS termination proxy between SCADA and control zone PLCs.
     # Dual-homed: operational (accepts TLS from SCADA) + control (plain Modbus to PLC).
     # Only present when stunnel_gateway is defined in config.
     gw_cfg = oz.get("stunnel_gateway")
     if gw_cfg:
         _check_impl(gw_cfg["implementation"])
         gw_component = COMPONENT_DIRS[gw_cfg["implementation"]]
-        services["stunnel-gateway"] = {
+        services["uupl-modbus-gw"] = {
             "build": {"context": _rel(gw_component, base_dir)},
-            "container_name": "stunnel-gateway",
+            "container_name": "uupl-modbus-gw",
             "hostname": gw_cfg["hostname"],
             "restart": "unless-stopped",
             "cap_add": ["NET_ADMIN"],
@@ -425,9 +425,9 @@ def generate_operational_compose(config: dict, output_path: Path) -> dict:
     # The pivot point into the control zone.
     eng = oz["engineering_workstation"]
     _check_impl(eng["implementation"])
-    services["engineering-workstation"] = {
+    services["uupl-eng-ws"] = {
         "build": {"context": _rel(COMPONENT_DIRS[eng["implementation"]], base_dir)},
-        "container_name": "engineering-workstation",
+        "container_name": "uupl-eng-ws",
         "hostname": eng["hostname"],
         "restart": "unless-stopped",
         "networks": {
@@ -435,7 +435,7 @@ def generate_operational_compose(config: dict, output_path: Path) -> dict:
             ctrl_net: {"ipv4_address": eng["ctrl_ip"]},
         },
         "environment": {
-            # ICS_PROCESS and CONTROL_SUBNET drive what the engineering-workstation
+            # ICS_PROCESS and CONTROL_SUBNET drive what the uupl-eng-ws
             # has configured: which device IPs are in its config files, what
             # tools are set up, etc.
             "ICS_PROCESS":      eng.get("ics_process", config["ics_process"]),
@@ -608,7 +608,7 @@ def generate_dmz_compose(config: dict, output_path: Path) -> dict:
                     "tag": dev.get("hostname", dev["name"]),
                 },
             }
-            svc.setdefault("depends_on", []).append("syslog-relay")
+            svc.setdefault("depends_on", []).append("scribes-post")
 
         services[svc_name] = svc
 
@@ -644,7 +644,7 @@ def write_text(path: Path, content: str) -> None:
 
 
 # ---------------------------------------------------------------------------
-# Internet zone (admin-home and any future internet-facing infrastructure)
+# Internet zone (wizzards-retreat and any future internet-facing infrastructure)
 # ---------------------------------------------------------------------------
 
 def generate_internet_zone_compose(config: dict, output_path: Path) -> dict:
@@ -664,12 +664,12 @@ def generate_internet_zone_compose(config: dict, output_path: Path) -> dict:
     jh = config["attacker_machine"]
     ssh_host_port = jh.get("ssh_host_port", 22)
     auth_mode = jh.get("auth_mode", "key")
-    attacker_dir = ZONES_DIR / "internet" / "components" / "attacker-machine"
+    attacker_dir = ZONES_DIR / "internet" / "components" / "unseen-gate"
     attacker_rel = _rel(attacker_dir, base_dir)
 
     svc = {
         "build": {"context": attacker_rel},
-        "container_name": "attacker-machine",
+        "container_name": "unseen-gate",
         "hostname": jh["hostname"],
         "restart": "unless-stopped",
         "networks": {inet_net: {"ipv4_address": jh["internet_ip"]}},
@@ -695,7 +695,7 @@ def generate_internet_zone_compose(config: dict, output_path: Path) -> dict:
         )
 
     svc["privileged"] = True  # required to issue mount(2) from inside the container
-    services["attacker-machine"] = svc
+    services["unseen-gate"] = svc
 
     # Additional internet-zone nodes (admin_home, etc.)
     iz = config.get("internet_zone", {})
@@ -709,19 +709,19 @@ def generate_internet_zone_compose(config: dict, output_path: Path) -> dict:
         if "operational_ip" in ah:
             ah_networks[ops_net] = {"ipv4_address": ah["operational_ip"]}
             networks_used.add(ops_net)
-        services["admin-home"] = {
+        services["wizzards-retreat"] = {
             "build": {"context": _rel(COMPONENT_DIRS[ah["implementation"]], base_dir)},
-            "container_name": "admin-home",
+            "container_name": "wizzards-retreat",
             "hostname": ah["hostname"],
             "restart": "unless-stopped",
             "privileged": True,  # tmpfs mount inside container (OverlayFS has no name_to_handle_at)
             "networks": ah_networks,
         }
         networks_used.add(ent_net)
-        # attacker-machine (NFS client) must stop before admin-home (NFS server).
-        # Compose down reverses depends_on order, so declaring attacker depends on
-        # admin-home means attacker stops first.
-        services["attacker-machine"]["depends_on"] = ["admin-home"]
+        # unseen-gate (NFS client) must stop before wizzards-retreat (NFS server).
+        # Compose down reverses depends_on order, so declaring unseen-gate depends on
+        # wizzards-retreat means the attacker stops first.
+        services["unseen-gate"]["depends_on"] = ["wizzards-retreat"]
 
     return {
         "services": services,
@@ -748,9 +748,9 @@ def generate_jump_host_compose(config: dict, output_path: Path) -> dict:
     ssh_host_port = jh.get("ssh_host_port", 22)
     return {
         "services": {
-            "attacker-machine": {
+            "unseen-gate": {
                 "build": {"context": "."},   # relative to compose file dir
-                "container_name": "attacker-machine",
+                "container_name": "unseen-gate",
                 "hostname": jh["hostname"],
                 "restart": "unless-stopped",
                 "networks": {
@@ -808,9 +808,9 @@ def generate_routers(config: dict) -> None:
     historian = config["operational_zone"]["historian"]["ip"]
     scada     = config["operational_zone"]["scada_server"]["ip"]
     eng_ws    = config["operational_zone"]["engineering_workstation"]["ip"]
-    ssh_bastion = next(
+    bastion_ip = next(
         (d["ip"] for d in config.get("dmz_zone", {}).get("devices", [])
-         if d.get("implementation") == "ssh-bastion-vuln"),
+         if d.get("implementation") == "contractors-gate"),
         "0.0.0.0/32"
     )
 
@@ -850,7 +850,7 @@ def generate_routers(config: dict) -> None:
         f"iptables -A FORWARD -s {eng_ws} -d {subnet('dmz')} -j ACCEPT\n"
         f"# ssh-bastion → enterprise (contractor pivot, bastion is dual-homed so\n"
         f"# it routes directly; this rule covers any traffic that transits here)\n"
-        f"iptables -A FORWARD -s {ssh_bastion} -d {subnet('enterprise')} -j ACCEPT\n"
+        f"iptables -A FORWARD -s {bastion_ip} -d {subnet('enterprise')} -j ACCEPT\n"
         f"# All else: DROP (default policy)\n"
     )
 
@@ -970,7 +970,7 @@ def generate_clab_helpers(config: dict) -> None:
         + destroy_labels
     )
 
-    # Host-side plumbing for the SSH entry point. attacker-machine runs
+    # Host-side plumbing for the SSH entry point. unseen-gate runs
     # with `network-mode: none` so its only interface is eth1 at
     # 10.10.0.5; docker port-publish would not work. Instead the host
     # gets 10.10.0.1/24 on the ics_internet bridge (looks like an
@@ -1059,7 +1059,7 @@ def main() -> None:
     logging.info(f"Loading config: {config_path}")
     config = load_config(config_path)
 
-    # Generate TLS certs if any zone uses stunnel-gateway or scada-lts.
+    # Generate TLS certs if any zone uses uupl-modbus-gw or scada-lts.
     oz = config.get("operational_zone", {})
     ctrl_devices = config.get("control_zone", {}).get("devices", [])
     needs_certs = (
@@ -1087,7 +1087,7 @@ def main() -> None:
 
     internet_path = ZONES_DIR / "internet" / "docker-compose.yml"
     write_compose(internet_path, generate_internet_zone_compose(config, internet_path))
-    write_text(ZONES_DIR / "internet" / "components" / "attacker-machine" / "adversary-readme.txt", generate_adversary_readme(config))
+    write_text(ZONES_DIR / "internet" / "components" / "unseen-gate" / "adversary-readme.txt", generate_adversary_readme(config))
 
     if config.get("dmz_zone"):
         dmz_path = ZONES_DIR / "dmz" / "docker-compose.yml"

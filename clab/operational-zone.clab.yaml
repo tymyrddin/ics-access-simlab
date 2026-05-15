@@ -1,7 +1,7 @@
 # UU P&L operational zone, structural clab edition.
 #
 # ics_operational (own), plus ics_control for the dual-homed
-# stunnel-gateway / engineering-workstation, plus ics_wan for ops-wan-router.
+# uupl-modbus-gw / uupl-eng-ws, plus ics_wan for ops-wan-router.
 
 name: uupl-operational
 prefix: ""
@@ -31,12 +31,12 @@ topology:
         role: gateway
 
     # ── Operational services ────────────────────────────────────────────
-    historian:
-      image: operational-historian
+    uupl-historian:
+      image: operational-uupl-historian
       cap-add: [NET_ADMIN]
       env: { DATA_SOURCE: uupl_ied }
       exec:
-        - sh -c "ip addr add 10.10.2.10/24 dev eth1 && ip link set eth1 up"
+        - sh -c "n=0; until ip link show eth1 >/dev/null 2>&1; do n=$((n+1)); [ $n -ge 30 ] && break; sleep 1; done; ip addr add 10.10.2.10/24 dev eth1 && ip link set eth1 up"
         - sh -c "ip route replace default via 10.10.2.202"
 
     scada-db:
@@ -47,11 +47,11 @@ topology:
         MYSQL_PASSWORD:      scada2015
         MYSQL_ROOT_PASSWORD: scadaroot
       exec:
-        - sh -c "ip addr add 10.10.2.19/24 dev eth1 && ip link set eth1 up"
+        - sh -c "n=0; until ip link show eth1 >/dev/null 2>&1; do n=$((n+1)); [ $n -ge 30 ] && break; sleep 1; done; ip addr add 10.10.2.19/24 dev eth1 && ip link set eth1 up"
         - sh -c "ip route replace default via 10.10.2.202"
 
-    scada-server:
-      image: operational-scada-server
+    distribution-scada:
+      image: operational-distribution-scada
       cap-add: [NET_ADMIN]
       binds:
         - ../certs/client.crt:/run/stunnel-certs/client.crt
@@ -65,34 +65,34 @@ topology:
         MYSQL_PASSWORD: scada2015
         STUNNEL_GW_IP:  10.10.2.50
       exec:
-        - sh -c "ip addr add 10.10.2.20/24 dev eth1 && ip link set eth1 up"
+        - sh -c "n=0; until ip link show eth1 >/dev/null 2>&1; do n=$((n+1)); [ $n -ge 30 ] && break; sleep 1; done; ip addr add 10.10.2.20/24 dev eth1 && ip link set eth1 up"
         - sh -c "ip route replace default via 10.10.2.202"
 
-    # stunnel-gateway dual-homed operational + control.
-    stunnel-gateway:
-      image: operational-stunnel-gateway
+    # uupl-modbus-gw dual-homed operational + control.
+    uupl-modbus-gw:
+      image: operational-uupl-modbus-gw
       cap-add: [NET_ADMIN]
       binds:
-        - ../zones/control/components/stunnel-gateway/stunnel.conf:/run/stunnel/stunnel.conf:ro
+        - ../zones/control/components/uupl-modbus-gw/stunnel.conf:/run/stunnel/stunnel.conf:ro
         - ../certs/ca.crt:/run/stunnel/ca.crt:ro
         - ../certs/server.crt:/run/stunnel/server.crt:ro
         - ../certs/server.key:/run/stunnel/server.key:ro
       env: { FORWARD_TARGET: "10.10.3.21:502" }
       exec:
-        - sh -c "ip addr add 10.10.2.50/24 dev eth1 && ip link set eth1 up"
-        - sh -c "ip addr add 10.10.3.50/24 dev eth2 && ip link set eth2 up"
+        - sh -c "n=0; until ip link show eth1 >/dev/null 2>&1; do n=$((n+1)); [ $n -ge 30 ] && break; sleep 1; done; ip addr add 10.10.2.50/24 dev eth1 && ip link set eth1 up"
+        - sh -c "n=0; until ip link show eth2 >/dev/null 2>&1; do n=$((n+1)); [ $n -ge 30 ] && break; sleep 1; done; ip addr add 10.10.3.50/24 dev eth2 && ip link set eth2 up"
         - sh -c "ip route replace default via 10.10.2.202"
 
-    # engineering-workstation dual-homed operational + control.
-    engineering-workstation:
-      image: operational-engineering-workstation
+    # uupl-eng-ws dual-homed operational + control.
+    uupl-eng-ws:
+      image: operational-uupl-eng-ws
       cap-add: [NET_ADMIN]
       env:
         ICS_PROCESS:    uupl_ied
         CONTROL_SUBNET: 10.10.3.0/24
       exec:
-        - sh -c "ip addr add 10.10.2.30/24  dev eth1 && ip link set eth1 up"
-        - sh -c "ip addr add 10.10.3.100/24 dev eth2 && ip link set eth2 up"
+        - sh -c "n=0; until ip link show eth1 >/dev/null 2>&1; do n=$((n+1)); [ $n -ge 30 ] && break; sleep 1; done; ip addr add 10.10.2.30/24 dev eth1 && ip link set eth1 up"
+        - sh -c "n=0; until ip link show eth2 >/dev/null 2>&1; do n=$((n+1)); [ $n -ge 30 ] && break; sleep 1; done; ip addr add 10.10.3.100/24 dev eth2 && ip link set eth2 up"
         - sh -c "ip route replace default via 10.10.2.202"
 
   # Per-topology prefix `vo*` for globally unique veth names.
@@ -100,11 +100,11 @@ topology:
     - endpoints: [ops-wan-router:eth1, ics_operational:vo0]
     - endpoints: [ops-wan-router:eth2, ics_wan:vo1]
 
-    - endpoints: [historian:eth1,               ics_operational:vo2]
+    - endpoints: [uupl-historian:eth1,               ics_operational:vo2]
     - endpoints: [scada-db:eth1,                ics_operational:vo3]
-    - endpoints: [scada-server:eth1,            ics_operational:vo4]
-    - endpoints: [stunnel-gateway:eth1,         ics_operational:vo5]
-    - endpoints: [engineering-workstation:eth1, ics_operational:vo6]
+    - endpoints: [distribution-scada:eth1,            ics_operational:vo4]
+    - endpoints: [uupl-modbus-gw:eth1,         ics_operational:vo5]
+    - endpoints: [uupl-eng-ws:eth1, ics_operational:vo6]
 
-    - endpoints: [stunnel-gateway:eth2,         ics_control:vo7]
-    - endpoints: [engineering-workstation:eth2, ics_control:vo8]
+    - endpoints: [uupl-modbus-gw:eth2,         ics_control:vo7]
+    - endpoints: [uupl-eng-ws:eth2, ics_control:vo8]

@@ -20,12 +20,12 @@ set -uo pipefail
 REPO="$(cd "$(dirname "$0")/../.." && pwd)"
 source "$REPO/tests/smoke/lib.sh"
 
-ATTACKER="attacker-machine"
-HOME_BOX="admin-home"
-UMATI="umati_gateway"
-OPCUA="opcua_server"
+ATTACKER="unseen-gate"
+HOME_BOX="wizzards-retreat"
+UMATI="guild-exchange"
+OPCUA="guild-register"
 
-# Recon (curl, TCP port probe) runs from attacker-machine. OPC-UA Python
+# Recon (curl, TCP port probe) runs from unseen-gate. OPC-UA Python
 # fires from wizzards-retreat, where the opcua library lives in
 # /opt/admin-env (Rincewind's admin kit).
 for c in "$ATTACKER" "$HOME_BOX" "$UMATI" "$OPCUA"; do
@@ -33,8 +33,8 @@ for c in "$ATTACKER" "$HOME_BOX" "$UMATI" "$OPCUA"; do
 done
 
 echo "[umati] Waiting for guild-exchange and guild-register..."
-wait_for_port "$ATTACKER" 10.10.5.10 8080 30 || fail "guild-exchange :8080 not ready"
-wait_for_port "$ATTACKER" 10.10.5.13 4840 30 || fail "guild-register :4840 not ready"
+wait_for_port "$ATTACKER" 10.10.5.10 8080 90 || fail "guild-exchange :8080 not ready"
+wait_for_port "$ATTACKER" 10.10.5.13 4840 90 || fail "guild-register :4840 not ready"
 
 echo "[umati] Stage 1: management UI reachable without credentials"
 
@@ -111,13 +111,27 @@ finally:
 assert_contains "$PUMP_OUT" "PUMP_FOUND|Demo|Pump|Motor" \
     "pump-like or demo node visible on the OPC-UA server"
 
-echo "[umati] Stage 5: MQTT northbound (informational, requires Connect first)"
+echo "[umati] Stage 5: MQTT northbound (gateway auto-publishes umati/v2/...)"
 
-# Without the Stage 2 Connect step, the gateway's MqttProvider has not started
-# (startMqttProvider=False in config). Rather than mutate state in a smoke
-# test, just verify the broker port is reachable so that a visitor's Stage 5
-# subscribe would have somewhere to land.
+# The gateway is configured with startOPCConnection=True + startMqttProvider=True,
+# so it publishes to clacks-relay from boot. Subscribe for a few seconds from
+# wizzards-retreat (mosquitto-clients lives there) and assert a umati/v2 topic
+# from this gateway appears, confirming the OPC->MQTT bridge is live.
 MQTT_PROBE="$(in_container "$ATTACKER" bash -c 'exec 3<>/dev/tcp/10.10.5.12/1883 && echo MQTT_OPEN' 2>&1)"
 assert_contains "$MQTT_PROBE" "MQTT_OPEN" "clacks-relay MQTT :1883 reachable from attacker"
+
+# Wait up to ~15s total for a gateway-published topic. Publish interval is 5s.
+MQTT_OUT=""
+for i in 1 2 3; do
+    MQTT_OUT="$(in_container "$HOME_BOX" timeout 6 mosquitto_sub -h 10.10.5.12 -p 1883 \
+        -t 'umati/v2/#' -v 2>&1 | head -20)"
+    if printf '%s' "$MQTT_OUT" | grep -q 'umati/v2/umati-guild-exchange/clientOnline'; then
+        break
+    fi
+done
+assert_contains "$MQTT_OUT" "umati/v2/umati-guild-exchange/clientOnline" \
+    "gateway publishes clientOnline to clacks-relay (auto-connect on boot)"
+assert_contains "$MQTT_OUT" "online/nsu=http_3A_2F_2Fwww.cumulocity.com;i=7" \
+    "gateway publishes Pump01 operatingLevel subscription status (i=7)"
 
 summary

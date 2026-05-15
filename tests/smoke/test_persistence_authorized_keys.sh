@@ -20,7 +20,7 @@ set -uo pipefail
 REPO="$(cd "$(dirname "$0")/../.." && pwd)"
 source "$REPO/tests/smoke/lib.sh"
 
-ATTACKER="attacker-machine"
+ATTACKER="unseen-gate"
 TARGET_IP="10.10.5.20"          # contractors-gate, dmz side
 TARGET_USER="root"
 TARGET_PASS="uupl2015"
@@ -28,13 +28,13 @@ KEYFILE_REMOTE="/tmp/persist_id_ed25519"     # private key on attacker
 PUBFILE_REMOTE="/tmp/persist_id_ed25519.pub"
 
 require_running "$ATTACKER"
-require_running "ssh_bastion"
+require_running "contractors-gate"
 
 echo "[persist-keys] Stage 1: baseline, password auth as root works"
 PASS_OUT="$(ssh_password_login "$ATTACKER" "$TARGET_USER" "$TARGET_IP" "$TARGET_PASS")"
 assert_contains "$PASS_OUT" "SSH_OK" "root/uupl2015 SSH login succeeds"
 
-echo "[persist-keys] Stage 2: visitor generates a keypair on attacker-machine"
+echo "[persist-keys] Stage 2: visitor generates a keypair on unseen-gate"
 docker exec "$ATTACKER" sh -c "rm -f $KEYFILE_REMOTE $PUBFILE_REMOTE && \
     ssh-keygen -t ed25519 -N '' -C 'visitor-persist' -f $KEYFILE_REMOTE -q" 2>&1 >/dev/null
 PUB="$(docker exec "$ATTACKER" cat "$PUBFILE_REMOTE" 2>&1)"
@@ -64,7 +64,7 @@ c.close()
 " 2>&1 >/dev/null
 
 # Confirm the file exists with the visitor's marker
-INSPECT="$(docker exec ssh_bastion cat /root/.ssh/authorized_keys 2>&1)"
+INSPECT="$(docker exec contractors-gate cat /root/.ssh/authorized_keys 2>&1)"
 assert_contains "$INSPECT" "visitor-persist" "pubkey landed in /root/.ssh/authorized_keys"
 
 echo "[persist-keys] Stage 4: key-only SSH succeeds"

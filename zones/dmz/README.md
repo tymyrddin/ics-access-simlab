@@ -28,7 +28,7 @@ The internet zone has open access to the DMZ. This is the intended attack surfac
 
 The DMZ can reach:
 - The enterprise zone, but only from `contractors-gate` (10.10.5.20). All other DMZ hosts are blocked from enterprise.
-- The historian web UI (10.10.2.10:8080) and operations SCADA web UI (10.10.2.20:8080) in the operational zone.
+- The uupl-historian web UI (10.10.2.10:8080) and operations SCADA web UI (10.10.2.20:8080) in the operational zone.
 
 The DMZ has no path to the control zone or the WAN.
 
@@ -40,6 +40,6 @@ umatiGateway pivot: the management UI on `guild-exchange` exposes the full OPC-U
 
 SSH bastion: `contractors-gate` carries CVE-2024-6387. Its enterprise NIC (10.10.1.30) opens the corporate IT zone after exploitation. `AllowAgentForwarding yes` makes it useful as a jump host once root access is established.
 
-DNS poisoning: compromise `city-directory`, poison the historian hostname, intercept historian traffic from enterprise, harvest the database credentials. The historian password is reused as the SSH password for `hist_admin`.
+DNS poisoning: compromise `city-directory`, poison the uupl-historian hostname, intercept uupl-historian traffic from enterprise, harvest the database credentials. The uupl-historian password is reused as the SSH password for `hist_admin`.
 
 Time manipulation: `guild-clock` accepts unauthenticated NTP configuration. Shifting system time on other devices corrupts log timestamps and causes certificate validation failures, which is less glamorous than remote code execution but genuinely disruptive during incident response.
