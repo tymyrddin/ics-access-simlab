@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Persistence probe. After cracking root/uupl2015 on contractors-gate (see
-# test_ssh_bastion_rce), the visitor's natural next move is to lock in
+# test_bastion_enterprise_pivot), the visitor's natural next move is to lock in
 # their access by dropping a public key under /root/.ssh/authorized_keys.
 # Even if the operator notices the breach and rotates the password, the
 # pubkey survives until someone audits authorized_keys. This is the most

@@ -223,11 +223,11 @@ _dispatch() {
         netstat)                    cmd_netstat ;;
         ping)                       cmd_ping $rest ;;
         net)    read -r sub _ <<< "$rest"; cmd_net "$sub" ;;
-        ssh)                        cmd_ssh $rest ;;
-        curl|wget)                  cmd_curl $rest ;;
-        invoke-webrequest|iwr)      cmd_iwr $rest ;;
-        nmap)                       cmd_nmap $rest ;;
-        nc)                         cmd_nc $rest ;;
+        ssh)                        eval "$line" ;;
+        curl|wget)                  eval "$line" ;;
+        invoke-webrequest|iwr)      eval cmd_iwr "$rest" ;;
+        nmap)                       eval "$line" ;;
+        nc)                         eval "$line" ;;
         help|get-help)              cmd_help ;;
         exit|quit|logout)           printf '\n'; exit 0 ;;
         "")                         true ;;

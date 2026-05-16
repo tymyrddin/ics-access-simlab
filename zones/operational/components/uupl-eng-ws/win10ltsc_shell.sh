@@ -340,22 +340,171 @@ HLP
     fi
 }
 
+cmd_route() {
+    /venv/bin/python3 << 'PYEOF'
+import subprocess, ipaddress
+
+FAKE_MACS = ['aac1ab3f18f2', 'aac1ab8520f9']
+
+def iface_mac(iface, _c=[0]):
+    m = FAKE_MACS[_c[0]] if _c[0] < len(FAKE_MACS) else '000000000000'
+    _c[0] += 1
+    return m
+
+def iface_addr(iface):
+    try:
+        out = subprocess.check_output(['ip','-4','addr','show',iface], text=True,
+                                      stderr=subprocess.DEVNULL)
+        for line in out.splitlines():
+            if 'inet ' in line:
+                return line.split()[1].split('/')[0]
+    except Exception:
+        pass
+    return ''
+
+routes_raw = subprocess.check_output(['ip','-4','route','show'], text=True,
+                                     stderr=subprocess.DEVNULL)
+addr_raw   = subprocess.check_output(['ip','-4','addr','show'], text=True,
+                                     stderr=subprocess.DEVNULL)
+
+ifaces = []
+cur_iface = ''
+for line in addr_raw.splitlines():
+    if line and line[0].isdigit():
+        cur_iface = line.split(':')[1].strip().split('@')[0]
+    elif 'inet ' in line and cur_iface and cur_iface != 'lo':
+        ifaces.append((cur_iface, iface_mac(cur_iface), iface_addr(cur_iface)))
+
+rows = []
+for line in routes_raw.splitlines():
+    parts = line.split()
+    if not parts: continue
+    dest = parts[0]; gw = src = dev = ''
+    i = 1
+    while i < len(parts):
+        if   parts[i] == 'via':  gw  = parts[i+1]; i += 2
+        elif parts[i] == 'dev':  dev = parts[i+1]; i += 2
+        elif parts[i] == 'src':  src = parts[i+1]; i += 2
+        else: i += 1
+    if dest == 'default': net, mask = '0.0.0.0', '0.0.0.0'; metric = 25
+    else:
+        n = ipaddress.ip_network(dest, strict=False)
+        net, mask = str(n.network_address), str(n.netmask); metric = 281
+    if not gw:  gw  = 'On-link'
+    if not src and dev: src = iface_addr(dev)
+    rows.append((net, mask, gw, src, metric))
+    if net != '0.0.0.0' and src:
+        bcast = str(ipaddress.ip_network(f'{src}/{mask}', strict=False).broadcast_address)
+        rows.append((src,   '255.255.255.255', 'On-link', src, 281))
+        rows.append((bcast, '255.255.255.255', 'On-link', src, 281))
+
+for r in [('127.0.0.0','255.0.0.0','On-link','127.0.0.1',331),
+          ('127.0.0.1','255.255.255.255','On-link','127.0.0.1',331),
+          ('127.255.255.255','255.255.255.255','On-link','127.0.0.1',331),
+          ('224.0.0.0','240.0.0.0','On-link','127.0.0.1',331),
+          ('255.255.255.255','255.255.255.255','On-link','127.0.0.1',331)]:
+    rows.append(r)
+
+sep = '=' * 75
+print(sep)
+print('Interface List')
+for num, (nm, mac, _) in enumerate(ifaces):
+    label = f' #{num+1}' if num > 0 else ''
+    print(f' {num+2:>2}...{mac} ......Intel(R) PRO/1000 MT Network Connection{label}')
+print('  1...........................Software Loopback Interface 1')
+print(sep)
+print()
+print('IPv4 Route Table')
+print(sep)
+print('Active Routes:')
+print(f"{'Network Destination':>27} {'Netmask':>16} {'Gateway':>14} {'Interface':>14} {'Metric':>6}")
+for net, mask, gw, src, metric in rows:
+    print(f"{net:>27} {mask:>16} {gw:>14} {src:>14} {metric:>6}")
+print(sep)
+print()
+print('Persistent Routes:')
+print('  None')
+PYEOF
+}
+
 cmd_iwr() {
-    local uri="" outfile=""
+    local uri="" outfile="" method="GET" body="" content_type="" auth_header=""
     while [[ $# -gt 0 ]]; do
         case "${1,,}" in
-            -uri)    shift; uri="$1" ;;
-            -outfile) shift; outfile="$1" ;;
+            -uri)            shift; uri="$1" ;;
+            -outfile)        shift; outfile="$(_real "$1")" ;;
+            -method)         shift; method="${1^^}" ;;
+            -body)           shift; body="$1" ;;
+            -contenttype)    shift; content_type="$1" ;;
+            -headers)
+                shift
+                if [[ "$1" =~ [Aa]uthorization=([^}]+) ]]; then
+                    auth_header="Authorization: ${BASH_REMATCH[1]%\}}"
+                    auth_header="${auth_header%\"}"
+                    auth_header="${auth_header% }"
+                fi
+                ;;
+            -maximumredirection|-disablekeepalive|-usebasicparsing|-sessionvariable)
+                shift ;;
             http://*|https://*) uri="$1" ;;
         esac
         shift
     done
     [[ -z "$uri" ]] && { echo "Invoke-WebRequest: URI parameter required."; return; }
+    local -a curl_args=(-s)
+    [[ "$method" != "GET" ]] && curl_args+=(-X "$method")
+    [[ -n "$body" ]]         && curl_args+=(-d "$body")
+    [[ -n "$content_type" ]] && curl_args+=(-H "Content-Type: $content_type")
+    [[ -n "$auth_header" ]]  && curl_args+=(-H "$auth_header")
     if [[ -n "$outfile" ]]; then
-        /usr/bin/curl -s "$uri" -o "$outfile"
-    else
-        /usr/bin/curl -s "$uri"
+        /usr/bin/curl "${curl_args[@]}" "$uri" -o "$outfile"
+        return
     fi
+    local raw
+    raw=$(/usr/bin/curl "${curl_args[@]}" -i --max-redirs 0 "$uri" 2>/dev/null)
+    IWR_RAW="$raw" /venv/bin/python3 << 'PYEOF'
+import os
+
+raw = os.environ.get('IWR_RAW', '')
+if '\r\n\r\n' in raw:
+    hdr_raw, body = raw.split('\r\n\r\n', 1)
+elif '\n\n' in raw:
+    hdr_raw, body = raw.split('\n\n', 1)
+else:
+    hdr_raw, body = raw, ''
+
+body = body.rstrip('\n')
+lines = [l.rstrip('\r') for l in hdr_raw.splitlines()]
+status_line = lines[0] if lines else ''
+parts = status_line.split(None, 2)
+code = parts[1] if len(parts) > 1 else '0'
+desc = parts[2] if len(parts) > 2 else ''
+hdr_lines = [l for l in lines[1:] if l]
+body_lines = body.splitlines() if body else ['']
+
+print()
+print(f'StatusCode        : {code}')
+print(f'StatusDescription : {desc}')
+print(f'Content           : {body_lines[0]}')
+for l in body_lines[1:]:
+    print(f'                    {l}')
+print(f'RawContent        : {status_line}')
+for h in hdr_lines:
+    print(f'                    {h}')
+print('                    ')
+for l in body_lines:
+    print(f'                    {l}')
+print('Forms             : {}')
+hdict = ', '.join(f'[{h.split(": ",1)[0]}, {h.split(": ",1)[1]}]'
+                  for h in hdr_lines if ': ' in h)
+print(f'Headers           : {{{hdict}}}')
+print('Images            : {}')
+print('InputFields       : {}')
+print('Links             : {}')
+print('ParsedHtml        : mshtml.HTMLDocumentClass')
+print(f'RawContentLength  : {len(body.encode())}')
+print()
+PYEOF
 }
 
 cmd_help() {
@@ -414,6 +563,7 @@ _dispatch() {
         ssh)                        eval "$line" ;;
         curl|wget)                  eval "$line" ;;
         socat)                      eval "$line" ;;
+        route)                      [[ "${rest,,}" == "print"* ]] && cmd_route || printf "'route %s' is not recognised\n" "$rest" ;;
         invoke-webrequest|iwr)      eval cmd_iwr "$rest" ;;
         nmap)                       eval "$line" ;;
         nc)                         eval "$line" ;;
@@ -475,13 +625,18 @@ while true; do
         *) printf '\n'; continue ;;        # signal-interrupted read, re-prompt
     esac
 
-    # Line continuation: trailing backslash joins the next line
-    while [[ "$line" == *\\ ]]; do
-        line="${line%\\}"
+    # Line continuation: trailing backslash OR backtick joins the next line
+    while [[ "$line" == *\\ || "$line" == *\` ]]; do
+        if [[ "$line" == *\\ ]]; then
+            line="${line%\\}"
+        else
+            line="${line%\`}"
+        fi
+        printf '>> '
         IFS= read -r cont || break
         cont="${cont//$'\r'/}"
         cont="${cont%"${cont##*[^ ]}"}"
-        line="${line}${cont}"
+        line="${line} ${cont}"
     done
 
     _dispatch "$line"

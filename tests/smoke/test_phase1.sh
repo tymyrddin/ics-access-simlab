@@ -17,7 +17,7 @@ SKIPPED=0
 for t in \
     test_admin_home_pivot.sh \
     test_enterprise_to_turbine_trip.sh \
-    test_ssh_bastion_rce.sh
+    test_bastion_enterprise_pivot.sh
 do
     echo ""
     echo "=========================================="

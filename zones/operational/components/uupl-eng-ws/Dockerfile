@@ -35,6 +35,7 @@ RUN pip install --no-cache-dir pymodbus==3.6.8 paho-mqtt
 COPY mbpoll-wrapper.py /usr/local/bin/mbpoll
 RUN chmod +x /usr/local/bin/mbpoll
 
+COPY tools/ /opt/win10/C/Users/engineer/Tools/
 COPY entrypoint.sh /entrypoint.sh
 COPY win10ltsc_shell.sh /usr/local/bin/win10ltsc_shell.sh
 RUN chmod +x /entrypoint.sh /usr/local/bin/win10ltsc_shell.sh

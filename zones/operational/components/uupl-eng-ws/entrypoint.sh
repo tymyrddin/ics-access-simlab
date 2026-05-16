@@ -15,7 +15,13 @@ PasswordAuthentication yes
 PubkeyAuthentication yes
 PermitRootLogin no
 PrintMotd no
+PrintLastLog no
 EOF
+
+# PAM prints the MOTD via pam_motd.so regardless of PrintMotd in sshd_config.
+# The facade presents a Windows login banner; the Linux MOTD breaks the fiction.
+> /etc/motd 2>/dev/null || true
+sed -i '/pam_motd/s/^/# /' /etc/pam.d/sshd 2>/dev/null || true
 
 # ── Virtual C: drive layout ───────────────────────────────────────────────────
 
@@ -243,33 +249,6 @@ def main():
 
 if __name__ == "__main__":
     main()
-EOF
-
-cat > "$PROFILE/Tools/mqtt_check.py" << 'EOF'
-#!/usr/bin/env python3
-"""
-MQTT telemetry subscriber.
-Usage: python3 mqtt_check.py [broker_ip [topic]]
-Default: 10.10.3.60, topic uupl/turbine/telemetry
-"""
-import sys
-import paho.mqtt.client as mqtt
-
-BROKER = sys.argv[1] if len(sys.argv) > 1 else "10.10.3.60"
-TOPIC  = sys.argv[2] if len(sys.argv) > 2 else "uupl/turbine/telemetry"
-
-def on_message(client, userdata, msg):
-    print(msg.topic, msg.payload.decode())
-
-c = mqtt.Client(mqtt.CallbackAPIVersion.VERSION1)
-c.on_message = on_message
-c.connect(BROKER, 1883)
-c.subscribe(TOPIC)
-print(f"Subscribed to {TOPIC} on {BROKER}:1883  (Ctrl-C to stop)")
-try:
-    c.loop_forever()
-except KeyboardInterrupt:
-    pass
 EOF
 
 # ── PLC project file ──────────────────────────────────────────────────────────

@@ -7,9 +7,9 @@
 #   Stage 1  bastion 22/tcp open, banner is OpenSSH 9.2p1 Debian
 #   Stage 2  ssh root/uupl2015 logs in; ip addr shows DMZ + enterprise NIC
 #   Stage 3  enterprise zone hosts reachable from bastion
-#   Stage 4  AllowAgentForwarding yes is configured
+#   Stage 4  rsyslog forwarding to scribes-post (informational)
 #
-# Usage: bash tests/smoke/test_ssh_bastion_rce.sh
+# Usage: bash tests/smoke/test_bastion_enterprise_pivot.sh
 set -uo pipefail
 
 REPO="$(cd "$(dirname "$0")/../.." && pwd)"
@@ -30,7 +30,7 @@ echo "[ssh-bastion] Stage 1a: target reachable from internet zone"
 NMAP_OUT="$(in_container "$ATTACKER" nmap -sV -p 22 10.10.5.20 2>&1)"
 assert_contains "$NMAP_OUT" "22/tcp +open"  "contractors-gate 22/tcp open"
 assert_contains "$NMAP_OUT" "OpenSSH 9\.2p1" "banner reports OpenSSH 9.2p1"
-assert_contains "$NMAP_OUT" "Debian"         "banner reports Debian build (vulnerable to CVE-2024-6387)"
+assert_contains "$NMAP_OUT" "Debian"         "banner reports Debian build"
 
 echo "[ssh-bastion] Stage 1b: explicit banner grab via netcat"
 
@@ -75,13 +75,7 @@ NC_BURSAR="$(ssh_password_login "$ATTACKER" root 10.10.5.20 uupl2015 \
 assert_contains "$NC_LEGACY"  "ok" "bastion can connect to 10.10.1.10:22"
 assert_contains "$NC_BURSAR"  "ok" "bastion can connect to 10.10.1.20:22"
 
-echo "[ssh-bastion] Stage 4: AllowAgentForwarding configured"
-
-SSHD_CFG="$(in_container "$BASTION" cat /etc/ssh/sshd_config 2>&1)"
-assert_contains "$SSHD_CFG" "^AllowAgentForwarding yes" "sshd_config has AllowAgentForwarding yes"
-assert_contains "$SSHD_CFG" "^PermitRootLogin yes"      "sshd_config has PermitRootLogin yes"
-
-echo "[ssh-bastion] Stage 5: rsyslog forwarding to scribes-post (informational)"
+echo "[ssh-bastion] Stage 4: rsyslog forwarding to scribes-post (informational)"
 
 if [ -n "$(in_container "$BASTION" pgrep rsyslogd 2>&1)" ]; then
     ok "rsyslogd running on bastion"

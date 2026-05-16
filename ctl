@@ -69,6 +69,31 @@ _compose_build() {
     docker compose -f "$f" build
 }
 
+_reset_relay_state() {
+    # Smoke tests can leave entries in the relay trip log (HR[10:19]). Zero
+    # them so the lab presents a deterministic baseline regardless of prior
+    # runs. The relay's pymodbus server starts before the protection loop's
+    # 10-second startup grace, so this lands without contention.
+    for relay in uupl-relay-a uupl-relay-b; do
+        if ! docker ps --format '{{.Names}}' | grep -q "^${relay}$"; then
+            continue
+        fi
+        for _ in $(seq 1 15); do
+            if docker exec "$relay" python3 -c "
+from pymodbus.client import ModbusTcpClient
+c = ModbusTcpClient('127.0.0.1', port=502, timeout=2)
+if not c.connect():
+    raise SystemExit(1)
+c.write_registers(address=10, values=[0]*10, slave=1)
+c.close()
+" 2>/dev/null; then
+                break
+            fi
+            sleep 1
+        done
+    done
+}
+
 _ensure_keys() {
     local keys="zones/internet/components/unseen-gate/adversary-keys"
     # Fix Docker-created directory (happens on first run before file exists)
@@ -116,6 +141,9 @@ case "$CMD" in
         exit 1
     fi
     bash infrastructure/clab-up.sh
+
+    echo "[ctl] Resetting relay trip log to baseline ..."
+    _reset_relay_state
 
     PORT="$(_ssh_port)"
     MODE="$(_auth_mode)"

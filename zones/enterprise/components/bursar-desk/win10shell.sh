@@ -6,6 +6,11 @@
 VIRT_ROOT="/opt/win10/C"
 VIRT_CWD="Users/bursardesk"   # start in user home
 
+# Make the underlying process cwd match the facade's virtual cwd so
+# relative paths in dispatched commands (curl -OutFile foo.db,
+# sqlite3 foo.db, etc.) hit the same files that dir/type see.
+cd "$VIRT_ROOT/$VIRT_CWD" 2>/dev/null || true
+
 stty icrnl 2>/dev/null || true
 
 # ── path helpers ─────────────────────────────────────────────────────────────
@@ -329,12 +334,13 @@ _dispatch() {
         netstat)                    cmd_netstat ;;
         ping)                       cmd_ping $rest ;;
         net)    read -r sub _ <<< "$rest"; cmd_net "$sub" ;;
-        ssh)                        cmd_ssh $rest ;;
-        curl|wget)                  cmd_curl $rest ;;
-        invoke-webrequest|iwr)      cmd_iwr $rest ;;
-        nmap)                       cmd_nmap $rest ;;
-        nc)                         cmd_nc $rest ;;
-        ftp)                        cmd_ftp $rest ;;
+        ssh)                        eval "$line" ;;
+        curl|wget)                  eval "$line" ;;
+        invoke-webrequest|iwr)      eval cmd_iwr "$rest" ;;
+        nmap)                       eval "$line" ;;
+        nc)                         eval "$line" ;;
+        ftp)                        eval "$line" ;;
+        sqlite3)                    eval "$line" ;;
         help|get-help)              cmd_help ;;
         exit|quit|logout)           printf '\n'; exit 0 ;;
         "")                         true ;;
