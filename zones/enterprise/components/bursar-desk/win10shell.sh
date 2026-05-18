@@ -257,26 +257,36 @@ cmd_curl() {
 }
 
 cmd_iwr() {
-    # Invoke-WebRequest, minimal passthrough to curl
-    # Strips PS-style named params and extracts URI
-    local uri="" headers=() outfile=""
+    local uri="" method="GET" body="" content_type="" auth_header="" outfile=""
     while [[ $# -gt 0 ]]; do
         case "${1,,}" in
-            -uri)           shift; uri="$1" ;;
-            -headers)       shift ;;   # skip hash arg for now
-            -outfile)       shift; outfile="$1" ;;
-            http://*|https://*) uri="$1" ;;
+            -uri)         shift; uri="${1//\"/}" ;;
+            -method)      shift; method="${1^^}" ;;
+            -contenttype) shift; content_type="${1//\"/}" ;;
+            -body)        shift; body="$1" ;;
+            -headers)
+                shift
+                # parse @{Authorization="Basic xxx"} — single-entry hashtable, no semicolon
+                local h="${1#@\{}"; h="${h%\}}"
+                local hkey="${h%%=*}" hval="${h#*=}"
+                [[ "${hkey,,}" == "authorization" ]] && auth_header="$hval"
+                ;;
+            -outfile)     shift; outfile="$1" ;;
+            -usebasicparsing|-credential) ;;
+            http://*|https://*) uri="${1//\"/}" ;;
         esac
         shift
     done
     if [[ -z "$uri" ]]; then
         echo "Invoke-WebRequest: URI parameter required."; return
     fi
-    if [[ -n "$outfile" ]]; then
-        /usr/bin/curl -s "$uri" -o "$outfile"
-    else
-        /usr/bin/curl -s "$uri"
-    fi
+    local -a args=("-s")
+    [[ "$method" == "POST" ]] && args+=("-X" "POST")
+    [[ -n "$auth_header" ]]   && args+=("-H" "Authorization: $auth_header")
+    [[ -n "$content_type" ]]  && args+=("-H" "Content-Type: $content_type")
+    [[ -n "$body" ]]          && args+=("-d" "$body")
+    [[ -n "$outfile" ]]       && args+=("-o" "$outfile")
+    /usr/bin/curl "${args[@]}" "$uri"
 }
 
 cmd_nmap() {
@@ -290,6 +300,8 @@ cmd_nc() {
 cmd_ftp() {
     /usr/bin/ftp "$@"
 }
+
+Select-Object() { cat; }
 
 cmd_help() {
     cat << 'EOF'
@@ -340,6 +352,7 @@ _dispatch() {
         nmap)                       eval "$line" ;;
         nc)                         eval "$line" ;;
         ftp)                        eval "$line" ;;
+        python|python3)             eval "$line" ;;
         sqlite3)                    eval "$line" ;;
         help|get-help)              cmd_help ;;
         exit|quit|logout)           printf '\n'; exit 0 ;;

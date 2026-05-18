@@ -36,6 +36,7 @@ RUN echo 'export PATH="$PATH:/usr/sbin:/sbin"' > /etc/profile.d/sbin-path.sh
 # CTF players need to mount NFS shares; sudo lets them do it without a root shell
 RUN echo "ALL ALL=(root) NOPASSWD: /usr/bin/mount, /usr/bin/umount" \
     > /etc/sudoers.d/ctf-mount && chmod 440 /etc/sudoers.d/ctf-mount
+RUN echo 'Defaults !fqdn' > /etc/sudoers.d/no-fqdn && chmod 440 /etc/sudoers.d/no-fqdn
 
 # Python attacker libs in a venv (bookworm enforces PEP 668)
 # Generic red-team kit only. ICS-protocol libraries (pymodbus, opcua) live
@@ -62,6 +63,11 @@ RUN for u in ponder hex ridcully librarian dean; do \
 RUN mkdir -p /usr/share/wordlists
 
 COPY common-passwords.txt /usr/share/wordlists/rockyou.txt
+
+# nmap's Werkzeug entries only match HTTP/1.0; lab services return HTTP/1.1.
+# Add the HTTP/1.1 catch-all alongside the existing HTTP/1.0 entry.
+COPY patch-nmap-probes.py /tmp/
+RUN python3 /tmp/patch-nmap-probes.py && rm /tmp/patch-nmap-probes.py
 
 COPY entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh

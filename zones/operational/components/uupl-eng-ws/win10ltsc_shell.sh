@@ -561,8 +561,9 @@ _dispatch() {
         ping)                       cmd_ping $rest ;;
         net)    read -r sub _ <<< "$rest"; cmd_net "$sub" ;;
         ssh)                        eval "$line" ;;
-        curl|wget)                  eval "$line" ;;
+        curl|wget)                  eval "${line//-o NUL/-o /dev/null}" ;;
         socat)                      eval "$line" ;;
+        openssl)                    eval "$line" ;;
         route)                      [[ "${rest,,}" == "print"* ]] && cmd_route || printf "'route %s' is not recognised\n" "$rest" ;;
         invoke-webrequest|iwr)      eval cmd_iwr "$rest" ;;
         nmap)                       eval "$line" ;;

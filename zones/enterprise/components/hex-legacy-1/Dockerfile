@@ -22,6 +22,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     openssh-client \
     netcat-openbsd \
     ftp \
+    tftp \
     rsh-client \
     net-tools \
     iputils-ping \

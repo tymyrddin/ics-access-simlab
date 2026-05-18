@@ -11,7 +11,7 @@ A legacy workstation running era-appropriate software that was never decommissio
 Base image: `debian:bookworm-slim` presenting a Windows 95-era facade via a custom login shell (`win95shell.sh`). The real filesystem is under `/opt/legacy/C/`. SSH drops users into a DOS-style shell with 8.3 filenames.
 
 Services: Samba (ports 139, 445), vsftpd (port 21), Telnet via xinetd (port
-23, served by `inetutils-telnetd`), OpenSSH (port 22).
+23, served by `inetutils-telnetd`), OpenSSH (port 22), tftp client available.
 
 Accounts: `Administrator` / `hex123` (also set as Samba password and root SSH password). Anonymous Samba guest access to the `public` share.
 
@@ -56,7 +56,7 @@ To remove Telnet: delete the xinetd config block and remove `telnetd` from the a
 
 To change the password: update the `chpasswd` line and the `smbpasswd` invocation in `entrypoint.sh`.
 
-To modify loot: edit the heredoc blocks in `entrypoint.sh` that write to `/opt/legacy/C/`.
+Static scenario content lives in `data/shares/` and is copied into the image by the Dockerfile. Anything in `entrypoint.sh` is there because it is runtime-coupled (Samba and service configuration) or credential-coupled (the C: drive files: the short logbook, PLCACCS.CFG, and the rest). Edit `data/shares/` for public share content. Edit the heredocs in `entrypoint.sh` for C: drive content.
 
 ## Hardening suggestions
 
@@ -73,7 +73,7 @@ ssh root@10.10.1.10                        # password: hex123
 telnet 10.10.1.10
 ```
 
-The virtual C: drive is at `/opt/legacy/C/` inside the container. The win95shell simulates DOS navigation; `DIR`, `TYPE`, `CD` work as expected.
+The virtual C: drive is at `/opt/legacy/C/` inside the container. The win95shell simulates DOS navigation; see the commands section below.
 
 ## Concrete attack paths
 
@@ -90,14 +90,28 @@ FTP path: `ftp 10.10.1.10`, login anonymous, retrieve the same public files.
 
 NTLMv1 relay: capture authentication with `responder` on the enterprise segment, relay to other services.
 
-## Caveats
+## Shell commands
 
-The win95shell does not implement every DOS command. It handles `DIR`, `CD`, `TYPE`, `COPY`, `DEL`, `CLS`, and `EXIT`. Attempting anything outside that list produces an appropriate error.
+The win95shell dispatches the following DOS/Win95 commands:
 
-The machine exposes Telnet but the Linux login prompt appears, not a DOS prompt. Participants who try to telnet in and expect a Windows shell will encounter a brief reality check.
+Navigation and files: `DIR` (with `/S` for recursive, wildcards such as `*.cfg` and `*scada*`), `CD`, `TYPE`, `ATTRIB`. `COPY` and `DEL` return access denied.
+
+Output redirection: `DIR C:\ /S > list.txt` and `>>` both work; the file lands in the virtual C: drive.
+
+Network enumeration: `NET VIEW`, `NET VIEW \\SERVER`, `NET USE` (drive mapping and listing), `PING`, `NETSTAT`, `ROUTE PRINT`, `ARP -A`, `WINIPCFG`, `IPCONFIG`, `NBTSTAT -A ip`.
+
+Drive mapping: `NET USE Z: \\HEX-LEGACY-1\public` maps Z: to the public share. Switching drives with `Z:` (bare) works. `NET USE Z: /D` disconnects.
+
+Text search: `FIND /I "string" *.ext` searches inside files, grouped by filename header. Accepts wildcards in the file argument.
+
+Connectivity: `FTP`, `TFTP`, `TELNET`, `SSH`, `NC`, `NMAP`, `CURL`.
+
+Commands not recognised produce `Bad command or file name`.
+
+The machine exposes Telnet but the Linux login prompt appears, not a DOS prompt. Participants who telnet in and expect a Windows shell will encounter a brief reality check.
 
 `C:\PRIVATE\PLCACCS.CFG` inside the virtual filesystem and `\\hex-legacy-1\private\plc-access.conf` on the Samba share contain identical information via different paths.
 
 ## Summary
 
-1990s workstation still running Samba with NTLMv1, anonymous FTP, and Telnet. Password `hex123` everywhere. The public SMB share contains a complete network inventory and all system passwords. The machine is a goldmine that nobody thought to lock.
+1990s workstation still running Samba with NTLMv1, anonymous FTP, and Telnet. Password `hex123` everywhere. The public SMB share contains a complete network inventory and all system passwords. The DOS facade supports recursive file hunting, credential scraping with `FIND`, drive mapping, and period-correct network recon. The machine is a goldmine that nobody thought to lock.

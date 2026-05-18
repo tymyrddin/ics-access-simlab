@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+grep -q 'unseen-gate' /etc/hosts || echo "127.0.1.1 unseen-gate" >> /etc/hosts
+
 mkdir -p /var/run/sshd
 
 AUTH_MODE="${AUTH_MODE:-key}"

@@ -26,6 +26,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     python3-venv \
     && rm -rf /var/lib/apt/lists/*
 
+# Patch nmap-service-probes: add a match for hex-legacy-1's telnet IAC sequence
+# so nmap labels the service rather than emitting a fingerprint blob.
+COPY patch-nmap-probes.py /tmp/patch-nmap-probes.py
+RUN python3 /tmp/patch-nmap-probes.py && rm /tmp/patch-nmap-probes.py
+
 # Rincewind's admin Python venv. Plausible kit for a UU P&L sysadmin who
 # pokes at OPC-UA servers from home over the VPN. Modbus tooling stays on
 # eng-ws, not here.

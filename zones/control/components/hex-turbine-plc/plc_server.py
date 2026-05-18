@@ -139,14 +139,16 @@ async def physics_loop(store):
         ba     = store.getValues(FC_CO, COIL_BREAKER_A, count=1)[0]
         bb     = store.getValues(FC_CO, COIL_BREAKER_B, count=1)[0]
         estop  = store.getValues(FC_CO, COIL_ESTOP,     count=1)[0]
+        sp     = store.getValues(FC_HR, HR_SETPOINT,    count=1)[0] or DEFAULT_SP
 
         if estop:
             fuel = 0.0
 
         rpm = state["rpm"]
 
-        # RPM
-        steam   = fuel * RPM_NOM
+        # RPM: steam scales with governor setpoint so raising HR[0] above RPM_NOM
+        # actually drives the shaft above the overspeed trip threshold.
+        steam   = fuel * sp
         drag    = (ba + bb) * 0.5 * rpm * 0.015
         rpm    += (steam - rpm) * 0.08 - drag * 0.05
         rpm     = max(0.0, min(float(RPM_MAX), rpm + random.gauss(0, 5)))

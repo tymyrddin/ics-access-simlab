@@ -5,7 +5,7 @@ FROM emqx/neuron:2.11.5
 # No southbound device at build time. The attacker adds one after gaining a foothold
 # from which the control zone is reachable (eng-ws or uupl-modbus-gw), then configures
 # Neuron as a covert exfil path back out through the DMZ MQTT broker.
-# Attack path: admin/uupl2015 -> add Modbus south device -> bridge to turbine_plc:502
+# Attack path: admin/uupl2015 -> add Modbus south device -> bridge to hex-turbine-plc:502
 #              -> subscribe to clacks-relay -> exfil PLC data over internet.
 
 RUN apt-get update && apt-get install -y --no-install-recommends iproute2 && rm -rf /var/lib/apt/lists/*
