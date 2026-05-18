@@ -69,8 +69,33 @@ _compose_build() {
     docker compose -f "$f" build
 }
 
+_reset_relay_state() {
+    # Smoke tests can leave entries in the relay trip log (HR[10:19]). Zero
+    # them so the lab presents a deterministic baseline regardless of prior
+    # runs. The relay's pymodbus server starts before the protection loop's
+    # 10-second startup grace, so this lands without contention.
+    for relay in uupl-relay-a uupl-relay-b; do
+        if ! docker ps --format '{{.Names}}' | grep -q "^${relay}$"; then
+            continue
+        fi
+        for _ in $(seq 1 15); do
+            if docker exec "$relay" python3 -c "
+from pymodbus.client import ModbusTcpClient
+c = ModbusTcpClient('127.0.0.1', port=502, timeout=2)
+if not c.connect():
+    raise SystemExit(1)
+c.write_registers(address=10, values=[0]*10, slave=1)
+c.close()
+" 2>/dev/null; then
+                break
+            fi
+            sleep 1
+        done
+    done
+}
+
 _ensure_keys() {
-    local keys="zones/internet/components/attacker-machine/adversary-keys"
+    local keys="zones/internet/components/unseen-gate/adversary-keys"
     # Fix Docker-created directory (happens on first run before file exists)
     [ -d "$keys" ] && rmdir "$keys" 2>/dev/null || true
 
@@ -116,6 +141,9 @@ case "$CMD" in
         exit 1
     fi
     bash infrastructure/clab-up.sh
+
+    echo "[ctl] Resetting relay trip log to baseline ..."
+    _reset_relay_state
 
     PORT="$(_ssh_port)"
     MODE="$(_auth_mode)"
@@ -173,7 +201,7 @@ case "$CMD" in
     ;;
 
   cohort-keys)
-    KEYS="zones/internet/components/attacker-machine/adversary-keys"
+    KEYS="zones/internet/components/unseen-gate/adversary-keys"
 
     ssh-keygen -t ed25519 -f "$REPO/cohort-key" -N "" -C "ics-simlab-cohort-key" -q
     echo "[ctl] Generated cohort-key / cohort-key.pub (gitignored)"
@@ -255,15 +283,15 @@ EOF
     rm -f zones/control/docker-compose.yml
     rm -f zones/internet/docker-compose.yml
     rm -f zones/dmz/docker-compose.yml
-    rm -f zones/internet/components/attacker-machine/docker-compose.yml
-    rm -f zones/internet/components/attacker-machine/adversary-readme.txt
+    rm -f zones/internet/components/unseen-gate/docker-compose.yml
+    rm -f zones/internet/components/unseen-gate/adversary-readme.txt
     echo "[ctl] Clean."
     echo "[ctl] Note: lab-key, cohort-key, and adversary-keys preserved, run './ctl purge' to remove them."
     ;;
 
   purge)
     echo "[ctl] Removing containers and images ..."
-    _compose_purge zones/internet/components/attacker-machine/docker-compose.yml
+    _compose_purge zones/internet/components/unseen-gate/docker-compose.yml
     _compose_purge zones/internet/docker-compose.yml
     _compose_purge zones/dmz/docker-compose.yml
     _compose_purge zones/control/docker-compose.yml
@@ -276,7 +304,7 @@ EOF
     "$0" clean
     echo "[ctl] Removing lab keypair, cohort keypair, and adversary-keys ..."
     rm -f lab-key lab-key.pub cohort-key cohort-key.pub
-    rm -f zones/internet/components/attacker-machine/adversary-keys
+    rm -f zones/internet/components/unseen-gate/adversary-keys
     ;;
 
   help|*)

@@ -17,7 +17,7 @@ set -uo pipefail
 REPO="$(cd "$(dirname "$0")/../.." && pwd)"
 source "$REPO/tests/smoke/lib.sh"
 
-ATTACKER="attacker-machine"
+ATTACKER="unseen-gate"
 ATTACKER_IFACE="eth1"          # ics_internet NIC
 BRIDGE="ics_internet"          # target host bridge
 

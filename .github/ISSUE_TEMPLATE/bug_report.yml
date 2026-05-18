@@ -15,7 +15,7 @@ body:
     attributes:
       label: Bug Description
       description: What went wrong? Be specific.
-      placeholder: "The historian container exits immediately after ./ctl up, logs show port 5000 already in use..."
+      placeholder: "The uupl-historian container exits immediately after ./ctl up, logs show port 5000 already in use..."
     validations:
       required: true
 
@@ -35,7 +35,7 @@ body:
       description: How can someone else trigger this bug?
       placeholder: |
         1. Clone repo and run: ./ctl up
-        2. Run: docker ps -a | grep historian
+        2. Run: docker ps -a | grep uupl-historian
         3. Observe container in Exited state
     validations:
       required: true

@@ -3,7 +3,7 @@
 # a running lab. Assumes './ctl up' has already started the relevant containers.
 #
 # Coverage:
-#   Stage 0  attacker-machine reachable, loot/notes.txt present, nmap finds wizzards-retreat
+#   Stage 0  unseen-gate reachable, loot/notes.txt present, nmap finds wizzards-retreat
 #   Stage 1  ssh rincewind/wizzard works, NFS export readable, key in NFS share, key login works
 #   Stage 2  Ed25519 key login engineer@10.10.2.30 works (from wizzards-retreat)
 #   Stage 3  plc-access.conf and plc_poll.log readable on eng-ws
@@ -15,22 +15,22 @@ set -uo pipefail
 REPO="$(cd "$(dirname "$0")/../.." && pwd)"
 source "$REPO/tests/smoke/lib.sh"
 
-ATTACKER="attacker-machine"
-HOME_BOX="admin-home"
-ENG_WS="engineering-workstation"
+ATTACKER="unseen-gate"
+HOME_BOX="wizzards-retreat"
+ENG_WS="uupl-eng-ws"
 
-for c in "$ATTACKER" "$HOME_BOX" "$ENG_WS" turbine_plc; do
+for c in "$ATTACKER" "$HOME_BOX" "$ENG_WS" hex-turbine-plc; do
     require_running "$c"
 done
 
-echo "[admin-home-pivot] Waiting for admin-home services to come up..."
+echo "[admin-home-pivot] Waiting for wizzards-retreat services to come up..."
 if ! wait_for_port "$ATTACKER" 10.10.0.10 22 30; then
-    fail "admin-home 10.10.0.10:22 not responding within 30s"
+    fail "wizzards-retreat 10.10.0.10:22 not responding within 30s"
     summary
     exit 1
 fi
 if ! wait_for_port "$ATTACKER" 10.10.0.10 2049 30; then
-    fail "admin-home 10.10.0.10:2049 (NFS) not responding within 30s"
+    fail "wizzards-retreat 10.10.0.10:2049 (NFS) not responding within 30s"
 fi
 
 echo "[admin-home-pivot] Stage 0: attacker machine and recon"
@@ -123,17 +123,17 @@ WIN_PROFILE="/opt/win10/C/Users/engineer"
 PLC_CONF="$(in_container "$ENG_WS" cat "$WIN_PROFILE/config/plc-access.conf" 2>&1)"
 assert_contains "$PLC_CONF" "10\.10\.3\.21"            "plc-access.conf names turbine PLC at 10.10.3.21"
 assert_contains "$PLC_CONF" "modbus-tcp"               "plc-access.conf names modbus-tcp protocol"
-assert_contains "$PLC_CONF" "actuator_cooling_pump"    "plc-access.conf lists cooling pump actuator"
+assert_contains "$PLC_CONF" "uupl-cooling-pump"    "plc-access.conf lists cooling pump actuator"
 
 PLC_LOG="$(in_container "$ENG_WS" sh -c "cat $WIN_PROFILE/plc_poll.log 2>&1 || true")"
 assert_contains "$PLC_LOG" "poll_and_ingest" "plc_poll.log shows polling activity"
 
 # The runbook's Stage 3 also reads Documents\engineering_notes.txt, which is
-# where the credential cascade (historian/SCADA/HMI/relay logins) actually
+# where the credential cascade (uupl-historian/SCADA/HMI/relay logins) actually
 # leaks. Without this, the test would pass while the credential-discovery
 # part of the runbook is unverified.
 ENG_NOTES="$(in_container "$ENG_WS" sh -c "cat '$WIN_PROFILE/Documents/engineering_notes.txt' 2>&1 || true")"
-assert_contains "$ENG_NOTES" "Historian2015"   "engineering_notes.txt leaks historian DB password"
+assert_contains "$ENG_NOTES" "Historian2015"   "engineering_notes.txt leaks uupl-historian DB password"
 assert_contains "$ENG_NOTES" "scada_admin"     "engineering_notes.txt leaks SCADA SSH login"
 assert_contains "$ENG_NOTES" "relay1234"       "engineering_notes.txt leaks relay IED password"
 

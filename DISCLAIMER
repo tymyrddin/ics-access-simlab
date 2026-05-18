@@ -1,0 +1,6 @@
+This platform is for *authorised security research, education, and testing only*.
+Use it to develop and validate PoCs in a safe environment before engaging with real systems
+under proper authorisation.
+
+The authors take no responsibility for misuse. If you're testing real ICS/SCADA systems,
+make sure you have explicit written permission and understand the physical consequences.

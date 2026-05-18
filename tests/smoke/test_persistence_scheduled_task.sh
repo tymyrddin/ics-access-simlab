@@ -21,7 +21,7 @@ set -uo pipefail
 REPO="$(cd "$(dirname "$0")/../.." && pwd)"
 source "$REPO/tests/smoke/lib.sh"
 
-ATTACKER="attacker-machine"
+ATTACKER="unseen-gate"
 JUMP_HOST="10.10.0.10"
 JUMP_USER="rincewind"
 JUMP_PASS="wizzard"
@@ -32,8 +32,8 @@ TASK_NAME="uupl-implant"
 MARKER="/tmp/uupl_scht_marker"
 
 require_running "$ATTACKER"
-require_running "admin-home"
-require_running "engineering-workstation"
+require_running "wizzards-retreat"
+require_running "uupl-eng-ws"
 
 run_on_engws() {
     local cmd="$1"
@@ -46,7 +46,7 @@ run_on_engws() {
 echo "[persist-sch] Stage 1: baseline schtasks /query is empty"
 # Ensure no leftover implant from a previous run.
 run_on_engws "schtasks /delete /tn $TASK_NAME /f" >/dev/null 2>&1 || true
-docker exec engineering-workstation rm -f "$MARKER" >/dev/null 2>&1 || true
+docker exec uupl-eng-ws rm -f "$MARKER" >/dev/null 2>&1 || true
 Q="$(run_on_engws 'schtasks /query')"
 assert_contains "$Q" "no scheduled tasks" "schtasks /query is empty at start"
 
@@ -64,7 +64,7 @@ echo "[persist-sch] Stage 4: wait up to 75s for the task to fire"
 START_EPOCH=$(date +%s)
 MARKER_FOUND=""
 for _ in $(seq 1 75); do
-    if docker exec engineering-workstation test -f "$MARKER" 2>/dev/null; then
+    if docker exec uupl-eng-ws test -f "$MARKER" 2>/dev/null; then
         MARKER_FOUND="yes"
         break
     fi
@@ -74,7 +74,7 @@ done
 ok "marker $MARKER created by scheduled task tick"
 
 # Sanity check: marker mtime is within the test window.
-MARKER_MTIME="$(docker exec engineering-workstation stat -c '%Y' "$MARKER" 2>&1)"
+MARKER_MTIME="$(docker exec uupl-eng-ws stat -c '%Y' "$MARKER" 2>&1)"
 AGE=$((MARKER_MTIME - START_EPOCH))
 if [ "$AGE" -ge -5 ] && [ "$AGE" -le 80 ]; then
     ok "marker mtime $MARKER_MTIME is within window (age ${AGE}s)"
@@ -86,7 +86,7 @@ echo "[persist-sch] Stage 5: cleanup, /delete the implant"
 DEL="$(run_on_engws "schtasks /delete /tn $TASK_NAME /f")"
 assert_contains "$DEL" "SUCCESS: The scheduled task \"$TASK_NAME\" was successfully deleted" \
     "schtasks /delete returns success"
-docker exec engineering-workstation rm -f "$MARKER" >/dev/null 2>&1 || true
+docker exec uupl-eng-ws rm -f "$MARKER" >/dev/null 2>&1 || true
 
 echo "[persist-sch] Stage 6: schtasks /query confirms removal"
 Q3="$(run_on_engws 'schtasks /query')"

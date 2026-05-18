@@ -18,18 +18,18 @@ set -uo pipefail
 REPO="$(cd "$(dirname "$0")/../.." && pwd)"
 source "$REPO/tests/smoke/lib.sh"
 
-ATTACKER="attacker-machine"
-SCADA="scada-server"
-ENG_WS="engineering-workstation"
-GW="stunnel-gateway"
-PLC="turbine_plc"
+ATTACKER="unseen-gate"
+SCADA="distribution-scada"
+ENG_WS="uupl-eng-ws"
+GW="uupl-modbus-gw"
+PLC="hex-turbine-plc"
 
 for c in "$ATTACKER" "$SCADA" "$ENG_WS" "$GW" "$PLC"; do
     require_running "$c"
 done
 
 echo "[stunnel] Waiting for SCADA SSH and stunnel gateway..."
-wait_for_port "$ENG_WS" 10.10.2.20 22   30 || fail "scada-server :22 not ready from eng-ws"
+wait_for_port "$ENG_WS" 10.10.2.20 22   30 || fail "distribution-scada :22 not ready from eng-ws"
 wait_for_port "$ENG_WS" 10.10.2.50 8502 30 || fail "stunnel gateway :8502 not ready from eng-ws"
 wait_for_port "$ENG_WS" 10.10.3.21 502  30 || fail "turbine PLC :502 not ready from eng-ws"
 
@@ -40,7 +40,7 @@ SCADA_LOGIN="$(ssh_password_login_via_jump "$ATTACKER" \
     scada_admin 10.10.2.20 W1nd0ws@2016)"
 assert_contains "$SCADA_LOGIN" "SSH_OK" "ssh scada_admin/W1nd0ws@2016 authenticates"
 
-echo "[stunnel] Stage 2: client cert and key are world-readable on scada-server"
+echo "[stunnel] Stage 2: client cert and key are world-readable on distribution-scada"
 
 PERMS="$(in_container "$SCADA" sh -c '
 ls -la /run/stunnel-certs/client.crt /run/stunnel-certs/client.key /run/stunnel-certs/ca.crt 2>&1
@@ -63,7 +63,7 @@ assert_contains "$KEY_PEM" "BEGIN PRIVATE KEY" \
 
 echo "[stunnel] Stage 3 + 4: stolen cert opens TLS to gateway and reads Modbus on PLC"
 
-# The realistic visitor path is scp from scada-server to eng-ws (which has
+# The realistic visitor path is scp from distribution-scada to eng-ws (which has
 # python3 + pymodbus). For the test we stage the cert/key/ca through the host
 # via docker cp, run the TLS-wrapped Modbus read on eng-ws, then clean up.
 HOST_TMP="$(mktemp -d)"

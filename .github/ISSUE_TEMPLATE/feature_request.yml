@@ -16,7 +16,7 @@ body:
       label: Feature Category
       description: What type of feature are you proposing?
       options:
-        - New device or container (PLC, RTU, HMI, historian, gateway, etc.)
+        - New device or container (PLC, RTU, HMI, uupl-historian, gateway, etc.)
         - Protocol support (Modbus, IEC 104, OPC UA, DNP3, IEC 61850, etc.)
         - New CTF scenario or zone
         - Vulnerability simulation (attack surface, misconfiguration, weak credential, etc.)

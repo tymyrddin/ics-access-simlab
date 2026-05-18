@@ -15,8 +15,8 @@ set -uo pipefail
 REPO="$(cd "$(dirname "$0")/../.." && pwd)"
 source "$REPO/tests/smoke/lib.sh"
 
-ENG_WS="engineering-workstation"
-RELAY="ied_relay_a"
+ENG_WS="uupl-eng-ws"
+RELAY="uupl-relay-a"
 
 for c in "$ENG_WS" "$RELAY"; do
     require_running "$c"

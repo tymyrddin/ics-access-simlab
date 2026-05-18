@@ -17,10 +17,10 @@ set -uo pipefail
 REPO="$(cd "$(dirname "$0")/../.." && pwd)"
 source "$REPO/tests/smoke/lib.sh"
 
-ENG_WS="engineering-workstation"
+ENG_WS="uupl-eng-ws"
 FUXA_IP="10.10.3.10"
 FUXA_PORT=1881
-FUXA_CONTAINER="hmi_main"
+FUXA_CONTAINER="uupl-hmi"
 
 require_running "$ENG_WS"
 require_running "$FUXA_CONTAINER"

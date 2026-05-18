@@ -28,8 +28,8 @@
 # iptables -A DOCKER-USER -s {internet} -d {control} -j DROP
 # iptables -A DOCKER-USER -s {internet} -d {wan} -j DROP
 #
-# Enterprise to operational: historian web, SCADA web, SSH to engineering workstation.
-# iptables -A DOCKER-USER -s {enterprise} -d {historian} -p tcp --dport 8080 -j ACCEPT
+# Enterprise to operational: uupl-historian web, SCADA web, SSH to engineering workstation.
+# iptables -A DOCKER-USER -s {enterprise} -d {uupl-historian} -p tcp --dport 8080 -j ACCEPT
 # iptables -A DOCKER-USER -s {enterprise} -d {scada} -p tcp --dport 8080 -j ACCEPT
 # iptables -A DOCKER-USER -s {enterprise} -d {eng_ws} -p tcp --dport 22 -j ACCEPT
 # iptables -A DOCKER-USER -s {enterprise} -d {operational} -j DROP
@@ -66,9 +66,9 @@
 #
 # DMZ: internet-facing attack surface.
 # iptables -A DOCKER-USER -s {internet} -d {dmz} -j ACCEPT
-# iptables -A DOCKER-USER -s {ssh_bastion} -d {enterprise} -j ACCEPT
+# iptables -A DOCKER-USER -s {contractors-gate} -d {enterprise} -j ACCEPT
 # iptables -A DOCKER-USER -s {dmz} -d {enterprise} -j DROP
-# iptables -A DOCKER-USER -s {dmz} -d {historian} -p tcp --dport 8080 -j ACCEPT
+# iptables -A DOCKER-USER -s {dmz} -d {uupl-historian} -p tcp --dport 8080 -j ACCEPT
 # iptables -A DOCKER-USER -s {dmz} -d {scada} -p tcp --dport 8080 -j ACCEPT
 # iptables -A DOCKER-USER -s {dmz} -d {operational} -j DROP
 # iptables -A DOCKER-USER -s {dmz} -d {control} -j DROP

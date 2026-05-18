@@ -36,11 +36,11 @@ require_generated() {
 # longer runs on docker networks; probes execute from a real lab node.
 _probe_runner() {
     case "$1" in
-        ics_internet|internet)       echo attacker-machine ;;
-        ics_enterprise|enterprise)   echo enterprise-workstation ;;
-        ics_operational|operational) echo engineering-workstation ;;
-        ics_control|control)         echo turbine_plc ;;
-        ics_dmz|dmz)                 echo ssh_bastion ;;
+        ics_internet|internet)       echo unseen-gate ;;
+        ics_enterprise|enterprise)   echo bursar-desk ;;
+        ics_operational|operational) echo uupl-eng-ws ;;
+        ics_control|control)         echo hex-turbine-plc ;;
+        ics_dmz|dmz)                 echo contractors-gate ;;
         *) echo "$1" ;;  # already a container name
     esac
 }
@@ -107,8 +107,8 @@ in_container() {
 }
 
 # Default Python interpreter that has paramiko available.
-# attacker-machine ships paramiko in /opt/attacker-env (a venv).
-# These helpers always run inside attacker-machine. The lab containers do not
+# unseen-gate ships paramiko in /opt/attacker-env (a venv).
+# These helpers always run inside unseen-gate. The lab containers do not
 # carry paramiko or any other test-only dependency.
 SSH_RUNNER_PY="${SSH_RUNNER_PY:-/opt/attacker-env/bin/python3}"
 
@@ -312,7 +312,7 @@ require_running() {
 # Wait for a TCP port on <host> to accept connections, by probing from inside
 # <runner>. Returns 0 once the port answers, 1 if <timeout> seconds pass first.
 # Used to bridge the gap between 'docker container running' and 'service ready'
-# (NFS-Ganesha + sshd take a few seconds after admin-home enters its entrypoint).
+# (NFS-Ganesha + sshd take a few seconds after wizzards-retreat enters its entrypoint).
 # Uses bash explicitly: /dev/tcp is a bash builtin and is missing in dash, which
 # is the default 'sh' on debian-slim images.
 # Usage: wait_for_port <runner> <host> <port> [timeout-seconds]

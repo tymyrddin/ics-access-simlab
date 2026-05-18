@@ -15,19 +15,19 @@ set -uo pipefail
 REPO="$(cd "$(dirname "$0")/../.." && pwd)"
 source "$REPO/tests/smoke/lib.sh"
 
-ATTACKER="attacker-machine"
-HOME_BOX="admin-home"
-LEGACY="legacy-workstation"
-ENT_WS="enterprise-workstation"
-HISTORIAN="historian"
+ATTACKER="unseen-gate"
+HOME_BOX="wizzards-retreat"
+LEGACY="hex-legacy-1"
+ENT_WS="bursar-desk"
+HISTORIAN="uupl-historian"
 
 for c in "$ATTACKER" "$HOME_BOX" "$LEGACY" "$ENT_WS" "$HISTORIAN"; do
     require_running "$c"
 done
 
-echo "[ingest] Waiting for hex-legacy-1 FTP and historian web..."
+echo "[ingest] Waiting for hex-legacy-1 FTP and uupl-historian web..."
 wait_for_port "$HOME_BOX" 10.10.1.10 21 30   || fail "hex-legacy-1 :21 not ready"
-wait_for_port "$ENT_WS"   10.10.2.10 8080 30 || fail "historian :8080 not ready"
+wait_for_port "$ENT_WS"   10.10.2.10 8080 30 || fail "uupl-historian :8080 not ready"
 
 echo "[ingest] Stage 1a: ENGINEER.LOG over anonymous FTP exposes hist_read"
 
@@ -52,11 +52,11 @@ echo "[ingest] Stage 1b: ENGINEER.LOG over anonymous SMB (alternative path)"
 SMB_LOG="$(in_container "$HOME_BOX" sh -c "smbclient -N //10.10.1.10/public --option='client min protocol=NT1' -c 'get LOGBOOK/ENGINEER.LOG -' 2>&1")"
 assert_contains "$SMB_LOG" "history2017" "anonymous SMB path to ENGINEER.LOG leaks history2017"
 
-echo "[ingest] Stage 2a: /assets endpoint lists historian tags"
+echo "[ingest] Stage 2a: /assets endpoint lists uupl-historian tags"
 
 # Runbook reads /assets before injecting, to pick a target tag name.
 ASSETS_OUT="$(in_container "$ENT_WS" curl -sf -m 5 http://10.10.2.10:8080/assets 2>&1)"
-assert_contains "$ASSETS_OUT" "turbine_rpm" "historian /assets lists turbine_rpm"
+assert_contains "$ASSETS_OUT" "turbine_rpm" "uupl-historian /assets lists turbine_rpm"
 
 echo "[ingest] Stage 2b: POST /ingest with valid creds writes a reading"
 

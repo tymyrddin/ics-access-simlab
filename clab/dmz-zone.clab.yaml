@@ -2,7 +2,7 @@
 #
 # Three Linux bridges enter this topology: ics_dmz (the zone's own),
 # ics_internet (for inet-dmz-fw's other side), and ics_enterprise (for
-# dmz-ent-fw and the dual-homed ssh_bastion). Same kind: bridge name
+# dmz-ent-fw and the dual-homed contractors-gate). Same kind: bridge name
 # means the same Linux bridge on the host, shared with other topologies.
 
 name: uupl-dmz
@@ -43,76 +43,76 @@ topology:
         role: gateway
 
     # ── DMZ services ────────────────────────────────────────────────────
-    umati_gateway:
-      image: dmz-umati-gateway
+    guild-exchange:
+      image: dmz-guild-exchange
       cap-add: [NET_ADMIN]
       exec:
-        - sh -c "ip addr add 10.10.5.10/24 dev eth1 && ip link set eth1 up"
+        - sh -c "n=0; until ip link show eth1 >/dev/null 2>&1; do n=$((n+1)); [ $n -ge 30 ] && break; sleep 1; done; ip addr add 10.10.5.10/24 dev eth1 && ip link set eth1 up"
         - sh -c "ip route replace default via 10.10.5.201"
 
-    neuron_gateway:
-      image: dmz-neuron-gateway
+    sorting-office:
+      image: dmz-sorting-office
       cap-add: [NET_ADMIN]
       exec:
-        - sh -c "ip addr add 10.10.5.11/24 dev eth1 && ip link set eth1 up"
+        - sh -c "n=0; until ip link show eth1 >/dev/null 2>&1; do n=$((n+1)); [ $n -ge 30 ] && break; sleep 1; done; ip addr add 10.10.5.11/24 dev eth1 && ip link set eth1 up"
         - sh -c "ip route replace default via 10.10.5.201"
 
-    mqtt_dmz:
-      image: dmz-mqtt-dmz
+    clacks-relay:
+      image: dmz-clacks-relay
       cap-add: [NET_ADMIN]
       exec:
-        - sh -c "ip addr add 10.10.5.12/24 dev eth1 && ip link set eth1 up"
+        - sh -c "n=0; until ip link show eth1 >/dev/null 2>&1; do n=$((n+1)); [ $n -ge 30 ] && break; sleep 1; done; ip addr add 10.10.5.12/24 dev eth1 && ip link set eth1 up"
         - sh -c "ip route replace default via 10.10.5.201"
 
-    opcua_server:
-      image: dmz-opcua-server
+    guild-register:
+      image: dmz-guild-register
       cap-add: [NET_ADMIN]
       exec:
-        - sh -c "ip addr add 10.10.5.13/24 dev eth1 && ip link set eth1 up"
+        - sh -c "n=0; until ip link show eth1 >/dev/null 2>&1; do n=$((n+1)); [ $n -ge 30 ] && break; sleep 1; done; ip addr add 10.10.5.13/24 dev eth1 && ip link set eth1 up"
         - sh -c "ip route replace default via 10.10.5.201"
 
-    iec104_rtu:
-      image: dmz-iec104-rtu
+    substation-rtu:
+      image: dmz-substation-rtu
       cap-add: [NET_ADMIN]
       exec:
-        - sh -c "ip addr add 10.10.5.14/24 dev eth1 && ip link set eth1 up"
+        - sh -c "n=0; until ip link show eth1 >/dev/null 2>&1; do n=$((n+1)); [ $n -ge 30 ] && break; sleep 1; done; ip addr add 10.10.5.14/24 dev eth1 && ip link set eth1 up"
         - sh -c "ip route replace default via 10.10.5.201"
 
-    # ssh_bastion is dual-homed dmz + enterprise. eth1 = dmz, eth2 = enterprise.
-    ssh_bastion:
-      image: dmz-ssh-bastion
+    # contractors-gate is dual-homed dmz + enterprise. eth1 = dmz, eth2 = enterprise.
+    contractors-gate:
+      image: dmz-contractors-gate
       cap-add: [NET_ADMIN]
       exec:
-        - sh -c "ip addr add 10.10.5.20/24 dev eth1 && ip link set eth1 up"
-        - sh -c "ip addr add 10.10.1.30/24 dev eth2 && ip link set eth2 up"
+        - sh -c "n=0; until ip link show eth1 >/dev/null 2>&1; do n=$((n+1)); [ $n -ge 30 ] && break; sleep 1; done; ip addr add 10.10.5.20/24 dev eth1 && ip link set eth1 up"
+        - sh -c "n=0; until ip link show eth2 >/dev/null 2>&1; do n=$((n+1)); [ $n -ge 30 ] && break; sleep 1; done; ip addr add 10.10.1.30/24 dev eth2 && ip link set eth2 up"
         - sh -c "ip route replace default via 10.10.5.201"
 
-    sftp_drop:
-      image: dmz-sftp-drop
+    dispatch-box:
+      image: dmz-dispatch-box
       cap-add: [NET_ADMIN]
       exec:
-        - sh -c "ip addr add 10.10.5.21/24 dev eth1 && ip link set eth1 up"
+        - sh -c "n=0; until ip link show eth1 >/dev/null 2>&1; do n=$((n+1)); [ $n -ge 30 ] && break; sleep 1; done; ip addr add 10.10.5.21/24 dev eth1 && ip link set eth1 up"
         - sh -c "ip route replace default via 10.10.5.201"
 
-    ntp_server:
-      image: dmz-ntp-server
+    guild-clock:
+      image: dmz-guild-clock
       cap-add: [NET_ADMIN]
       exec:
-        - sh -c "ip addr add 10.10.5.30/24 dev eth1 && ip link set eth1 up"
+        - sh -c "n=0; until ip link show eth1 >/dev/null 2>&1; do n=$((n+1)); [ $n -ge 30 ] && break; sleep 1; done; ip addr add 10.10.5.30/24 dev eth1 && ip link set eth1 up"
         - sh -c "ip route replace default via 10.10.5.201"
 
-    dns_forwarder:
-      image: dmz-dns-forwarder
+    city-directory:
+      image: dmz-city-directory
       cap-add: [NET_ADMIN]
       exec:
-        - sh -c "ip addr add 10.10.5.31/24 dev eth1 && ip link set eth1 up"
+        - sh -c "n=0; until ip link show eth1 >/dev/null 2>&1; do n=$((n+1)); [ $n -ge 30 ] && break; sleep 1; done; ip addr add 10.10.5.31/24 dev eth1 && ip link set eth1 up"
         - sh -c "ip route replace default via 10.10.5.201"
 
-    syslog_relay:
-      image: dmz-syslog-relay
+    scribes-post:
+      image: dmz-scribes-post
       cap-add: [NET_ADMIN]
       exec:
-        - sh -c "ip addr add 10.10.5.32/24 dev eth1 && ip link set eth1 up"
+        - sh -c "n=0; until ip link show eth1 >/dev/null 2>&1; do n=$((n+1)); [ $n -ge 30 ] && break; sleep 1; done; ip addr add 10.10.5.32/24 dev eth1 && ip link set eth1 up"
         - sh -c "ip route replace default via 10.10.5.201"
 
   # Per-topology prefix `vd*` for globally unique veth names.
@@ -122,15 +122,15 @@ topology:
     - endpoints: [dmz-ent-fw:eth1,  ics_dmz:vd2]
     - endpoints: [dmz-ent-fw:eth2,  ics_enterprise:vd3]
 
-    - endpoints: [umati_gateway:eth1,  ics_dmz:vd4]
-    - endpoints: [neuron_gateway:eth1, ics_dmz:vd5]
-    - endpoints: [mqtt_dmz:eth1,       ics_dmz:vd6]
-    - endpoints: [opcua_server:eth1,   ics_dmz:vd7]
-    - endpoints: [iec104_rtu:eth1,     ics_dmz:vd8]
-    - endpoints: [ssh_bastion:eth1,    ics_dmz:vd9]
-    - endpoints: [sftp_drop:eth1,      ics_dmz:vd10]
-    - endpoints: [ntp_server:eth1,     ics_dmz:vd11]
-    - endpoints: [dns_forwarder:eth1,  ics_dmz:vd12]
-    - endpoints: [syslog_relay:eth1,   ics_dmz:vd13]
+    - endpoints: [guild-exchange:eth1,  ics_dmz:vd4]
+    - endpoints: [sorting-office:eth1, ics_dmz:vd5]
+    - endpoints: [clacks-relay:eth1,       ics_dmz:vd6]
+    - endpoints: [guild-register:eth1,   ics_dmz:vd7]
+    - endpoints: [substation-rtu:eth1,     ics_dmz:vd8]
+    - endpoints: [contractors-gate:eth1,    ics_dmz:vd9]
+    - endpoints: [dispatch-box:eth1,      ics_dmz:vd10]
+    - endpoints: [guild-clock:eth1,     ics_dmz:vd11]
+    - endpoints: [city-directory:eth1,  ics_dmz:vd12]
+    - endpoints: [scribes-post:eth1,   ics_dmz:vd13]
 
-    - endpoints: [ssh_bastion:eth2, ics_enterprise:vd14]
+    - endpoints: [contractors-gate:eth2, ics_enterprise:vd14]

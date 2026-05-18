@@ -8,15 +8,16 @@
 # Coverage:
 #   Stage 0  prerequisites: control zone PLC reachable, MQTT broker reachable
 #   Stage 2  Neuron API reachable from eng-ws (operational zone)
-#   Stage 3  admin/uupl2015 login returns a token
+#   Stage 3  admin/uupl2015 login returns a token; northbound config readable
 #   Stage 3b credential reuse: same password also works on contractors-gate
+#   Stage 4  eng-ws can reach both brokers (precondition for the MQTT bridge)
 #   Stage 5b northbound MQTT broker reachable from internet zone (visitor's
-#            subscribe-from-unseen-gate path)
+#            subscribe path)
 #
-# Stages 4, 5, 6 (configuring Neuron southbound + tag group + tags + observing
-# MQTT messages) require state mutation that this smoke test does not perform.
-# After Stage 3 returns a token, the visitor still needs to set up socat and
-# Modbus south node by hand; the auth check is the smoke gate for that flow.
+# Stage 4 (running the bridge) and Stage 5 (observing relay/ messages) require
+# a live background process that this smoke test does not start. The two
+# connectivity assertions below prove the bridge is feasible without mutating
+# lab state.
 #
 # Usage: bash tests/smoke/test_neuron_covert_exfil.sh
 set -uo pipefail
@@ -24,14 +25,14 @@ set -uo pipefail
 REPO="$(cd "$(dirname "$0")/../.." && pwd)"
 source "$REPO/tests/smoke/lib.sh"
 
-ATTACKER="attacker-machine"
-HOME_BOX="admin-home"
-ENG_WS="engineering-workstation"
-NEURON="neuron_gateway"
-MQTT="mqtt_dmz"
-BASTION="ssh_bastion"
+ATTACKER="unseen-gate"
+HOME_BOX="wizzards-retreat"
+ENG_WS="uupl-eng-ws"
+NEURON="sorting-office"
+MQTT="clacks-relay"
+BASTION="contractors-gate"
 
-for c in "$ATTACKER" "$HOME_BOX" "$ENG_WS" "$NEURON" "$MQTT" "$BASTION" turbine_plc; do
+for c in "$ATTACKER" "$HOME_BOX" "$ENG_WS" "$NEURON" "$MQTT" "$BASTION" hex-turbine-plc; do
     require_running "$c"
 done
 
@@ -68,6 +69,16 @@ echo "[neuron] Stage 3b: credential reuse on contractors-gate (root/uupl2015)"
 # the credential-reuse story is anchored in this runbook's smoke too.
 BAST_LOGIN="$(ssh_password_login "$ATTACKER" root 10.10.5.20 uupl2015)"
 assert_contains "$BAST_LOGIN" "SSH_OK" "same uupl2015 password also unlocks contractors-gate root"
+
+echo "[neuron] Stage 4: eng-ws can reach both brokers (MQTT bridge precondition)"
+
+# The bridge subscribes from uupl-mqtt (internal, control zone) and publishes
+# to clacks-relay (DMZ, internet-facing). Both legs need to be open from eng-ws.
+wait_for_port "$ENG_WS" 10.10.3.60 1883 10 || fail "uupl-mqtt :1883 not reachable from eng-ws"
+ok "uupl-mqtt :1883 reachable from eng-ws (internal broker, subscribe leg)"
+
+wait_for_port "$ENG_WS" 10.10.5.12 1883 10 || fail "clacks-relay :1883 not reachable from eng-ws"
+ok "clacks-relay :1883 reachable from eng-ws (internet broker, publish leg)"
 
 echo "[neuron] Stage 5b: clacks-relay reachable from internet zone for visitor subscribe"
 

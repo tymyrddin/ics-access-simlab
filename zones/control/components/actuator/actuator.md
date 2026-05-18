@@ -8,10 +8,10 @@ parameterised by environment variables:
 
 | Container             | IP         | Type    | Function                          |
 |-----------------------|------------|---------|-----------------------------------|
-| actuator_fuel_valve   | 10.10.3.51 | valve   | Controls fuel supply to turbine   |
-| actuator_cooling_pump | 10.10.3.52 | pump    | Controls cooling water flow       |
-| actuator_breaker_a    | 10.10.3.53 | breaker | Controls Feeder A circuit breaker |
-| actuator_breaker_b    | 10.10.3.54 | breaker | Controls Feeder B circuit breaker |
+| uupl-fuel-valve   | 10.10.3.51 | valve   | Controls fuel supply to turbine   |
+| uupl-cooling-pump | 10.10.3.52 | pump    | Controls cooling water flow       |
+| uupl-breaker-a    | 10.10.3.53 | breaker | Controls Feeder A circuit breaker |
+| uupl-breaker-b    | 10.10.3.54 | breaker | Controls Feeder B circuit breaker |
 
 In normal operation, the PLC writes to these containers continuously: the
 governor loop writes the fuel valve position, and the breaker actuators are
@@ -143,28 +143,28 @@ network, without needing credentials or pivoting through the HMI or PLC:
 ```
 attacker on ics_control network
         ↓
-write actuator_breaker_a coil[1] = 1
+write uupl-breaker-a coil[1] = 1
         → Feeder A breaker opens
         → PLC detects: COIL_BREAKER_A = 0
         → physics: drag drops, RPM climbs
         → line voltage A = 0, alarm_undervoltage fires
 
-write actuator_breaker_b coil[1] = 1
+write uupl-breaker-b coil[1] = 1
         → Feeder B breaker opens
         → total loss of load: RPM climbs rapidly
         → overspeed alarm → auto-trip → turbine offline
 
-write actuator_fuel_valve HR[0] = 0
+write uupl-fuel-valve HR[0] = 0
         → fuel cut immediately
         → RPM drops toward 0
         → governor fights back; write PLC setpoint = 0 to prevent recovery
 
-write actuator_cooling_pump HR[0] = 0
+write uupl-cooling-pump HR[0] = 0
         → cooling stops
         → temperature rises over time (minutes)
         → overtemp alarm → auto-trip if threshold reached
 ```
 
 The actuators also serve as a second opinion on breaker state: an attacker can
-read `actuator_breaker_a IR[0]` to confirm a trip worked, even if the PLC has
+read `uupl-breaker-a IR[0]` to confirm a trip worked, even if the PLC has
 not yet polled and updated its own state.

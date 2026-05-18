@@ -21,10 +21,10 @@ set -uo pipefail
 REPO="$(cd "$(dirname "$0")/../.." && pwd)"
 source "$REPO/tests/smoke/lib.sh"
 
-ATTACKER="attacker-machine"
-VICTIM="admin-home"
-ATTACKER_IFACE="eth1"          # attacker-machine's ics_internet NIC
-VICTIM_NEIGH_IFACE="eth1"      # admin-home's ics_internet NIC
+ATTACKER="unseen-gate"
+VICTIM="wizzards-retreat"
+ATTACKER_IFACE="eth1"          # unseen-gate's ics_internet NIC
+VICTIM_NEIGH_IFACE="eth1"      # wizzards-retreat's ics_internet NIC
 GATEWAY_IP="10.10.0.200"       # inet-dmz-fw on ics_internet
 VICTIM_IP="10.10.0.10"
 

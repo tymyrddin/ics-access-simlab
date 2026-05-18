@@ -181,7 +181,13 @@ async def relay_logic_loop(store):
     # Explicitly reset coils to ensure clean startup state
     store.setValues(FC_CO, COIL_TRIP, [0])
     store.setValues(FC_CO, COIL_BREAKER, [0])  # breaker closed
-    await asyncio.sleep(10.0)  # Extended grace period for PLC startup
+    # Grace period covers the PLC physics ramp. The PLC ramps fuel valve
+    # 0->60% over ~30s; RPM (and therefore voltage) is proportional to
+    # fuel fraction, so voltage stays well below the 85% undervoltage
+    # threshold for the whole ramp plus a few seconds of RPM convergence.
+    # 60s comfortably outlasts the lot. Real protective relays have
+    # similar power-on blocking periods.
+    await asyncio.sleep(60.0)
     tripped_at = None
     reclosed   = False
 
