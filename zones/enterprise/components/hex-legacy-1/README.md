@@ -40,8 +40,7 @@ visible in the virtual C: drive at `C:\UUPL\` and `C:\LOGBOOK\`):
 - `LOGBOOK/ENGINEER.LOG`: every system password in plaintext, described as
   "Ponder Stibbons' informal notes". Includes hist_read/history2017 (the
   uupl-historian ingest credential) and the SCADA SSH password.
-- `procedures.txt`, `network_inventory.txt`, `logs_sample.csv` (legacy
-  copies kept under different names; same flavour of information).
+- `procedures.txt`, `network_inventory.txt`, `logs_sample.csv`: older artefacts from an earlier era. `network_inventory.txt` carries 1999 addresses (192.168.x.x) and pre-dates the current network layout. Those addresses are historical and correct-as-wrong. Updating them to 10.10.x.x would erase the deliberate 1999-to-2019 stratification the pair with `UUPL/NETWORK.TXT` is designed to show.
 
 The `private` share is restricted to `Administrator` but contains the same
 credential list in `plc-access.conf`.
@@ -56,7 +55,17 @@ To remove Telnet: delete the xinetd config block and remove `telnetd` from the a
 
 To change the password: update the `chpasswd` line and the `smbpasswd` invocation in `entrypoint.sh`.
 
-Static scenario content lives in `data/shares/` and is copied into the image by the Dockerfile. Anything in `entrypoint.sh` is there because it is runtime-coupled (Samba and service configuration) or credential-coupled (the C: drive files: the short logbook, PLCACCS.CFG, and the rest). Edit `data/shares/` for public share content. Edit the heredocs in `entrypoint.sh` for C: drive content.
+Static scenario content lives in `data/`, split by destination. `data/shares/` is the public SMB share. `data/C/` holds C: drive files not in the share (PLCACCS.CFG, BACKUP.BAK, PROCS.TXT, SCADA/LOGS.CSV, and the Windows system files). `data/private/` holds the private SMB share credential file. ENGINEER.LOG and NETWORK.TXT live once in `data/shares/` and are COPY'd to both the share and the C: drive; each has one source file in the repo. `entrypoint.sh` is runtime-coupled: Samba and service configuration, user creation, and permissions on the private share.
+
+Credential manifest. `entrypoint.sh` is authoritative for login credentials; `data/shares/LOGBOOK/ENGINEER.LOG` is the authoritative scenario loot. A credential appearing in more than one place here is intentional scenario design, not duplication. Rotating a credential means updating every line listed.
+
+- Administrator / hex123: entrypoint.sh, ENGINEER.LOG, BACKUP.BAK, config/legacy-services.conf
+- root / hex123: entrypoint.sh
+- engineer / spanner99: ENGINEER.LOG, data/C/PRIVATE/PLCACCS.CFG, data/private/plc-access.conf
+- historian / Historian2015: ENGINEER.LOG, data/C/PRIVATE/PLCACCS.CFG, data/private/plc-access.conf
+- admin / admin (SCADA web): ENGINEER.LOG, data/C/PRIVATE/PLCACCS.CFG, data/private/plc-access.conf
+- hist_read / history2017: ENGINEER.LOG only
+- scada_admin / W1nd0ws@2016: ENGINEER.LOG only
 
 ## Hardening suggestions
 

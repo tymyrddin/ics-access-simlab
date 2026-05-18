@@ -1,0 +1,12 @@
+[backup created 2003-11-04 by wsadmin]
+source: \\UUPL-SRV-01\operations$
+
+Previous hostname: HEXLEG-WS1
+New hostname:      hex-legacy-1
+
+--- Domain admin account at time of migration ---
+Administrator / hex123
+
+--- Note from Ponder ---
+This file can be deleted once we confirm nothing was lost in the migration.
+That was 2003. Nothing has been deleted.

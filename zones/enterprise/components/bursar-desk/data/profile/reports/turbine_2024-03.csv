@@ -1,0 +1,4 @@
+timestamp,asset,rpm,temp_c,pressure_bar,voltage_a,current_a,voltage_b,current_b
+2024-03-01T08:00:00,turbine_main,2989,182.7,4.1,11040,312.1,10987,309.3
+2024-03-15T12:00:00,turbine_main,2993,183.2,4.1,11043,312.6,10991,310.0
+2024-03-31T23:55:00,turbine_main,2996,183.7,4.1,11046,313.1,10995,310.5

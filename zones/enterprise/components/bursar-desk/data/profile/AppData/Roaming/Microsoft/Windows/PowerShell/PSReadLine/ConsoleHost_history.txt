@@ -1,0 +1,13 @@
+dir
+cd AppData\Roaming\UUPLOps
+Get-Content .\ops-access.conf
+cd ~
+.\Desktop\pull_monthly_report.ps1 -Month 2024-03
+ssh engineer@10.10.2.30
+ping 10.10.2.10
+Invoke-WebRequest -Uri "http://10.10.2.10:8080/report?asset=turbine_main&from=2024-04-01&to=2024-04-28" -Headers @{Authorization="Basic aGlzdG9yaWFuOkhpc3RvcmlhbjIwMTU="} -OutFile .\reports\turbine_2024-04.csv
+nmap -sn 10.10.2.0/24
+ssh engineer@10.10.2.30
+cat plc-access.conf
+exit
+dir .\reports

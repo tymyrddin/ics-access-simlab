@@ -1,0 +1,16 @@
+Misc operational notes, please do not delete
+
+Access to uupl-historian: see AppData\Roaming\UUPLOps\ops-access.conf
+If uupl-historian is down, call Ponder (ext 201) before trying anything yourself.
+
+Monthly report script is on the Desktop. Runs on the 1st of each month.
+If it fails mid-month, re-run manually:
+  .\Desktop\pull_monthly_report.ps1 -Month 2024-04
+
+SSH to eng workstation: engineer @ 10.10.2.30
+(ask Ponder for the password, not keeping it here again)
+
+SCADA is read-only from here. Changes go through Sgt Colon (ext 105).
+
+Note from Reg Shoe: "All historical reports should be in C:\Users\bursardesk\reports.
+Yes, I know December is missing. I am working on it."

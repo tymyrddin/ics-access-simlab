@@ -56,11 +56,17 @@ network without needing to pivot through the engineering workstation.
 
 To change the password: edit the `chpasswd` line in the Dockerfile.
 
-To change the credentials in the profile: edit the heredoc blocks in `entrypoint.sh` that write `ops-access.conf` and `pull_monthly_report.ps1`.
+To change the credentials in the profile: edit `data/profile/AppData/Roaming/UUPLOps/ops-access.conf` and `data/profile/Desktop/pull_monthly_report.ps1`. The Base64 string in `data/profile/AppData/Roaming/Microsoft/Windows/PowerShell/PSReadLine/ConsoleHost_history.txt` encodes the same uupl-historian credential and needs updating too (re-encode with `printf 'user:pass' | base64`).
 
 To remove the world-readable backup: delete the `cp` and `chmod` lines near the end of `entrypoint.sh`.
 
 To change which networks the machine is on: edit `ctf-config.yaml` under `enterprise_workstation`.
+
+Credential manifest. The Dockerfile is authoritative for the login credential; `data/profile/` files are the authoritative scenario loot. Rotating a credential means updating every line listed.
+
+- bursardesk / Octavo1: Dockerfile
+- historian / Historian2015: data/profile/AppData/Roaming/UUPLOps/ops-access.conf, data/profile/Desktop/pull_monthly_report.ps1, ConsoleHost_history.txt (Base64 aGlzdG9yaWFuOkhpc3RvcmlhbjIwMTU=)
+- admin / admin (SCADA web): data/profile/AppData/Roaming/UUPLOps/ops-access.conf
 
 ## Hardening suggestions
 
