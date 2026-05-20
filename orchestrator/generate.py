@@ -50,7 +50,6 @@ COMPONENT_DIRS = {
     # operational zone
     "uupl-historian":          ZONES_DIR / "operational" / "components" / "uupl-historian",
     "distribution-scada":      ZONES_DIR / "operational" / "components" / "distribution-scada",
-    "scada-lts":               ZONES_DIR / "operational" / "components" / "scada-lts",
     "uupl-eng-ws":             ZONES_DIR / "operational" / "components" / "uupl-eng-ws",
     # control zone devices
     "hex-turbine-plc":         ZONES_DIR / "control" / "components" / "hex-turbine-plc",
@@ -61,7 +60,6 @@ COMPONENT_DIRS = {
     "actuator-modbus-sim":     ZONES_DIR / "control" / "components" / "actuator-modbus-sim",# 1:N (4 actuators), generic
     "uupl-mqtt":               ZONES_DIR / "control" / "components" / "uupl-mqtt",
     "uupl-modbus-gw":          ZONES_DIR / "control" / "components" / "uupl-modbus-gw",
-    "scada-lts-ctrl":          ZONES_DIR / "control" / "components" / "scada-lts-ctrl",     # legacy/unused
     "uupl-hmi":                ZONES_DIR / "control" / "components" / "uupl-hmi",
     "hex-turbine-opcua":       ZONES_DIR / "control" / "components" / "hex-turbine-opcua",
     # field devices (deferred, vendor-specific builds)
@@ -232,7 +230,7 @@ def generate_certs(repo_root: Path) -> Path:
     Certs are NOT committed to the repo (.gitignore excludes certs/).
     Anyone who runs generate.py gets fresh certs. Containers mount them
     as read-only volumes; the client key is intentionally chmod 644 by
-    the scada-lts entrypoint (CTF vulnerability HEX-5103).
+    the distribution-scada entrypoint (CTF vulnerability HEX-5103).
 
     Returns the certs/ directory path.
     """
@@ -274,7 +272,7 @@ def generate_certs(repo_root: Path) -> Path:
          "-CAcreateserial", "-out", str(srv_crt)])
     srv_csr.unlink()
 
-    # Client cert (scada-lts)
+    # Client cert (distribution-scada)
     cli_csr = certs_dir / "client.csr"
     run(["openssl", "genrsa", "-out", str(cli_key), "2048"])
     run(["openssl", "req", "-new", "-key", str(cli_key),
@@ -324,71 +322,30 @@ def generate_operational_compose(config: dict, output_path: Path) -> dict:
         },
     }
 
-    # SCADA server.
-    # scada-lts: Scada-LTS (Mango-based) with stunnel Modbus-TLS client.
-    #   Requires a MySQL sidecar (scada-db). Certs volume-mounted from certs/.
-    # scada-generic: custom Flask SCADA (original implementation).
+    # SCADA server: distribution-scada, Flask SCADA with Windows Server 2016
+    # facade and stunnel Modbus-TLS client. Certs volume-mounted from certs/.
+    # World-readable client.key is HEX-5103 (risk accepted 2020).
     scada = oz["scada_server"]
     _check_impl(scada["implementation"])
 
-    if scada["implementation"] == "scada-lts":
-        # MySQL sidecar, backing database for Scada-LTS.
-        # Weak credentials (scadalts/scada2015) are discoverable via SQLi or
-        # credential dump once the SCADA is compromised.
-        named_volumes["scada-db-data"] = {}
-        services["scada-db"] = {
-            "image": "mysql:8",
-            "container_name": "scada-db",
-            "hostname": "scada-db",
-            "restart": "unless-stopped",
-            "networks": {ops_net: {"ipv4_address": "10.10.2.19"}},
-            "environment": {
-                "MYSQL_DATABASE":      "scadalts",
-                "MYSQL_USER":          "scadalts",
-                "MYSQL_PASSWORD":      "scada2015",
-                "MYSQL_ROOT_PASSWORD": "scadaroot",
-            },
-            "volumes": ["scada-db-data:/var/lib/mysql"],
-        }
-        gw_ops_ip = oz.get("stunnel_gateway", {}).get("ops_ip", "10.10.2.50")
-        scada_svc = {
-            "build": {"context": _rel(COMPONENT_DIRS[scada["implementation"]], base_dir)},
-            "container_name": "distribution-scada",
-            "hostname": scada["hostname"],
-            "restart": "unless-stopped",
-            "networks": {ops_net: {"ipv4_address": scada["ip"]}},
-            "cap_add": ["NET_ADMIN"],
-            "environment": {
-                "MYSQL_HOST":     "scada-db",
-                "MYSQL_PORT":     "3306",
-                "MYSQL_DATABASE": "scadalts",
-                "MYSQL_USER":     "scadalts",
-                "MYSQL_PASSWORD": "scada2015",
-                "STUNNEL_GW_IP":  gw_ops_ip,
-            },
-            "depends_on": ["scada-db"],
-            # Mount client cert + key from generated certs/ directory. The
-            # mount is read-write so the entrypoint can chmod 644 client.key
-            # at startup, which is HEX-5103 (engineers widened the perms so
-            # the monitoring user could read it, then never tightened them).
-            "volumes": [
-                f"{_rel(certs_dir / 'client.crt', base_dir)}:/run/stunnel-certs/client.crt",
-                f"{_rel(certs_dir / 'client.key', base_dir)}:/run/stunnel-certs/client.key",
-                f"{_rel(certs_dir / 'ca.crt',     base_dir)}:/run/stunnel-certs/ca.crt",
-            ],
-        }
-    else:
-        scada_svc = {
-            "build": {"context": _rel(COMPONENT_DIRS[scada["implementation"]], base_dir)},
-            "container_name": "distribution-scada",
-            "hostname": scada["hostname"],
-            "restart": "unless-stopped",
-            "networks": {ops_net: {"ipv4_address": scada["ip"]}},
-            "cap_add": ["NET_ADMIN"],
-            "environment": {
-                "HISTORIAN_IP": scada.get("historian_ip", hist["ip"]),
-            },
-        }
+    gw_ops_ip = oz.get("stunnel_gateway", {}).get("ops_ip", "10.10.2.50")
+    scada_svc = {
+        "build": {"context": _rel(COMPONENT_DIRS[scada["implementation"]], base_dir)},
+        "container_name": "distribution-scada",
+        "hostname": scada["hostname"],
+        "restart": "unless-stopped",
+        "networks": {ops_net: {"ipv4_address": scada["ip"]}},
+        "cap_add": ["NET_ADMIN"],
+        "environment": {
+            "HISTORIAN_IP":  scada.get("historian_ip", hist["ip"]),
+            "STUNNEL_GW_IP": gw_ops_ip,
+        },
+        "volumes": [
+            f"{_rel(certs_dir / 'client.crt', base_dir)}:/run/stunnel-certs/client.crt",
+            f"{_rel(certs_dir / 'client.key', base_dir)}:/run/stunnel-certs/client.key",
+            f"{_rel(certs_dir / 'ca.crt',     base_dir)}:/run/stunnel-certs/ca.crt",
+        ],
+    }
 
     services["distribution-scada"] = scada_svc
 
@@ -467,70 +424,21 @@ def generate_control_compose(config: dict, output_path: Path) -> dict:
     services = {}
     named_volumes = {}
 
-    # Resolve stunnel gateway ctrl IP for scada-lts-ctrl instances.
-    gw_ctrl_ip = (
-        config.get("operational_zone", {})
-              .get("stunnel_gateway", {})
-              .get("ctrl_ip", "10.10.3.50")
-    )
-
     for dev in config.get("control_zone", {}).get("devices", []):
         impl = dev["implementation"]
         _check_impl(impl)
         svc_name = dev["name"].replace("_", "-")
 
-        if impl == "scada-lts-ctrl":
-            # MySQL sidecar, backing database for the control-zone Scada-LTS.
-            db_ip = "10.10.3.11"
-            db_svc = f"{dev['name']}-db"
-            named_volumes[f"{dev['name']}-db-data"] = {}
-            services[db_svc] = {
-                "image": "mysql:8",
-                "container_name": db_svc,
-                "hostname": db_svc,
-                "restart": "unless-stopped",
-                "networks": {ctrl_net: {"ipv4_address": db_ip}},
-                "environment": {
-                    "MYSQL_DATABASE":      "scadalts",
-                    "MYSQL_USER":          "scadalts",
-                    "MYSQL_PASSWORD":      "scada2015",
-                    "MYSQL_ROOT_PASSWORD": "scadaroot",
-                },
-                "volumes": [f"{dev['name']}-db-data:/var/lib/mysql"],
-            }
-            svc = {
-                "build": {"context": _rel(COMPONENT_DIRS[impl], base_dir)},
-                "container_name": dev["name"],
-                "hostname": dev.get("hostname", dev["name"]),
-                "restart": "unless-stopped",
-                "networks": {ctrl_net: {"ipv4_address": dev["ip"]}},
-                "environment": {
-                    "MYSQL_HOST":     db_svc,
-                    "MYSQL_PORT":     "3306",
-                    "MYSQL_DATABASE": "scadalts",
-                    "MYSQL_USER":     "scadalts",
-                    "MYSQL_PASSWORD": "scada2015",
-                    "STUNNEL_GW_IP":  gw_ctrl_ip,
-                    **(dev.get("env") or {}),
-                },
-                "depends_on": [db_svc],
-                "volumes": [
-                    f"{_rel(certs_dir / 'client.crt', base_dir)}:/run/stunnel-certs/client.crt",
-                    f"{_rel(certs_dir / 'client.key', base_dir)}:/run/stunnel-certs/client.key",
-                    f"{_rel(certs_dir / 'ca.crt',     base_dir)}:/run/stunnel-certs/ca.crt",
-                ],
-            }
-        else:
-            svc = {
-                "build": {"context": _rel(COMPONENT_DIRS[impl], base_dir)},
-                "container_name": dev["name"],
-                "hostname": dev.get("hostname", dev["name"]),
-                "restart": "unless-stopped",
-                "cap_add": ["NET_ADMIN"],
-                "networks": {ctrl_net: {"ipv4_address": dev["ip"]}},
-            }
-            if dev.get("env"):
-                svc["environment"] = dev["env"]
+        svc = {
+            "build": {"context": _rel(COMPONENT_DIRS[impl], base_dir)},
+            "container_name": dev["name"],
+            "hostname": dev.get("hostname", dev["name"]),
+            "restart": "unless-stopped",
+            "cap_add": ["NET_ADMIN"],
+            "networks": {ctrl_net: {"ipv4_address": dev["ip"]}},
+        }
+        if dev.get("env"):
+            svc["environment"] = dev["env"]
 
         services[svc_name] = svc
 
@@ -1059,14 +967,10 @@ def main() -> None:
     logging.info(f"Loading config: {config_path}")
     config = load_config(config_path)
 
-    # Generate TLS certs if any zone uses uupl-modbus-gw or scada-lts.
+    # Generate TLS certs if any zone uses uupl-modbus-gw or a SCADA with stunnel.
     oz = config.get("operational_zone", {})
     ctrl_devices = config.get("control_zone", {}).get("devices", [])
-    needs_certs = (
-        oz.get("stunnel_gateway") or
-        oz.get("scada_server", {}).get("implementation") == "scada-lts" or
-        any(d["implementation"] == "scada-lts-ctrl" for d in ctrl_devices)
-    )
+    needs_certs = bool(oz.get("stunnel_gateway"))
     if needs_certs:
         generate_certs(REPO_ROOT)
 

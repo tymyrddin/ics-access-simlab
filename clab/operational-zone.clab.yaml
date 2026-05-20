@@ -39,17 +39,6 @@ topology:
         - sh -c "n=0; until ip link show eth1 >/dev/null 2>&1; do n=$((n+1)); [ $n -ge 30 ] && break; sleep 1; done; ip addr add 10.10.2.10/24 dev eth1 && ip link set eth1 up"
         - sh -c "ip route replace default via 10.10.2.202"
 
-    scada-db:
-      image: lab-mysql8
-      env:
-        MYSQL_DATABASE:      scadalts
-        MYSQL_USER:          scadalts
-        MYSQL_PASSWORD:      scada2015
-        MYSQL_ROOT_PASSWORD: scadaroot
-      exec:
-        - sh -c "n=0; until ip link show eth1 >/dev/null 2>&1; do n=$((n+1)); [ $n -ge 30 ] && break; sleep 1; done; ip addr add 10.10.2.19/24 dev eth1 && ip link set eth1 up"
-        - sh -c "ip route replace default via 10.10.2.202"
-
     distribution-scada:
       image: operational-distribution-scada
       cap-add: [NET_ADMIN]
@@ -58,11 +47,6 @@ topology:
         - ../certs/client.key:/run/stunnel-certs/client.key
         - ../certs/ca.crt:/run/stunnel-certs/ca.crt
       env:
-        MYSQL_HOST:     scada-db
-        MYSQL_PORT:     '3306'
-        MYSQL_DATABASE: scadalts
-        MYSQL_USER:     scadalts
-        MYSQL_PASSWORD: scada2015
         STUNNEL_GW_IP:  10.10.2.50
       exec:
         - sh -c "n=0; until ip link show eth1 >/dev/null 2>&1; do n=$((n+1)); [ $n -ge 30 ] && break; sleep 1; done; ip addr add 10.10.2.20/24 dev eth1 && ip link set eth1 up"
@@ -101,8 +85,7 @@ topology:
     - endpoints: [ops-wan-router:eth2, ics_wan:vo1]
 
     - endpoints: [uupl-historian:eth1,               ics_operational:vo2]
-    - endpoints: [scada-db:eth1,                ics_operational:vo3]
-    - endpoints: [distribution-scada:eth1,            ics_operational:vo4]
+    - endpoints: [distribution-scada:eth1,            ics_operational:vo3]
     - endpoints: [uupl-modbus-gw:eth1,         ics_operational:vo5]
     - endpoints: [uupl-eng-ws:eth1, ics_operational:vo6]
 

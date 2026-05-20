@@ -69,7 +69,7 @@ lab still negotiates TLSv1.2 and a constrained cipher set to keep the
 RSA-2048 lab certs in play.
 
 Server certificate not verified by client: the SCADA stunnel client has
-`verify = 0` (see the scada-lts component README). A network attacker with a
+`verify = 0` (see `distribution-scada/stunnel-client.conf`). A network attacker with a
 route to port 8502 could present any certificate and the client would accept the
 connection.
 
@@ -84,8 +84,8 @@ client, but not vice versa from the client's perspective).
 ## Modifying vulnerabilities
 
 To enable TLSv1.2: remove the `sslVersion = TLSv1` line from `stunnel.conf`.
-The client configuration in `scada-lts` also requires updating if the CA is
-enforced end-to-end.
+The client configuration in `distribution-scada/stunnel-client.conf` also requires
+updating if the CA is enforced end-to-end.
 
 To disable mTLS (remove client cert requirement): change `verify = 2` to
 `verify = 0` in `stunnel.conf`. This reduces the gateway to a plain TLS

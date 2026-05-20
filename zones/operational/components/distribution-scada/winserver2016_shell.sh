@@ -35,7 +35,12 @@ cmd_dir() {
     local real show
     if [[ -n "$arg" ]]; then
         real="$(_real "$arg")"
-        local v="${arg//\\//}"; v="${v#\"}"; v="${v%\"}"; v="${v:2}"; v="${v#/}"
+        local v="${arg//\\//}"; v="${v#\"}"; v="${v%\"}"
+        if [[ "${v^^}" == C:/* || "${v^^}" == "C:" ]]; then
+            v="${v:2}"; v="${v#/}"
+        else
+            v="$VIRT_CWD/${v%/}"
+        fi
         show="C:\\${v//\//\\}"
     else
         real="$(_real)"; show="$(_disp)"
@@ -118,14 +123,28 @@ EOF
 }
 
 cmd_netstat() {
+    local show_pid=0
+    [[ "$*" == *o* ]] && show_pid=1
     printf '\nActive Connections\n\n'
-    printf '  Proto  Local Address          Foreign Address        State\n'
-    printf '  TCP    0.0.0.0:22             0.0.0.0:0              LISTENING\n'
-    printf '  TCP    0.0.0.0:8080           0.0.0.0:0              LISTENING\n'
-    netstat -tn 2>/dev/null \
-      | awk 'NR>2 && /ESTABLISHED/ {
-            printf "  %-6s %-22s %-22s %s\n", "TCP", $4, $5, $6
-        }' | head -8
+    if [[ $show_pid -eq 1 ]]; then
+        printf '  Proto  Local Address          Foreign Address        State           PID\n'
+        printf '  TCP    0.0.0.0:22             0.0.0.0:0              LISTENING       532\n'
+        printf '  TCP    0.0.0.0:8080           0.0.0.0:0              LISTENING       1148\n'
+        printf '  TCP    127.0.0.1:5020         0.0.0.0:0              LISTENING       2004\n'
+        netstat -tn 2>/dev/null \
+          | awk 'NR>2 && /ESTABLISHED/ {
+                printf "  %-6s %-22s %-22s %-16s %s\n", "TCP", $4, $5, $6, int(1000+rand()*3000)
+            }' | head -8
+    else
+        printf '  Proto  Local Address          Foreign Address        State\n'
+        printf '  TCP    0.0.0.0:22             0.0.0.0:0              LISTENING\n'
+        printf '  TCP    0.0.0.0:8080           0.0.0.0:0              LISTENING\n'
+        printf '  TCP    127.0.0.1:5020         0.0.0.0:0              LISTENING\n'
+        netstat -tn 2>/dev/null \
+          | awk 'NR>2 && /ESTABLISHED/ {
+                printf "  %-6s %-22s %-22s %s\n", "TCP", $4, $5, $6
+            }' | head -8
+    fi
     printf '\n'
 }
 
@@ -147,12 +166,12 @@ cmd_net() {
     case "$sub" in
         USER)
             printf '\nUser accounts for \\\\SCADA-SRV01\n\n'
-            printf '-------------------------------------------------------------------------------\n'
+            printf -- '-------------------------------------------------------------------------------\n'
             printf 'Administrator            scada_admin              Guest\n'
             printf 'The command completed successfully.\n\n' ;;
         VIEW)
             printf '\nServer Name            Remark\n\n'
-            printf '-------------------------------------------------------------------------------\n'
+            printf -- '-------------------------------------------------------------------------------\n'
             printf '\\\\OT-DC-01              OT Domain Controller\n'
             printf '\\\\HIST-SRV01            Process Historian\n'
             printf '\\\\ENG-WS01              Engineering Workstation\n'
@@ -167,18 +186,34 @@ cmd_nmap() { /usr/bin/nmap "$@"; }
 cmd_nc()   { /usr/bin/nc "$@"; }
 
 cmd_iwr() {
-    local uri="" outfile=""
+    local uri="" method="GET" content_type="" body="" outfile="" infile="" auth_header=""
     while [[ $# -gt 0 ]]; do
         case "${1,,}" in
-            -uri) shift; uri="$1" ;;
-            -outfile) shift; outfile="$1" ;;
+            -uri)         shift; uri="$1" ;;
+            -method)      shift; method="${1^^}" ;;
+            -contenttype) shift; content_type="$1" ;;
+            -body)        shift; body="$1" ;;
+            -outfile)     shift; outfile="$1" ;;
+            -infile)      shift; infile="$(_real "$1")" ;;
+            -headers)
+                shift
+                if [[ "$1" =~ Authorization=([^}]+) ]]; then
+                    local _v="${BASH_REMATCH[1]}"
+                    _v="${_v#\"}"; _v="${_v%\"}"
+                    auth_header="Authorization: $_v"
+                fi ;;
             http://*|https://*) uri="$1" ;;
         esac
         shift
     done
     [[ -z "$uri" ]] && { echo "Invoke-WebRequest: URI parameter required."; return; }
-    [[ -n "$outfile" ]] && { /usr/bin/curl -s "$uri" -o "$outfile"; return; }
-    /usr/bin/curl -s "$uri"
+    local args=(-s -X "$method")
+    [[ -n "$auth_header" ]]  && args+=(-H "$auth_header")
+    [[ -n "$content_type" ]] && args+=(-H "Content-Type: $content_type")
+    [[ -n "$body" ]]         && args+=(--data-raw "$body")
+    [[ -n "$infile" ]]       && args+=(--data-binary "@$infile")
+    [[ -n "$outfile" ]]      && args+=(-o "$outfile")
+    /usr/bin/curl "${args[@]}" "$uri"
 }
 
 cmd_help() {
@@ -197,6 +232,46 @@ System commands: whoami, hostname, ipconfig, netstat, ping, net, ssh, nmap, nc, 
 
 EOF
 }
+
+# ── command dispatch ──────────────────────────────────────────────────────────
+
+_dispatch() {
+    local line="$1"
+    line="${line//$'\r'/}"
+    line="${line#.\\}"; line="${line#./}"
+
+    local cmd rest
+    read -r cmd rest <<< "$line"
+
+    case "${cmd,,}" in
+        cd|set-location|sl)         cmd_cd "$rest" ;;
+        dir|ls|get-childitem|gci)   cmd_dir "$rest" ;;
+        cat|type|get-content|gc)    cmd_cat "$rest" ;;
+        pwd|get-location|gl)        cmd_pwd ;;
+        cls|clear|clear-host)       clear ;;
+        whoami)                     cmd_whoami ;;
+        hostname)                   cmd_hostname ;;
+        ipconfig)                   cmd_ipconfig ;;
+        netstat)                    cmd_netstat $rest ;;
+        ping)                       cmd_ping $rest ;;
+        net)    read -r sub _ <<< "$rest"; cmd_net "$sub" ;;
+        ssh)                        eval "$line" ;;
+        curl|wget)                  eval "$line" ;;
+        invoke-webrequest|iwr)      eval cmd_iwr "${rest//\\/\\\\}" ;;
+        nmap)                       eval "$line" ;;
+        nc)                         eval "$line" ;;
+        help|get-help)              cmd_help ;;
+        exit|quit|logout)           printf '\n'; exit 0 ;;
+        "")                         true ;;
+        *)
+            printf "'%s' is not recognized as the name of a cmdlet, function, script file,\nor operable program. Check the spelling of the name, or if a path was\nincluded, verify that the path is correct and try again.\n" "$cmd" ;;
+    esac
+}
+
+if [[ "${1:-}" == "-c" && $# -ge 2 ]]; then
+    _dispatch "$2"
+    exit
+fi
 
 # ── banner ────────────────────────────────────────────────────────────────────
 
@@ -225,31 +300,5 @@ LOGON
 while true; do
     printf 'PS %s> ' "$(_disp)"
     IFS= read -r line || break
-    line="${line//$'\r'/}"
-    line="${line#.\\}"; line="${line#./}"
-    read -r cmd rest <<< "$line"
-
-    case "${cmd,,}" in
-        cd|set-location|sl)         cmd_cd "$rest" ;;
-        dir|ls|get-childitem|gci)   cmd_dir "$rest" ;;
-        cat|type|get-content|gc)    cmd_cat "$rest" ;;
-        pwd|get-location|gl)        cmd_pwd ;;
-        cls|clear|clear-host)       clear ;;
-        whoami)                     cmd_whoami ;;
-        hostname)                   cmd_hostname ;;
-        ipconfig)                   cmd_ipconfig ;;
-        netstat)                    cmd_netstat ;;
-        ping)                       cmd_ping $rest ;;
-        net)    read -r sub _ <<< "$rest"; cmd_net "$sub" ;;
-        ssh)                        cmd_ssh $rest ;;
-        curl|wget)                  cmd_curl $rest ;;
-        invoke-webrequest|iwr)      cmd_iwr $rest ;;
-        nmap)                       cmd_nmap $rest ;;
-        nc)                         cmd_nc $rest ;;
-        help|get-help)              cmd_help ;;
-        exit|quit|logout)           printf '\n'; exit 0 ;;
-        "")                         true ;;
-        *)
-            printf "'%s' is not recognized as the name of a cmdlet, function, script file,\nor operable program. Check the spelling of the name, or if a path was\nincluded, verify that the path is correct and try again.\n" "$cmd" ;;
-    esac
+    _dispatch "$line"
 done

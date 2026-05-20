@@ -55,7 +55,11 @@ cmd_dir() {
     if [[ -n "$arg" ]]; then
         real="$(_real "$arg")"
         local v="${arg//\\//}"; v="${v#\"}"; v="${v%\"}"
-        v="${v:2}"; v="${v#/}"
+        if [[ "${v^^}" == C:/* || "${v^^}" == "C:" ]]; then
+            v="${v:2}"; v="${v#/}"
+        else
+            v="$VIRT_CWD/${v%/}"
+        fi
         show="C:\\${v//\//\\}"
     else
         real="$(_real)"
@@ -162,13 +166,24 @@ EOF
 }
 
 cmd_netstat() {
+    local show_pid=0
+    [[ "$*" == *o* ]] && show_pid=1
     printf '\nActive Connections\n\n'
-    printf '  Proto  Local Address          Foreign Address        State\n'
-    netstat -tn 2>/dev/null \
-      | awk 'NR>2 && /ESTABLISHED|LISTEN/ {
-            printf "  %-6s %-22s %-22s %s\n", "TCP", $4, $5, $6
-        }' \
-      | head -12
+    if [[ $show_pid -eq 1 ]]; then
+        printf '  Proto  Local Address          Foreign Address        State           PID\n'
+        printf '  TCP    0.0.0.0:22             0.0.0.0:0              LISTENING       488\n'
+        netstat -tn 2>/dev/null \
+          | awk 'NR>2 && /ESTABLISHED/ {
+                printf "  %-6s %-22s %-22s %-16s %s\n", "TCP", $4, $5, $6, int(1000+rand()*3000)
+            }' | head -10
+    else
+        printf '  Proto  Local Address          Foreign Address        State\n'
+        printf '  TCP    0.0.0.0:22             0.0.0.0:0              LISTENING\n'
+        netstat -tn 2>/dev/null \
+          | awk 'NR>2 && /ESTABLISHED/ {
+                printf "  %-6s %-22s %-22s %s\n", "TCP", $4, $5, $6
+            }' | head -10
+    fi
     printf '\n'
 }
 
@@ -193,13 +208,13 @@ cmd_net() {
     case "$sub" in
         USER)
             printf '\nUser accounts for \\\\ENG-WS01\n\n'
-            printf '-------------------------------------------------------------------------------\n'
+            printf -- '-------------------------------------------------------------------------------\n'
             printf 'Administrator            engineer                 Guest\n'
             printf 'The command completed successfully.\n\n'
             ;;
         VIEW)
             printf '\nServer Name            Remark\n\n'
-            printf '-------------------------------------------------------------------------------\n'
+            printf -- '-------------------------------------------------------------------------------\n'
             printf '\\\\OT-DC-01              OT Domain Controller\n'
             printf '\\\\SCADA-SRV01           Distribution SCADA\n'
             printf '\\\\HIST-SRV01            Process Historian\n'
@@ -207,7 +222,7 @@ cmd_net() {
             ;;
         USE)
             printf '\nStatus       Local     Remote                             Network\n'
-            printf '-------------------------------------------------------------------------------\n'
+            printf -- '-------------------------------------------------------------------------------\n'
             printf 'OK           P:        \\\\OT-DC-01\\projects$               Microsoft Windows Network\n'
             printf 'The command completed successfully.\n\n'
             ;;
@@ -556,7 +571,7 @@ _dispatch() {
         whoami)                     cmd_whoami ;;
         hostname)                   cmd_hostname ;;
         ipconfig)                   cmd_ipconfig ;;
-        netstat)                    cmd_netstat ;;
+        netstat)                    cmd_netstat $rest ;;
         ip)                         cmd_ip $rest ;;
         ping)                       cmd_ping $rest ;;
         net)    read -r sub _ <<< "$rest"; cmd_net "$sub" ;;
@@ -565,7 +580,7 @@ _dispatch() {
         socat)                      eval "$line" ;;
         openssl)                    eval "$line" ;;
         route)                      [[ "${rest,,}" == "print"* ]] && cmd_route || printf "'route %s' is not recognised\n" "$rest" ;;
-        invoke-webrequest|iwr)      eval cmd_iwr "$rest" ;;
+        invoke-webrequest|iwr)      eval cmd_iwr "${rest//\\/\\\\}" ;;
         nmap)                       eval "$line" ;;
         nc)                         eval "$line" ;;
         python|python3)             cmd_python "$rest" ;;
@@ -626,13 +641,9 @@ while true; do
         *) printf '\n'; continue ;;        # signal-interrupted read, re-prompt
     esac
 
-    # Line continuation: trailing backslash OR backtick joins the next line
-    while [[ "$line" == *\\ || "$line" == *\` ]]; do
-        if [[ "$line" == *\\ ]]; then
-            line="${line%\\}"
-        else
-            line="${line%\`}"
-        fi
+    # Line continuation: trailing backtick joins the next line (PowerShell convention)
+    while [[ "$line" == *\` ]]; do
+        line="${line%\`}"
         printf '>> '
         IFS= read -r cont || break
         cont="${cont//$'\r'/}"

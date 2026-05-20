@@ -157,44 +157,6 @@ The five gateways:
    `ops-wan-router` boundary works; there is nothing on the wan side
    to talk to.
 
-## Scada-LTS schema migration, partial workaround
-
-The Scada-LTS WAR (release-2.8.1 and nightly both observed) ships with
-buggy Flyway migrations. On a fresh MySQL the V1.1 (`ViewsHierarchy`)
-migration completes its SQL (the `views_category_views_hierarchy` table
-exists) but Flyway throws after, marks the row failed, and blocks
-every subsequent migration. The WAR's runtime SQL then references
-columns that later migrations would have added (`events.typeRef3`,
-`events.assigneeTs`, ...) and most UI pages return HTTP 500.
-
-What is in place: the scada-lts entrypoints
-(`zones/control/components/scada-lts-ctrl/entrypoint.sh` and
-`zones/operational/components/scada-lts/entrypoint.sh`) ship a small
-watchdog that detects V1.1's failure, sets `success=1` on that row,
-and restarts Tomcat once. After this, V1.1 is marked applied and
-subsequent migrations are unblocked. Some of those subsequent
-migrations may themselves fail in the same cosmetic way; we do not
-patch every failure because we have not verified that all upstream
-failures are cosmetic (vs genuine).
-
-Result:
-
-- `/Scada-LTS/login.htm` may return 500 if a later-than-V1.1 migration
-  is also broken upstream. Tomcat is up on `:8080` either way; the
-  service is visitor-detectable.
-- The lab's runbook tests do not exercise the SCADA web UI;
-  `stunnel-client-key-theft` and friends use SSH access to the cert
-  files, not the WAR. All three phase suites stay green.
-- A complete fix needs upstream Scada-LTS to fix V1.1 (and any
-  other broken migration), or a maintainer here to walk through every
-  buggy migration and assess whether patching `success=1` is safe.
-
-If you ever want a clickable SCADA dashboard for the visitor
-narrative, the path is to read each failed `V*` class in the WAR's
-`/usr/local/tomcat/webapps/Scada-LTS/WEB-INF/classes/org/scada_lts/dao/migration/mysql/`
-directory, decide whether the missing post-action matters, and either
-patch upstream or ship a per-migration alter-table shim.
-
 ## Verifying
 
 The Phase 1, 2, and 3 smoke tests are the acceptance suite:

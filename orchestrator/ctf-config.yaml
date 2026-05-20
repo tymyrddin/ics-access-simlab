@@ -83,8 +83,7 @@ operational_zone:
   scada_server:
     hostname: distribution-scada
     ip: 10.10.2.20
-    implementation: scada-lts
-    # historian_ip not used by scada-lts (Scada-LTS has its own MySQL DB)
+    implementation: distribution-scada
 
   # uupl-modbus-gw: TLS termination proxy between SCADA and control zone PLCs.
   # Dual-homed: accepts TLS on ops network, forwards plain Modbus on control network.

@@ -37,6 +37,9 @@ mkdir -p \
     "/opt/winsvr/C/Historian/Data" \
     "/opt/winsvr/C/Historian/Archive"
 
+# Expose the live database in the virtual C: drive
+ln -sf "$DB_PATH" "/opt/winsvr/C/Historian/Data/historian.db"
+
 # ── C:\Historian\Config\historian.ini ─────────────────────────────────────────
 
 cat > "/opt/winsvr/C/Historian/Config/historian.ini" << EOF
