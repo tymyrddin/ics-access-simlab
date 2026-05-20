@@ -254,15 +254,15 @@ Participants should be able to discover:
 
 Location: `/home/bursardesk` + `/srv/smb/public`
 
-| File / Directory                    | Purpose / Description           | Notes for attacker                                                                                         |
-|-------------------------------------|---------------------------------|------------------------------------------------------------------------------------------------------------|
-| `.config/ops-access.conf`           | Operational system credentials  | Contains usernames/passwords for uupl-historian and SCADA web console; the main “goldmine” for pivoting into OT |
-| `Desktop/pull_monthly_report.sh`    | Monthly uupl-historian report script | Shows how credentials are used; attacker can reuse script to access reports                                |
-| `.bash_history`                     | Command history                 | Reveals IPs, commands, access patterns, curl commands with credentials                                     |
-| `reports/`                          | Historical CSV reports          | Could contain asset usage, sensor readings; demonstrates what data is valuable                             |
-| `.config/editor_history` (optional) | Editor temp files               | Could contain snippets of credentials accidentally pasted or config edits                                  |
-| `notes.txt`                         | Misc operational notes          | Could include “temp access” credentials, shortcuts, or reminders about who to call for OT systems          |
-| `/srv/smb/public/`                  | Public reports                  | Non-sensitive operational reports to make it look like a real workstation                                  |
+| File / Directory                    | Purpose / Description                | Notes for attacker                                                                                              |
+|-------------------------------------|--------------------------------------|-----------------------------------------------------------------------------------------------------------------|
+| `.config/ops-access.conf`           | Operational system credentials       | Contains usernames/passwords for uupl-historian and SCADA web console; the main “goldmine” for pivoting into OT |
+| `Desktop/pull_monthly_report.sh`    | Monthly uupl-historian report script | Shows how credentials are used; attacker can reuse script to access reports                                     |
+| `.bash_history`                     | Command history                      | Reveals IPs, commands, access patterns, curl commands with credentials                                          |
+| `reports/`                          | Historical CSV reports               | Could contain asset usage, sensor readings; demonstrates what data is valuable                                  |
+| `.config/editor_history` (optional) | Editor temp files                    | Could contain snippets of credentials accidentally pasted or config edits                                       |
+| `notes.txt`                         | Misc operational notes               | Could include “temp access” credentials, shortcuts, or reminders about who to call for OT systems               |
+| `/srv/smb/public/`                  | Public reports                       | Non-sensitive operational reports to make it look like a real workstation                                       |
 
 Extras to make it feel lived-in:
 

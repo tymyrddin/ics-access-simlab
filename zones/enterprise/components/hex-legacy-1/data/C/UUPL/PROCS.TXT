@@ -1,0 +1,21 @@
+UU P&L Hex Turbine, Standard Operating Procedures
+Last reviewed: 2019-11-12 / P. Stibbons
+
+PROCEDURE: Turbine Start-up
+1. Confirm all protective relay trips are RESET on HMI (10.10.3.10)
+2. Open throttle valve incrementally (actuator at 10.10.3.51)
+3. Allow RPM to stabilise above 2900 before closing distribution breakers
+4. Monitor relay A (Dolly Sisters, 10.10.3.31) and relay B (Nap Hill, 10.10.3.32)
+5. Report stable generation to Sgt Colon (ext 105)
+
+PROCEDURE: Emergency Shutdown
+1. Set Modbus coil 0 = TRUE on hex_turbine_controller (10.10.3.21)
+   OR use the physical emergency stop button on HMI panel
+2. Confirm breakers A and B open (actuators 10.10.3.53, 10.10.3.54)
+3. Notify Ponder Stibbons (ext 201) immediately
+
+PROCEDURE: Monthly Report
+1. Log in to uupl-historian: http://10.10.2.10:8080
+   Credentials: see C:\PRIVATE\PLCACCS.CFG
+2. Query asset "turbine_main", date range 1st to last of month
+3. Export CSV, forward to bursar-desk workstation (10.10.1.20)

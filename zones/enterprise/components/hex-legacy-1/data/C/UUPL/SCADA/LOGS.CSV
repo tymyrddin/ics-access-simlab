@@ -1,0 +1,9 @@
+timestamp,asset,event,value,unit,operator
+1999-06-01T07:52:11,hex_turbine_controller,startup,1,,wizard_technician
+1999-06-01T07:54:33,throttle_valve,setpoint,35,percent,wizard_technician
+1999-06-01T08:01:07,turbine_main,rpm,2987,rpm,auto
+1999-06-15T14:22:41,uupl-relay-b,trip,1,,auto
+1999-06-15T14:22:41,turbine_main,rpm,2741,rpm,auto
+1999-06-15T14:23:10,uupl-relay-b,trip_reset,0,,engineer
+2003-11-12T09:11:05,hex_turbine_controller,config_write,1,,ponder_stibbons
+2003-11-12T09:11:22,uupl-relay-a,config_write,1,,ponder_stibbons

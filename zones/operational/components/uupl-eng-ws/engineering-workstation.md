@@ -177,15 +177,15 @@ HR[2] overspeed_threshold_rpm  = 3300 ; relay trips if RPM > this
 
 ## Real-world vulnerabilities / CVEs
 
-| Weakness                              | CVE / Reference        | Notes                                                                           |
-|---------------------------------------|------------------------|---------------------------------------------------------------------------------|
-| Plaintext credentials in project file | CVE-2021-22681         | Rockwell FactoryTalk: credentials in project configuration files                |
-| Credential dump in maintenance backup | CVE-2020-5777          | GE Proficy: archived config files contain plaintext credentials                 |
-| Hardcoded credentials in scripts      | CVE-2019-10915         | Default or hardcoded credentials in industrial automation tooling               |
-| Unencrypted backup archive            | CWE-312                | Cleartext storage of sensitive information                                      |
-| Unprotected engineering workstation   | ICS-CERT Advisory      | Direct Modbus access from engineering host with no MFA or command logging       |
-| SSH key accessible on filesystem      | CWE-732                | Incorrect permission assignment: private key readable from virtual filesystem  |
-| Dual-homed pivot host                 | ICS-CERT ICSA-19-274   | Engineering workstations bridging OT network zones: documented incident pattern |
+| Weakness                              | CVE / Reference      | Notes                                                                           |
+|---------------------------------------|----------------------|---------------------------------------------------------------------------------|
+| Plaintext credentials in project file | CVE-2021-22681       | Rockwell FactoryTalk: credentials in project configuration files                |
+| Credential dump in maintenance backup | CVE-2020-5777        | GE Proficy: archived config files contain plaintext credentials                 |
+| Hardcoded credentials in scripts      | CVE-2019-10915       | Default or hardcoded credentials in industrial automation tooling               |
+| Unencrypted backup archive            | CWE-312              | Cleartext storage of sensitive information                                      |
+| Unprotected engineering workstation   | ICS-CERT Advisory    | Direct Modbus access from engineering host with no MFA or command logging       |
+| SSH key accessible on filesystem      | CWE-732              | Incorrect permission assignment: private key readable from virtual filesystem   |
+| Dual-homed pivot host                 | ICS-CERT ICSA-19-274 | Engineering workstations bridging OT network zones: documented incident pattern |
 
 ## Artefacts attackers should find
 

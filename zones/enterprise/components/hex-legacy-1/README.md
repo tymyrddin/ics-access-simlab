@@ -1,6 +1,8 @@
 # Legacy workstation
 
-`hex-legacy-1` has been running since the late 1990s. The hardware was replaced in 2003; the software was migrated intact because nothing was broken. Nothing has changed since because it still works. It runs Samba with NTLMv1 and LAN Manager hashes, FTP with anonymous read access, Telnet, and SSH added later by someone who needed remote access and left PermitRootLogin enabled. The attack surface is not a misconfiguration: it is the correct operation of 1990s software in 2024.
+`hex-legacy-1` has been running since the late 1990s. The hardware was replaced in 2003; the software was migrated intact because nothing was broken. Nothing has changed since because it still works. It runs Samba with NTLMv1 and LAN Manager hashes, FTP with anonymous read access, and Telnet, which drops directly into the Win95 shell with no login prompt.
+
+Participants reach it via Telnet on port 23. SSH (port 22) is present for lab administration only and is not part of the participant attack path.
 
 ## The real-world parallel
 
@@ -10,8 +12,7 @@ A legacy workstation running era-appropriate software that was never decommissio
 
 Base image: `debian:bookworm-slim` presenting a Windows 95-era facade via a custom login shell (`win95shell.sh`). The real filesystem is under `/opt/legacy/C/`. SSH drops users into a DOS-style shell with 8.3 filenames.
 
-Services: Samba (ports 139, 445), vsftpd (port 21), Telnet via xinetd (port
-23, served by `inetutils-telnetd`), OpenSSH (port 22), tftp client available.
+Services: Samba (ports 139, 445), vsftpd (port 21), Telnet via xinetd (port 23, executes `win95shell.sh` directly: no login), OpenSSH (port 22, lab admin only), tftp client available.
 
 Accounts: `Administrator` / `hex123` (also set as Samba password and root SSH password). Anonymous Samba guest access to the `public` share.
 
@@ -26,8 +27,8 @@ Exposed ports: 21, 22, 23, 139, 445.
 
 - SMB/CIFS: ports 139, 445. NTLMv1 enabled, LAN Manager hashes accepted. Guest access to `\\hex-legacy-1\public`.
 - FTP: port 21. Anonymous read access to the public share contents.
-- Telnet: port 23. Plaintext, no encryption.
-- SSH: port 22. Password auth, `PermitRootLogin yes`.
+- Telnet: port 23. No login prompt. Connects directly to the Win95 shell. Participant entry point.
+- SSH: port 22. Password auth, `PermitRootLogin yes`. Lab administration only.
 
 ## Built-in vulnerabilities
 
@@ -40,11 +41,10 @@ visible in the virtual C: drive at `C:\UUPL\` and `C:\LOGBOOK\`):
 - `LOGBOOK/ENGINEER.LOG`: every system password in plaintext, described as
   "Ponder Stibbons' informal notes". Includes hist_read/history2017 (the
   uupl-historian ingest credential) and the SCADA SSH password.
-- `procedures.txt`, `network_inventory.txt`, `logs_sample.csv` (legacy
-  copies kept under different names; same flavour of information).
+- `PROCEDURES.TXT`, `NETWORK_INVENTORY.TXT`, `LOGS_SAMPLE.CSV`: older artefacts from an earlier era. `NETWORK_INVENTORY.TXT` carries 1999 addresses (192.168.x.x) and pre-dates the current network layout. Those addresses are historical and correct-as-wrong. Updating them to 10.10.x.x would erase the deliberate 1999-to-2019 stratification the pair with `UUPL/NETWORK.TXT` is designed to show.
 
 The `private` share is restricted to `Administrator` but contains the same
-credential list in `plc-access.conf`.
+credential list in `PLC-ACCESS.CONF`.
 
 ## Modifying vulnerabilities
 
@@ -56,7 +56,17 @@ To remove Telnet: delete the xinetd config block and remove `telnetd` from the a
 
 To change the password: update the `chpasswd` line and the `smbpasswd` invocation in `entrypoint.sh`.
 
-Static scenario content lives in `data/shares/` and is copied into the image by the Dockerfile. Anything in `entrypoint.sh` is there because it is runtime-coupled (Samba and service configuration) or credential-coupled (the C: drive files: the short logbook, PLCACCS.CFG, and the rest). Edit `data/shares/` for public share content. Edit the heredocs in `entrypoint.sh` for C: drive content.
+Static scenario content lives in `data/`, split by destination. `data/shares/` is the public SMB share. `data/C/` holds C: drive files not in the share (PLCACCS.CFG, BACKUP.BAK, PROCS.TXT, SCADA/LOGS.CSV, and the Windows system files). `data/private/` holds the private SMB share credential file. ENGINEER.LOG and NETWORK.TXT live once in `data/shares/` and are COPY'd to both the share and the C: drive; each has one source file in the repo. `entrypoint.sh` is runtime-coupled: Samba and service configuration, user creation, and permissions on the private share.
+
+Credential manifest. `entrypoint.sh` is authoritative for login credentials; `data/shares/LOGBOOK/ENGINEER.LOG` is the authoritative scenario loot. A credential appearing in more than one place here is intentional scenario design, not duplication. Rotating a credential means updating every line listed.
+
+- Administrator / hex123: entrypoint.sh, ENGINEER.LOG, BACKUP.BAK, config/legacy-services.conf
+- root / hex123: entrypoint.sh
+- engineer / spanner99: ENGINEER.LOG, data/C/PRIVATE/PLCACCS.CFG, data/private/PLC-ACCESS.CONF
+- historian / Historian2015: ENGINEER.LOG, data/C/PRIVATE/PLCACCS.CFG, data/private/PLC-ACCESS.CONF
+- admin / admin (SCADA web): ENGINEER.LOG, data/C/PRIVATE/PLCACCS.CFG, data/private/PLC-ACCESS.CONF
+- hist_read / history2017: ENGINEER.LOG only
+- scada_admin / W1nd0ws@2016: ENGINEER.LOG only
 
 ## Hardening suggestions
 
@@ -84,7 +94,7 @@ From `wizzards-retreat` (10.10.1.3) or `bursar-desk` (10.10.1.20):
 3. Credentials for uupl-historian, SCADA, and engineering workstation are in those files
 4. `ssh engineer@10.10.2.30` with `spanner99` or use uupl-historian with `Historian2015`
 
-For the private share: `smbclient //10.10.1.10/private -U Administrator%hex123`, get `plc-access.conf`.
+For the private share: `smbclient //10.10.1.10/private -U Administrator%hex123`, get `PLC-ACCESS.CONF`.
 
 FTP path: `ftp 10.10.1.10`, login anonymous, retrieve the same public files.
 
@@ -104,13 +114,13 @@ Drive mapping: `NET USE Z: \\HEX-LEGACY-1\public` maps Z: to the public share. S
 
 Text search: `FIND /I "string" *.ext` searches inside files, grouped by filename header. Accepts wildcards in the file argument.
 
-Connectivity: `FTP`, `TFTP`, `TELNET`, `SSH`, `NC`, `NMAP`, `CURL`.
+Connectivity: `FTP`, `TFTP`, `TELNET`. Win95 had no SSH client, no netcat, no HTTP client, and no network scanner.
 
 Commands not recognised produce `Bad command or file name`.
 
 The machine exposes Telnet but the Linux login prompt appears, not a DOS prompt. Participants who telnet in and expect a Windows shell will encounter a brief reality check.
 
-`C:\PRIVATE\PLCACCS.CFG` inside the virtual filesystem and `\\hex-legacy-1\private\plc-access.conf` on the Samba share contain identical information via different paths.
+`C:\PRIVATE\PLCACCS.CFG` inside the virtual filesystem and `\\hex-legacy-1\private\PLC-ACCESS.CONF` on the Samba share contain the same credentials in different formats.
 
 ## Summary
 

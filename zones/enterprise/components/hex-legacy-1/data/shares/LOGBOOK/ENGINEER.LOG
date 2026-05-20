@@ -1,0 +1,34 @@
+=== ENGINEERING LOGBOOK, UU P&L HEX TURBINE DIVISION ===
+(Ponder Stibbons' informal notes; do not bin this)
+
+SYSTEM PASSWORDS (last updated 2019-11-12)
+------------------------------------------
+Turbine PLC:        no password (Modbus TCP, network IS the access control)
+Engineer SSH:       engineer / spanner99      (eng-ws, 10.10.2.30)
+Bursar's desk:      bursardesk / Octavo1      (bursar-desk, 10.10.1.20)
+Historian SSH:      hist_admin / Historian2015 (uupl-historian, 10.10.2.10)
+Historian DB:       hist1999 (old), Historian2015 (current web API)
+Historian ingest:   hist_read / history2017
+SCADA web:          admin / admin             (distribution-scada, 10.10.2.20)
+SCADA SSH:          scada_admin / W1nd0ws@2016
+Administrator:      hex123
+HMI operator:       hex123 / operator
+
+Emergency stop: Modbus coil 0 on hex_turbine_controller (10.10.3.21)
+                DO NOT write without coordinating with duty engineer.
+
+KNOWN ISSUES
+------------
+- IED relay B (Nap Hill, 10.10.3.32) gives false positive trips when
+  voltage drops below 10800V. Workaround: raise trip threshold via
+  Modbus HR[10]. Reset before leaving shift.
+- Historian web API returns SQL errors on asset names with apostrophes.
+  Vendor says it is a "cosmetic limitation." It is not cosmetic.
+- FTP on hex-legacy-1 has no write access. Use SMB share for uploads.
+
+CONTACTS
+--------
+Ponder Stibbons  ext 201
+Sgt Colon        ext 105 (operations floor, knows where the modem numbers are)
+The Librarian    (server room, do not disturb without bananas)
+Archchancellor   ext 100 (emergencies only, define carefully)

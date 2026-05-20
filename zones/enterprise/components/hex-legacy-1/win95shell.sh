@@ -200,46 +200,61 @@ _dir_listing() {
     printf '       %3d dir(s)   1,048,576 bytes free\n\n' "$dirs"
 }
 
-_dir_recursive() {
-    local real_base="$1" base_drive="$2" base_root="$3" pattern="${4:-}"
-    local find_args=(-mindepth 1)
-    if [[ -n "$pattern" ]]; then
-        find_args+=(-type f -iname "$pattern")
+_DR_FILES=0
+_DR_BYTES=0
+
+_dr_walk() {
+    local dir="$1" base_drive="$2" base_root="$3" pattern="$4"
+
+    local ddisp
+    if [[ "$base_drive" == "C" ]]; then
+        local rel="${dir#$VIRT_ROOT}"; rel="${rel#/}"
+        [[ -z "$rel" ]] && ddisp='C:\' || ddisp="C:\\${rel//\//\\}"
+    else
+        local rel="${dir#$base_root}"; rel="${rel#/}"
+        [[ -z "$rel" ]] && ddisp="${base_drive}:\\" || ddisp="${base_drive}:\\${rel//\//\\}"
     fi
 
-    local total_files=0 total_bytes=0
-    declare -A seen_dirs
+    local -a subdirs=()
+    while IFS= read -r -d '' sd; do subdirs+=("$sd"); done \
+        < <(find "$dir" -maxdepth 1 -mindepth 1 -type d -print0 2>/dev/null | sort -z)
 
-    while IFS= read -r f; do
-        local d; d=$(dirname "$f")
-        if [[ -z "${seen_dirs[$d]:-}" ]]; then
-            seen_dirs[$d]=1
-            local ddisp
-            if [[ "$base_drive" == "C" ]]; then
-                local rel="${d#$VIRT_ROOT}"; rel="${rel#/}"
-                [[ -z "$rel" ]] && ddisp='C:\' || ddisp="C:\\${rel//\//\\}"
-            else
-                local rel="${d#$base_root}"; rel="${rel#/}"
-                [[ -z "$rel" ]] && ddisp="${base_drive}:\\" || ddisp="${base_drive}:\\${rel//\//\\}"
-            fi
-            printf '\n Directory of %s\n\n' "$ddisp"
+    local -a fargs=(-maxdepth 1 -type f)
+    [[ -n "$pattern" ]] && fargs+=(-iname "$pattern")
+    local -a files=()
+    while IFS= read -r -d '' mf; do files+=("$mf"); done \
+        < <(find "$dir" "${fargs[@]}" -print0 2>/dev/null | sort -z)
+
+    if [[ ${#files[@]} -gt 0 || ( -z "$pattern" && ${#subdirs[@]} -gt 0 ) ]]; then
+        printf '\n Directory of %s\n\n' "$ddisp"
+        if [[ -z "$pattern" ]]; then
+            for sd in "${subdirs[@]}"; do
+                local name="${sd##*/}"
+                printf '%s  %s   <DIR>         %s\n' "14/09/99" " 9:23a" "${name^^}"
+            done
         fi
-
-        if [[ -d "$f" ]]; then
-            printf '%s  %s   <DIR>         %s\n' "14/09/99" " 9:23a" "${f^^##*/}"
-        else
-            local name; name=$(basename "$f"); local dosname="${name^^}"
-            local sz; sz=$(stat -c%s "$f" 2>/dev/null || echo 0)
+        for mf in "${files[@]}"; do
+            local name="${mf##*/}"; local dosname="${name^^}"
+            local sz; sz=$(stat -c%s "$mf" 2>/dev/null || echo 0)
             printf '%s  %s   %9s  %s\n' "14/09/99" " 9:23a" "$sz" "$dosname"
-            (( total_files++ )) || true; (( total_bytes += sz )) || true
-        fi
-    done < <(find "$real_base" "${find_args[@]}" 2>/dev/null | sort)
+            (( _DR_FILES++ )) || true; (( _DR_BYTES += sz )) || true
+        done
+    fi
 
-    if [[ $total_files -eq 0 && -n "$pattern" ]]; then
+    for sd in "${subdirs[@]}"; do
+        _dr_walk "$sd" "$base_drive" "$base_root" "$pattern"
+    done
+}
+
+_dir_recursive() {
+    local real_base="$1" base_drive="$2" base_root="$3" pattern="${4:-}"
+    _DR_FILES=0; _DR_BYTES=0
+    _dr_walk "$real_base" "$base_drive" "$base_root" "$pattern"
+    if [[ $_DR_FILES -eq 0 && -n "$pattern" ]]; then
         printf '\n     File Not Found\n\n'
     else
         printf '\n     Total Files Listed:\n'
-        printf '       %3d file(s)    %7d bytes\n' "$total_files" "$total_bytes"
+        printf '       %3d file(s)    %7d bytes\n' "$_DR_FILES" "$_DR_BYTES"
         printf '             0 dir(s)   1,048,576 bytes free\n\n'
     fi
 }
@@ -253,8 +268,8 @@ cmd_cd() {
         return
     fi
 
-    # Drive switch: "Z:" with no path component
-    if [[ "${arg^^}" =~ ^([A-Z]):$ ]]; then
+    # Drive switch: "Z:", "Z:\", or "Z:/" with no path component
+    if [[ "${arg^^}" =~ ^([A-Z]):[/\\]?$ ]]; then
         local dl="${BASH_REMATCH[1]^^}"
         if [[ "$dl" == "C" ]]; then
             VIRT_DRIVE="C"
@@ -272,11 +287,13 @@ cmd_cd() {
 
     if [[ "${arg^^}" == ".." ]]; then
         if [[ "$VIRT_DRIVE" == "C" ]]; then
-            [[ -n "$VIRT_CWD" ]] && VIRT_CWD="${VIRT_CWD%/*}" && [[ "$VIRT_CWD" == "." ]] && VIRT_CWD=""
+            if [[ -n "$VIRT_CWD" ]]; then
+                [[ "$VIRT_CWD" == */* ]] && VIRT_CWD="${VIRT_CWD%/*}" || VIRT_CWD=""
+            fi
         else
             local dcwd="${DRIVE_CWD[$VIRT_DRIVE]:-}"
             if [[ -n "$dcwd" ]]; then
-                dcwd="${dcwd%/*}"; [[ "$dcwd" == "." ]] && dcwd=""
+                [[ "$dcwd" == */* ]] && dcwd="${dcwd%/*}" || dcwd=""
                 DRIVE_CWD[$VIRT_DRIVE]="$dcwd"
             fi
         fi
@@ -323,17 +340,17 @@ cmd_net() {
                 case "$server" in
                     HEX-LEGACY-1*)
                         printf '\nShared resources at \\\\HEX-LEGACY-1\n\n'
-                        printf 'Share name  Type  Used as  Comment\n'
-                        printf '----------------------------------------------------------------------\n'
-                        printf 'public      Disk           UU P&L Public Documents\n'
-                        printf 'The command completed successfully.\n\n'
+                        printf 'Share name  Type  Comment\n'
+                        printf '%s\n' '----------------------------------------------------------------------'
+                        printf 'public      Disk  UU P&L Public Documents\n'
+                        printf '\n'
                         ;;
                     UUPL-SRV-01*)
                         printf '\nShared resources at \\\\UUPL-SRV-01\n\n'
-                        printf 'Share name    Type  Used as  Comment\n'
-                        printf '----------------------------------------------------------------------\n'
-                        printf 'operations$   Disk           Operations share\n'
-                        printf 'The command completed successfully.\n\n'
+                        printf 'Share name    Type  Comment\n'
+                        printf '%s\n' '----------------------------------------------------------------------'
+                        printf 'operations$   Disk  Operations share\n'
+                        printf '\n'
                         ;;
                     *)
                         printf '\nSystem error 53 has occurred.\n\nThe network path was not found.\n\n'
@@ -341,7 +358,7 @@ cmd_net() {
                 esac
             else
                 printf '\nServer Name            Remark\n'
-                printf '----------------------------------------------------------------------\n'
+                printf '%s\n' '----------------------------------------------------------------------'
                 printf '\\\\HEX-LEGACY-1          UU P&L Inventory Server\n'
                 printf '\\\\UUPL-SRV-01           File server / domain controller\n\n'
             fi
@@ -350,7 +367,7 @@ cmd_net() {
             if [[ -z "$rest" ]]; then
                 printf '\nNew connections will be remembered.\n\n'
                 printf 'Status    Local   Remote                          Network\n'
-                printf '----------------------------------------------------------------------\n'
+                printf '%s\n' '----------------------------------------------------------------------'
                 printf 'OK        F:      \\\\UUPL-SRV-01\\operations$       Microsoft Windows Network\n'
                 printf 'OK        G:      \\\\HEX-LEGACY-1\\public           Microsoft Windows Network\n'
                 local dl
@@ -362,8 +379,8 @@ cmd_net() {
                 done
                 printf '\n'
             else
-                local letter unc_or_cmd
-                read -r letter unc_or_cmd _ <<< "$rest"
+                local letter unc_or_cmd remaining
+                read -r letter unc_or_cmd remaining <<< "$rest"
                 letter="${letter^^}"; letter="${letter%:}"
 
                 if [[ "${unc_or_cmd^^}" == "/D" ]]; then
@@ -381,12 +398,27 @@ cmd_net() {
                         PRIVATE) real_path="/srv/smb/private" ;;
                         *)       real_path="" ;;
                     esac
-                    if [[ -n "$real_path" ]]; then
+                    if [[ "$share_name" == "PRIVATE" ]]; then
+                        local prov_pass="" prov_user="" tok
+                        for tok in $remaining; do
+                            local utok="${tok^^}"
+                            if [[ "$utok" == /USER:* ]]; then
+                                prov_user="${utok#/USER:}"
+                                prov_user="${prov_user##*\\}"
+                            elif [[ "${tok:0:1}" != "/" ]]; then
+                                prov_pass="$tok"
+                            fi
+                        done
+                        if [[ "$prov_user" == "ADMINISTRATOR" && "$prov_pass" == "hex123" ]]; then
+                            DRIVE_MAP[$letter]="$real_path"
+                        else
+                            printf 'System error 5 has occurred.\n\nAccess is denied.\n\n'
+                        fi
+                    elif [[ -n "$real_path" ]]; then
                         DRIVE_MAP[$letter]="$real_path"
                     else
                         DRIVE_MAP[$letter]="__UNC__$unc_or_cmd"
                     fi
-                    printf 'The command completed successfully.\n\n'
                 else
                     printf 'The syntax of this command is incorrect.\n\n'
                 fi
@@ -394,7 +426,7 @@ cmd_net() {
             ;;
         USER)
             printf '\nUser accounts for \\\\HEX-LEGACY-1\n'
-            printf '----------------------------------------------------------------------\n'
+            printf '%s\n' '----------------------------------------------------------------------'
             printf 'Administrator            Guest\n\n'
             ;;
         *)
@@ -584,13 +616,9 @@ cmd_attrib() {
     fi
 }
 
-cmd_ssh()    { printf 'Opening secure shell...\n'; /usr/bin/ssh -o StrictHostKeyChecking=no "$@"; }
 cmd_ftp()    { /usr/bin/ftp "$@"; }
-cmd_tftp()   { command -v tftp &>/dev/null && /usr/bin/tftp "$@" || printf 'TFTP: command not available\n'; }
+cmd_tftp()   { if ! command -v tftp &>/dev/null; then printf 'TFTP: command not available\n'; return; fi; /usr/bin/tftp "$@"; }
 cmd_telnet() { /usr/bin/telnet "$@"; }
-cmd_nc()     { /usr/bin/nc "$@"; }
-cmd_curl()   { /usr/bin/curl "$@"; }
-cmd_nmap()   { /usr/bin/nmap "$@"; }
 
 cmd_help() {
     printf '\n'
@@ -607,13 +635,10 @@ cmd_help() {
     printf 'HELP     Provides help information.\n'
     printf 'IPCONFIG Displays IP configuration.\n'
     printf 'NBTSTAT  Displays NetBIOS info.            (NBTSTAT -A ip)\n'
-    printf 'NC       Netcat, raw TCP connections.\n'
     printf 'NET      Network commands.  (NET VIEW, NET USE, NET USER)\n'
     printf 'NETSTAT  Displays active connections.\n'
-    printf 'NMAP     Network scanner.\n'
     printf 'PING     Tests network connectivity.\n'
     printf 'ROUTE    Displays the routing table.       (ROUTE PRINT)\n'
-    printf 'SSH      Opens an SSH session to a remote host.\n'
     printf 'TELNET   Connects to a Telnet server.\n'
     printf 'TFTP     Trivial File Transfer Protocol.\n'
     printf 'TYPE     Displays a text file.\n'
@@ -648,13 +673,9 @@ _dispatch() {
         IPCONFIG)      cmd_ipconfig ;;
         NBTSTAT)       cmd_nbtstat "$rest" ;;
         ATTRIB)        cmd_attrib "$rest" ;;
-        SSH)           eval "cmd_ssh $rest" ;;
         FTP)           eval "cmd_ftp $rest" ;;
         TFTP)          eval "cmd_tftp $rest" ;;
         TELNET)        eval "cmd_telnet $rest" ;;
-        NC)            eval "cmd_nc $rest" ;;
-        CURL)          eval "cmd_curl $rest" ;;
-        NMAP)          eval "cmd_nmap $rest" ;;
         HELP|"/?"|\?) cmd_help ;;
         EXIT|QUIT|LOGOUT|BYE) printf '\n'; exit 0 ;;
         "")            true ;;
@@ -692,6 +713,11 @@ if [[ "${1:-}" == "-c" && $# -ge 2 ]]; then
 fi
 
 # ── banner ────────────────────────────────────────────────────────────────────
+
+# Drain any Telnet IAC negotiation bytes that arrive before input starts.
+# Telnet clients send option bytes on connect; without telnetd to absorb them
+# they appear as the first read. The timeout is short enough to be invisible.
+IFS= read -r -t 0.3 _iac_drain 2>/dev/null || true
 
 clear
 cat << 'BANNER'

@@ -1,0 +1,30 @@
+UU P&L Network Inventory, Hex Computing Division
+Last updated: Q3 2019 (Ponder Stibbons)
+
+=== NETWORK SEGMENTS ===
+
+Enterprise (Building A, Level 2)
+  hex-legacy-1     10.10.1.10   File / FTP / SMB / Telnet (this host)
+  bursar-desk      10.10.1.20   Bursar's workstation
+  wizzards-retreat 10.10.1.3    Remote admin VPN endpoint
+
+Operational (Building A, Level 1)
+  uupl-historian   10.10.2.10   Process Historian, web :8080
+  distribution-scada 10.10.2.20 Scada-LTS, web :8080
+  uupl-eng-ws      10.10.2.30   Engineering workstation
+                                Dual-homed: 10.10.3.100 (control)
+
+Turbine Control (Basement Sub-Level 3)
+  hex-turbine-plc  10.10.3.21   Main turbine PLC, Modbus TCP :502
+  uupl-relay-a     10.10.3.31   Protective relay, Feeder A (Dolly Sisters)
+  uupl-relay-b     10.10.3.32   Protective relay, Feeder B (Nap Hill)
+  uupl-meter       10.10.3.33   Revenue meter
+
+Credentials: see C:\LOGBOOK\ENGINEER.LOG (mirrored at LOGBOOK/ENGINEER.LOG
+on the public share for the apprentices).
+
+=== CONTACTS ===
+
+Ponder Stibbons  ext 201  (all technical matters)
+Sgt Colon        ext 105  (operations floor; modem numbers)
+Archchancellor   ext 100  (emergencies only; define carefully)

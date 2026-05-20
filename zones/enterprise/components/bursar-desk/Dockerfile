@@ -30,6 +30,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 COPY entrypoint.sh /entrypoint.sh
 COPY win10shell.sh /usr/local/bin/win10shell.sh
+COPY data/profile/ /opt/win10/C/Users/bursardesk/
 
 RUN chmod +x /entrypoint.sh /usr/local/bin/win10shell.sh
 

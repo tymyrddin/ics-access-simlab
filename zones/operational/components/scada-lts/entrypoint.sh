@@ -27,6 +27,12 @@ stunnel "${CONF}"
 ssh-keygen -A
 /usr/sbin/sshd
 
+# Docker DNS resolves scada-db to the management network (172.20.20.x),
+# which is unreachable once clab replaces the default route via 10.10.2.202.
+# Pin scada-db to its ics_operational IP so both the port check below and
+# Tomcat's hardcoded jdbc:mysql://scada-db:3306/ URL resolve correctly.
+echo "10.10.2.19 scada-db" >> /etc/hosts
+
 # Wait for MySQL on scada-db:3306 before letting Tomcat boot. Without
 # this the WAR's Spring context fails on the first connection attempt
 # and Tomcat happily serves 404s for the rest of its life.

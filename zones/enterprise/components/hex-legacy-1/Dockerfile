@@ -34,7 +34,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 WORKDIR /opt/legacy
 
 COPY config/ /opt/legacy/config/
-COPY data/   /opt/legacy/data/
 COPY entrypoint.sh /entrypoint.sh
 COPY win95shell.sh /usr/local/bin/win95shell.sh
 
@@ -43,8 +42,20 @@ RUN chmod +x /entrypoint.sh /usr/local/bin/win95shell.sh
 # Samba shares land here
 RUN mkdir -p /srv/smb/public /srv/smb/private
 
-# Populate with realistic operational documents
+# C: drive — static files only; shared files come from data/shares/ below
+COPY data/C/ /opt/legacy/C/
+
+# Public SMB share; single source for files that also appear on C:
 COPY data/shares/ /srv/smb/public/
+COPY data/shares/LOGBOOK/ /opt/legacy/C/LOGBOOK/
+COPY data/shares/UUPL/NETWORK.TXT /opt/legacy/C/UUPL/NETWORK.TXT
+
+# Private SMB share (Administrator only)
+COPY data/private/PLC-ACCESS.CONF /srv/smb/private/PLC-ACCESS.CONF
+COPY data/C/PRIVATE/BACKUP.BAK /srv/smb/private/OLD-BACKUP.BAK
+
+# Engineering logbook also surfaced at the legacy data path; same source, no copy
+COPY data/shares/LOGBOOK/ENGINEER.LOG /opt/legacy/data/engineering-logbook.txt
 
 EXPOSE 21 22 23 139 445
 
