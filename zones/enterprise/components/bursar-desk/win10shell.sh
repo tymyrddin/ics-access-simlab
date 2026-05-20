@@ -7,7 +7,7 @@ VIRT_ROOT="/opt/win10/C"
 VIRT_CWD="Users/bursardesk"   # start in user home
 
 # Make the underlying process cwd match the facade's virtual cwd so
-# relative paths in dispatched commands (curl -OutFile foo.db,
+# relative paths in dispatched commands (iwr -OutFile foo.db,
 # sqlite3 foo.db, etc.) hit the same files that dir/type see.
 cd "$VIRT_ROOT/$VIRT_CWD" 2>/dev/null || true
 
@@ -93,8 +93,13 @@ cmd_dir() {
     if [[ -n "$target" ]]; then
         real="$(_real "$target")"
         local v="${target//\\//}"; v="${v#\"}"; v="${v%\"}"
-        [[ "${v^^}" == C:* ]] && { v="${v:2}"; v="${v#/}"; }
-        show="C:\\${v//\//\\}"
+        if [[ "${v^^}" == C:* ]]; then
+            v="${v:2}"; v="${v#/}"
+            show="C:\\${v//\//\\}"
+        else
+            local full="${VIRT_CWD}/${v}"; full="${full%/}"
+            show="C:\\${full//\//\\}"
+        fi
     else
         real="$(_real)"
         show="$(_disp)"
@@ -170,12 +175,6 @@ cmd_cd() {
 
     local v="${arg//\\//}"; v="${v#\"}"; v="${v%\"}"
 
-    if [[ "$v" == ".." ]]; then
-        local parent="${VIRT_CWD%/*}"
-        [[ "$parent" == "$VIRT_CWD" ]] && parent=""
-        VIRT_CWD="$parent"; return
-    fi
-
     [[ "$v" == "." ]] && return
 
     local new_cwd
@@ -186,11 +185,23 @@ cmd_cd() {
         new_cwd="$VIRT_CWD/$v"
     fi
 
-    if [[ -d "$VIRT_ROOT/$new_cwd" ]]; then
-        VIRT_CWD="$new_cwd"
+    # Resolve any .. components
+    local resolved="" comp
+    IFS='/' read -ra comps <<< "$new_cwd"
+    for comp in "${comps[@]}"; do
+        [[ -z "$comp" || "$comp" == "." ]] && continue
+        if [[ "$comp" == ".." ]]; then
+            [[ "$resolved" == */* ]] && resolved="${resolved%/*}" || resolved=""
+        else
+            resolved="${resolved:+$resolved/}$comp"
+        fi
+    done
+
+    if [[ -d "$VIRT_ROOT/$resolved" ]]; then
+        VIRT_CWD="$resolved"
     else
         printf "Set-Location: Cannot find path 'C:\\%s' because it does not exist.\n" \
-            "${new_cwd//\//\\}"
+            "${resolved//\//\\}"
     fi
 }
 
@@ -261,8 +272,8 @@ cmd_hostname() {
 cmd_ipconfig() {
     local flag="${1:-}"
     local ip1 ip2
-    ip1=$(hostname -I 2>/dev/null | awk '{print $1}')
-    ip2=$(hostname -I 2>/dev/null | awk '{print $2}')
+    ip1=$(hostname -I 2>/dev/null | tr ' ' '\n' | grep '^10\.10\.1\.' | head -1)
+    ip2=$(hostname -I 2>/dev/null | tr ' ' '\n' | grep '^10\.10\.2\.' | head -1)
     [[ -z "$ip1" ]] && ip1="10.10.1.20"
     [[ -z "$ip2" ]] && ip2="10.10.2.100"
 
@@ -331,8 +342,8 @@ EOF
 
 cmd_arp() {
     local ip1 ip2
-    ip1=$(hostname -I 2>/dev/null | awk '{print $1}'); [[ -z "$ip1" ]] && ip1="10.10.1.20"
-    ip2=$(hostname -I 2>/dev/null | awk '{print $2}'); [[ -z "$ip2" ]] && ip2="10.10.2.100"
+    ip1=$(hostname -I 2>/dev/null | tr ' ' '\n' | grep '^10\.10\.1\.' | head -1); [[ -z "$ip1" ]] && ip1="10.10.1.20"
+    ip2=$(hostname -I 2>/dev/null | tr ' ' '\n' | grep '^10\.10\.2\.' | head -1); [[ -z "$ip2" ]] && ip2="10.10.2.100"
     local sub1="${ip1%.*}" sub2="${ip2%.*}"
 
     printf '\nInterface: %s --- 0x2\n' "$ip1"
@@ -427,8 +438,8 @@ PYEOF
 
 cmd_systeminfo() {
     local ip1 ip2
-    ip1=$(hostname -I 2>/dev/null | awk '{print $1}'); [[ -z "$ip1" ]] && ip1="10.10.1.20"
-    ip2=$(hostname -I 2>/dev/null | awk '{print $2}'); [[ -z "$ip2" ]] && ip2="10.10.2.100"
+    ip1=$(hostname -I 2>/dev/null | tr ' ' '\n' | grep '^10\.10\.1\.' | head -1); [[ -z "$ip1" ]] && ip1="10.10.1.20"
+    ip2=$(hostname -I 2>/dev/null | tr ' ' '\n' | grep '^10\.10\.2\.' | head -1); [[ -z "$ip2" ]] && ip2="10.10.2.100"
     cat << EOF
 
 Host Name:                 BURSAR-DESK
@@ -677,13 +688,13 @@ cmd_net() {
     case "$sub" in
         USER)
             printf '\nUser accounts for \\\\BURSAR-DESK\n\n'
-            printf '-------------------------------------------------------------------------------\n'
+            printf '%s\n' '-------------------------------------------------------------------------------'
             printf 'Administrator            bursardesk               Guest\n'
             printf 'The command completed successfully.\n\n'
             ;;
         VIEW)
             printf '\nServer Name            Remark\n\n'
-            printf '-------------------------------------------------------------------------------\n'
+            printf '%s\n' '-------------------------------------------------------------------------------'
             printf '\\\\UUPL-SRV-01           UU P&L Domain Controller\n'
             printf '\\\\HEX-LEGACY-1          Inventory Server\n'
             printf 'The command completed successfully.\n\n'
@@ -691,7 +702,7 @@ cmd_net() {
         USE)
             printf '\nNew connections will be remembered.\n\n'
             printf 'Status       Local     Remote                             Network\n'
-            printf '-------------------------------------------------------------------------------\n'
+            printf '%s\n' '-------------------------------------------------------------------------------'
             printf 'OK           H:        \\\\uupl-srv-01\\home$                Microsoft Windows Network\n'
             printf 'The command completed successfully.\n\n'
             ;;
@@ -701,7 +712,7 @@ cmd_net() {
                 printf '\nAlias name     Administrators\n'
                 printf 'Comment        Administrators have complete and unrestricted access to the computer/domain\n\n'
                 printf 'Members\n\n'
-                printf '-------------------------------------------------------------------------------\n'
+                printf '%s\n' '-------------------------------------------------------------------------------'
                 printf 'Administrator\n'
                 printf 'bursardesk\n'
                 printf 'The command completed successfully.\n\n'
@@ -717,10 +728,6 @@ cmd_net() {
 
 cmd_ssh() {
     /usr/bin/ssh -o StrictHostKeyChecking=no "$@"
-}
-
-cmd_curl() {
-    /usr/bin/curl "$@"
 }
 
 cmd_iwr() {
@@ -746,13 +753,24 @@ cmd_iwr() {
     if [[ -z "$uri" ]]; then
         echo "Invoke-WebRequest: URI parameter required."; return
     fi
-    local -a args=("-s")
+    local -a args=("-s" "--connect-timeout" "5" "--max-time" "10")
     [[ "$method" == "POST" ]] && args+=("-X" "POST")
     [[ -n "$auth_header" ]]   && args+=("-H" "Authorization: $auth_header")
     [[ -n "$content_type" ]]  && args+=("-H" "Content-Type: $content_type")
     [[ -n "$body" ]]          && args+=("-d" "$body")
     [[ -n "$outfile" ]]       && args+=("-o" "$outfile")
-    /usr/bin/curl "${args[@]}" "$uri"
+    local out
+    out=$(/usr/bin/curl "${args[@]}" "$uri" 2>/dev/null)
+    local rc=$?
+    if [[ $rc -ne 0 ]]; then
+        printf 'Invoke-WebRequest : Unable to connect to the remote server\n'
+        printf 'At line:1 char:1\n'
+        printf '    + CategoryInfo : InvalidOperation\n'
+        printf '    + FullyQualifiedErrorId : WebCmdletWebResponseException\n'
+        return 1
+    fi
+    printf '%s' "$out"
+    [[ -z "$outfile" && -n "$out" ]] && printf '\n'
 }
 
 cmd_nmap() {
@@ -791,7 +809,7 @@ systeminfo                                             System information
 findstr                                                Search file contents (/i case-insensitive)
 cmdkey                                                 Credential manager (/list)
 
-Network tools available: nmap, nc, ftp, curl, ssh, ping, netstat, net
+Network tools available: nmap, nc, ftp, iwr, ssh, ping, netstat, net
 
 EOF
 }
@@ -830,8 +848,7 @@ _dispatch() {
         ping)                           cmd_ping $rest ;;
         net)                            cmd_net $rest ;;
         ssh)                            eval "$line" ;;
-        curl|wget)                      eval "$line" ;;
-        invoke-webrequest|iwr)          eval cmd_iwr "$rest" ;;
+        invoke-webrequest|iwr|wget)     eval cmd_iwr "$rest" ;;
         nmap)                           eval "$line" ;;
         nc)                             eval "$line" ;;
         ftp)                            eval "$line" ;;

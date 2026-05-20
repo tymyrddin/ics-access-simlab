@@ -212,7 +212,8 @@ make test
 ### Lab smoke tests
 
 Once the lab is up (`./ctl up`), the smoke tests verify each attack chain
-end-to-end against the running stack. Three drivers cover the 13 chains:
+end-to-end against the running stack. Five phase drivers aggregate the
+individual component tests:
 
 ```bash
 bash tests/smoke/test_phase1.sh   # IT/OT pivot chains
@@ -222,12 +223,14 @@ bash tests/smoke/test_phase4.sh   # L2/L3 fabric (FRR admin plane, etc.)
 bash tests/smoke/test_phase5.sh   # persistence (keys, cron, scheduled tasks)
 ```
 
-Each test asserts on visitor-realistic behaviour: passwords authenticate,
-files leak via the documented paths, modbus / IEC-104 / OPC-UA / TLS probes
-complete, facade shells return command output. Helpers live in
-`tests/smoke/lib.sh`; SSH probes run paramiko inside `unseen-gate` and
-chain through wizzards-retreat for enterprise / operational targets, so no
-test-only dependencies are added to lab containers.
+Individual component tests (e.g. `test_hex_legacy_facade.sh`,
+`test_bursar_desk_facade.sh`) can also be run directly. Each test asserts on
+visitor-realistic behaviour: passwords authenticate, files leak via the
+documented paths, modbus / IEC-104 / OPC-UA / TLS probes complete, facade
+shells return command output. Helpers live in `tests/smoke/lib.sh`; SSH
+probes run via `unseen-gate` and chain through `wizzards-retreat` for
+enterprise and operational targets, so no test-only dependencies are added
+to lab containers.
 
 ## Configuration
 
@@ -243,6 +246,10 @@ Contributions welcome:
 - Additional attack scenarios and CTF configs
 - Security rules and detection logic
 - Hardening variants for existing components
+
+Each device component keeps its own `runbook.md` alongside the Dockerfile.
+Per-device runbooks are the canonical reference for that component; the
+per-zone `books/` directory is a scratch space and is not committed.
 
 Before adding tests, read [tests/README.md](tests/README.md) for dependency ordering.
 Respect the layering: *fix the architecture, not the test*.

@@ -5,7 +5,7 @@ param(
 )
 
 $HistorianUrl = "http://10.10.2.10:8080"
-$User         = "uupl-historian"
+$User         = "historian"
 $Pass         = "Historian2015"
 
 $Cred    = [Convert]::ToBase64String([Text.Encoding]::ASCII.GetBytes("${User}:${Pass}"))

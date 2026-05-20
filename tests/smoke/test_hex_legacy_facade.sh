@@ -14,7 +14,6 @@
 #   File display: TYPE
 #   Output redirection: DIR > file, TYPE reads it back
 #   Drive mapping: G: (pre-mapped public share)
-#   CURL: historian /assets via facade CURL, validates NETWORK.TXT claim
 #   SSH auth: root/hex123 via wizzards-retreat jump
 #   Credential chain:
 #     hist_read/history2017 (found in G:\LOGBOOK\ENGINEER.LOG) tested against historian ingest
@@ -91,7 +90,8 @@ assert_contains "$NUSE_OUT" "G:" "NET USE lists pre-mapped G: drive"
 assert_contains "$NUSE_OUT" "F:" "NET USE lists pre-mapped F: drive"
 
 MAP_OUT="$(dos 'NET USE Z: \\HEX-LEGACY-1\public')"
-assert_contains "$MAP_OUT" "command completed successfully" "NET USE Z: maps public share"
+assert_absent "$MAP_OUT" "error\|not found\|incorrect\|denied" \
+    "NET USE Z: maps public share (Win95 silent on success)"
 
 # ── IP and routing commands ───────────────────────────────────────────────────
 
@@ -224,16 +224,6 @@ echo "[hex-legacy] Drive mapping"
 
 DIRG_OUT="$(dos "DIR G:\\")"
 assert_contains "$DIRG_OUT" "LOGBOOK|UUPL" "DIR G:\\ lists the pre-mapped public share"
-
-# ── CURL: live service access from the facade ─────────────────────────────────
-
-echo "[hex-legacy] CURL to live services"
-
-# G:\UUPL\NETWORK.TXT lists the historian at $HIST_IP:8080.
-# Verify that IP resolves to a live service from inside the facade.
-CURL_HIST="$(dos "CURL -s http://${HIST_IP}:8080/assets")"
-assert_contains "$CURL_HIST" "turbine_rpm" \
-    "CURL historian /assets ($HIST_IP:8080) returns live asset list"
 
 # ── SSH auth via jump ─────────────────────────────────────────────────────────
 

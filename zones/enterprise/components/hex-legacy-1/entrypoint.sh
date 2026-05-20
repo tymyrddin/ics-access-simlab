@@ -73,7 +73,9 @@ EOF
 echo "root:hex123" | chpasswd
 
 # --- Telnet ---
-# Still running. Nobody turned it off.
+# Still running. Nobody turned it off. Configured to drop directly into the
+# Win95 shell: no login prompt, no authentication, open to anyone on the network.
+# This is not a misconfiguration for 1999 — it's correct operation.
 cat > /etc/xinetd.d/telnet << 'EOF'
 service telnet
 {
@@ -83,7 +85,7 @@ service telnet
     port            = 23
     wait            = no
     user            = root
-    server          = /usr/sbin/telnetd
+    server          = /usr/local/bin/win95shell.sh
     log_on_failure  += USERID
     disable         = no
 }
@@ -93,8 +95,8 @@ EOF
 usermod -s /usr/local/bin/win95shell.sh root
 
 # Private share: tighten permissions. COPY sets 644; Samba valid users = Administrator.
-chmod 640 /srv/smb/private/plc-access.conf
-chmod 640 /srv/smb/private/old-backup.bak
+chmod 640 /srv/smb/private/PLC-ACCESS.CONF
+chmod 640 /srv/smb/private/OLD-BACKUP.BAK
 chmod 644 /opt/legacy/data/engineering-logbook.txt
 
 # --- /etc/motd ---

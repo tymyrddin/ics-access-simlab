@@ -51,8 +51,8 @@ COPY data/shares/LOGBOOK/ /opt/legacy/C/LOGBOOK/
 COPY data/shares/UUPL/NETWORK.TXT /opt/legacy/C/UUPL/NETWORK.TXT
 
 # Private SMB share (Administrator only)
-COPY data/private/plc-access.conf /srv/smb/private/plc-access.conf
-COPY data/C/PRIVATE/BACKUP.BAK /srv/smb/private/old-backup.bak
+COPY data/private/PLC-ACCESS.CONF /srv/smb/private/PLC-ACCESS.CONF
+COPY data/C/PRIVATE/BACKUP.BAK /srv/smb/private/OLD-BACKUP.BAK
 
 # Engineering logbook also surfaced at the legacy data path; same source, no copy
 COPY data/shares/LOGBOOK/ENGINEER.LOG /opt/legacy/data/engineering-logbook.txt
