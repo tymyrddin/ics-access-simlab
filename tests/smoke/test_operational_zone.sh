@@ -1,15 +1,14 @@
 #!/usr/bin/env bash
-# Driver: run all Phase 5 (persistence) smoke tests.
+# Driver: run all operational zone smoke tests.
 #
-# Phase 1-4 cover entry, application-plane, and routing-fabric attack
-# surface. Phase 5 covers what visitors do AFTER they're in: dropping
-# pubkeys for password-rotation survival, hijacking existing cron payloads
-# the operator already trusts, and scheduling their own tasks via the
-# Windows-native schtasks surface.
+# Covers the three operational zone facade hosts:
+#   distribution-scada  10.10.2.20  WinServer 2016, SCADA + stunnel client key
+#   uupl-historian      10.10.2.10  WinServer 2019, SQLi + path traversal
+#   uupl-eng-ws         10.10.2.30  Win10 LTSC, dual-homed into control zone
 #
 # Assumes './ctl up' has been run.
 #
-# Usage: bash tests/smoke/test_phase5.sh
+# Usage: bash tests/smoke/test_operational_zone.sh
 set -uo pipefail
 
 REPO="$(cd "$(dirname "$0")/../.." && pwd)"
@@ -18,9 +17,9 @@ PASSED=0
 FAILED=0
 SKIPPED=0
 for t in \
-    test_persistence_authorized_keys.sh \
-    test_persistence_cron_implant.sh \
-    test_persistence_scheduled_task.sh
+    test_distribution_scada_facade.sh \
+    test_uupl_historian_facade.sh \
+    test_uupl_eng_ws_facade.sh
 do
     echo ""
     echo "=========================================="
@@ -36,7 +35,7 @@ do
 done
 
 echo ""
-echo "Phase 5 tests: $PASSED passed, $FAILED failed, $SKIPPED skipped."
+echo "Operational zone tests: $PASSED passed, $FAILED failed, $SKIPPED skipped."
 if [ "$SKIPPED" -gt 0 ]; then
     echo "Skipped tests indicate the lab is not fully running. Run './ctl up' first."
 fi

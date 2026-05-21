@@ -55,7 +55,7 @@ cmd_dir() {
         printf '\n\n    Directory: %s\n\n\n' "$pshow"
         echo 'Mode                 LastWriteTime         Length Name'
         echo '----                 -------------         ------ ----'
-        printf '%s        14/03/2024   9:15 AM  %10s  %s\n' '-a----' "$(stat -c%s "$real")" "$(basename "$real")"
+        printf '%s        14/03/2024   9:15 AM  %10s  %s\n' '-a----' "$(stat -L -c%s "$real")" "$(basename "$real")"
         printf '\n'; return
     fi
     printf '\n\n    Directory: %s\n\n\n' "$show"
@@ -66,7 +66,7 @@ cmd_dir() {
         if [[ -d "$entry" ]]; then
             printf '%s        14/03/2024   9:15 AM                %s\n' 'd-----' "$name"
         else
-            printf '%s        14/03/2024   9:15 AM  %10s  %s\n' '-a----' "$(stat -c%s "$entry")" "$name"
+            printf '%s        14/03/2024   9:15 AM  %10s  %s\n' '-a----' "$(stat -L -c%s "$entry")" "$name"
         fi
     done < <(find "$real" -maxdepth 1 -mindepth 1 -print0 | sort -z)
     printf '\n'

@@ -179,20 +179,19 @@ turbine_rpm, turbine_temperature, etc.). Confirms the credential works and the h
 reachable directly from the operational NIC. The Base64 string is historian:Historian2015.*
 
 ```cmd
-iwr -Uri "http://10.10.2.10:8080/report?asset=turbine_main&from=2026-01-01&to=2026-02-01" -Headers @{Authorization="Basic aGlzdG9yaWFuOkhpc3RvcmlhbjIwMTU="}
+iwr -Uri "http://10.10.2.10:8080/report?asset=turbine_rpm&from=<YYYY-MM>-01&to=<YYYY-MM>-28" -Headers @{Authorization="Basic aGlzdG9yaWFuOkhpc3RvcmlhbjIwMTU="}
 ```
 
-*Returns CSV with headers (timestamp,value,unit) and data rows if the historian has ingested
-records for that range. This is the same query pull_monthly_report.ps1 runs.*
+*Returns CSV with headers (timestamp,value,unit) and data rows. Use the current month for
+`<YYYY-MM>`: the historian seeds 30 days of data back from startup, so recent months have
+rows. This is the same query pull_monthly_report.ps1 runs with its default `$Month` value.*
 
 ```cmd
-iwr -Uri http://10.10.2.20:8080/Scada-LTS/login.htm
+iwr -Uri http://10.10.2.20:8080/ -Headers @{Authorization="Basic YWRtaW46YWRtaW4="}
 ```
 
-*Returns the Scada-LTS login page HTML. Confirms the SCADA web console is reachable directly
-from 10.10.2.100 via the operational NIC. Credential is admin / admin (from ops-access.conf).
-On first boot the page may show a "System exception" message while the i18n service initialises;
-a second request or a short wait clears it.*
+*Returns the distribution-SCADA dashboard HTML. Credential is admin / admin (from
+ops-access.conf). The Base64 string is admin:admin.*
 
 ## Known hosts
 
@@ -217,7 +216,7 @@ ssh engineer@10.10.2.30
 connection has been made before.*
 
 ```cmd
-iwr -Uri "http://10.10.2.10:8080/report?asset=turbine_main&from=2026-01-01&to=2026-02-01" -Headers @{Authorization="Basic aGlzdG9yaWFuOkhpc3RvcmlhbjIwMTU="}
+iwr -Uri "http://10.10.2.10:8080/report?asset=turbine_rpm&from=<YYYY-MM>-01&to=<YYYY-MM>-28" -Headers @{Authorization="Basic aGlzdG9yaWFuOkhpc3RvcmlhbjIwMTU="}
 ```
 
 *Historian data without relaying through any other machine. URL quoted to prevent the shell splitting on the `&`.*
@@ -254,15 +253,7 @@ cmdkey /list                                      saved Windows credentials
 schtasks /query                                   monthly report task
 ping 10.10.2.10                                   historian reachable via operational NIC
 iwr -Uri http://10.10.2.10:8080/assets -Headers @{Authorization="Basic aGlzdG9yaWFuOkhpc3RvcmlhbjIwMTU="}   live historian query
+iwr -Uri http://10.10.2.20:8080/ -Headers @{Authorization="Basic YWRtaW46YWRtaW4="}               distribution-SCADA dashboard (admin:admin)
 ssh engineer@10.10.2.30                           pivot to engineering workstation (spanner99)
 ```
 
-## To investigate
-
-- `/report?asset=turbine_main` returns headers only (`timestamp,value,unit`, no rows). Historian
-  has no pre-seeded data for the 2026-01 range. Either pre-load data or pick a range matching
-  the smoke test ingest calls.
-
-- SCADA pivot: resolved. Scada-LTS deploys at `/Scada-LTS/`, not `/`. Docker DNS resolves
-  `scada-db` to the management network (unreachable after clab sets the default route); fixed
-  by pinning `10.10.2.19 scada-db` in `/etc/hosts` at entrypoint startup.

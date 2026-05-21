@@ -168,11 +168,11 @@ notes on what each threshold controls and the effect of manipulating it:
 
 ```
 HR[0] undervoltage_threshold_v = 196  ; relay trips if V < this
-HR[1] overcurrent_threshold_a  = 200  ; relay trips if I > this
-HR[2] overspeed_threshold_rpm  = 3300 ; relay trips if RPM > this
+HR[1] overspeed_threshold_rpm  = 3300 ; relay trips if RPM > this
+HR[2] overcurrent_threshold_a  = 200  ; relay trips if I > this
 
 # Reducing undervoltage threshold allows fault to persist without trip.
-# Raising overcurrent threshold disables overcurrent protection.
+# Lowering overspeed or overcurrent threshold triggers a spurious trip.
 ```
 
 ## Real-world vulnerabilities / CVEs
@@ -280,8 +280,9 @@ Example content snippets:
 
   ```
   HR[0] undervoltage_threshold_v = 196  ; relay trips if V < this
-  HR[1] overcurrent_threshold_a  = 200  ; relay trips if I > this
-  # Raising overcurrent threshold disables overcurrent protection.
+  HR[1] overspeed_threshold_rpm  = 3300 ; relay trips if RPM > this
+  HR[2] overcurrent_threshold_a  = 200  ; relay trips if I > this
+  # Lowering overspeed or overcurrent threshold triggers a spurious trip.
   ```
 
 ## Role in the simulator

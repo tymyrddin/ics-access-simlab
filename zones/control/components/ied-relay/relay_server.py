@@ -12,8 +12,8 @@ Modbus register map
 -------------------
 Holding Registers (FC3, writable, changing these disables protection):
   0  undervoltage_threshold_v   default 196 (85% of 230V)
-  1  overcurrent_threshold_a    default 200
-  2  overspeed_threshold_rpm    default 3300
+  1  overspeed_threshold_rpm    default 3300
+  2  overcurrent_threshold_a    default 200
 
 Input Registers (FC4):
   0  line_voltage_v    (mirrored from PLC)

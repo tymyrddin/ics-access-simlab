@@ -731,7 +731,7 @@ cmd_ssh() {
 }
 
 cmd_iwr() {
-    local uri="" method="GET" body="" content_type="" auth_header="" outfile=""
+    local uri="" method="GET" body="" content_type="" auth_header="" outfile="" infile=""
     while [[ $# -gt 0 ]]; do
         case "${1,,}" in
             -uri)         shift; uri="${1//\"/}" ;;
@@ -745,6 +745,7 @@ cmd_iwr() {
                 [[ "${hkey,,}" == "authorization" ]] && auth_header="$hval"
                 ;;
             -outfile)     shift; outfile="$1" ;;
+            -infile)      shift; infile="$(_real "$1")" ;;
             -usebasicparsing|-credential) ;;
             http://*|https://*) uri="${1//\"/}" ;;
         esac
@@ -759,6 +760,7 @@ cmd_iwr() {
     [[ -n "$content_type" ]]  && args+=("-H" "Content-Type: $content_type")
     [[ -n "$body" ]]          && args+=("-d" "$body")
     [[ -n "$outfile" ]]       && args+=("-o" "$outfile")
+    [[ -n "$infile" ]]        && args+=(--data-binary "@$infile")
     local out
     out=$(/usr/bin/curl "${args[@]}" "$uri" 2>/dev/null)
     local rc=$?
@@ -848,7 +850,7 @@ _dispatch() {
         ping)                           cmd_ping $rest ;;
         net)                            cmd_net $rest ;;
         ssh)                            eval "$line" ;;
-        invoke-webrequest|iwr|wget)     eval cmd_iwr "$rest" ;;
+        invoke-webrequest|iwr|wget)     eval cmd_iwr "${rest//\\/\\\\}" ;;
         nmap)                           eval "$line" ;;
         nc)                             eval "$line" ;;
         ftp)                            eval "$line" ;;

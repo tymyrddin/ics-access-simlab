@@ -10,7 +10,7 @@ $Pass         = "Historian2015"
 
 $Cred    = [Convert]::ToBase64String([Text.Encoding]::ASCII.GetBytes("${User}:${Pass}"))
 $Headers = @{ Authorization = "Basic $Cred" }
-$Uri     = "$HistorianUrl/report?asset=turbine_main&from=$Month-01&to=$Month-28"
+$Uri     = "$HistorianUrl/report?asset=turbine_rpm&from=$Month-01&to=$Month-28"
 $OutFile = "$HOME\reports\turbine_$Month.csv"
 
 New-Item -ItemType Directory -Force -Path "$HOME\reports" | Out-Null

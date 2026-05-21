@@ -13,9 +13,10 @@ EOF
 
 PROFILE="/opt/win10/C/Users/bursardesk"
 
-# Careless copy left in /tmp, someone needed the conf outside the profile.
-cp "$PROFILE/AppData/Roaming/UUPLOps/ops-access.conf" /tmp/ops-access.conf.bak
-chmod 644 /tmp/ops-access.conf.bak
+# Careless copy left in C:\Temp, someone needed the conf outside the profile.
+mkdir -p /opt/win10/C/Temp
+cp "$PROFILE/AppData/Roaming/UUPLOps/ops-access.conf" /opt/win10/C/Temp/ops-access.conf.bak
+chmod 644 /opt/win10/C/Temp/ops-access.conf.bak
 
 # Fix ownership and tighten permissions on sensitive files.
 chown -R bursardesk:bursardesk /opt/win10

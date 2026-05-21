@@ -42,12 +42,12 @@ PSReadLine history includes prior historian queries and SSH sessions.
 
 ## Attack chain summary
 
-See `scada-server.md` for the full device runbook.
+See `runbook.md` for the full device runbook.
 
 ```
 default web creds admin/admin
     → /config endpoint: hist_read/history2017 + plantmail123
     → SSH as scada_admin (W1nd0ws@2016 from scada.ini)
-    → /run/stunnel-certs/client.key (world-readable, HEX-5103)
+    → C:\SCADA\Config\certs\client.key (world-readable, HEX-5103)
     → direct Modbus-TLS to uupl-modbus-gw → PLC commands
 ```

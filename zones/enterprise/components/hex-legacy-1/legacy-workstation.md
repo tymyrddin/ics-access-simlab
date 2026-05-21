@@ -24,81 +24,88 @@ Your Dockerfile already mirrors this behaviour:
 * Debian-based container simulating Win95-era services.
 * SMB with share-level security (public + private).
 * FTP with anonymous read-only access.
-* Telnet + SSH with weak credentials.
-* Home directories and `/srv/smb/public` contain realistic operational documents.
-* `.txt` files in `data/shares/` act as artefacts.
+* Telnet: no login prompt, drops directly into the DOS facade shell.
+* The public share (`\\HEX-LEGACY-1\public`) contains the operational documents.
+* Share-level files are the primary artefact surface.
+
+The SMB shares run on Samba (Linux). From a participant's perspective this is invisible: the share names, access 
+controls, and NTLMv1 authentication behave as they would on a native Win95 server. The distinction matters only 
+inside the container, where Samba configuration lives at Linux filesystem paths rather than in the Windows registry.
 
 Key point: nothing is “broken”, everything is authentically old-school operational defaults.
 
 ## Deliberately introduced vulnerabilities
 
-### 1. Weak credentials
+### Weak credentials
 
 * Administrator and root accounts use dictionary-like passwords (`hex123`).
 * These were standard practice for the era, often documented on sticky notes.
 
-### 2. Legacy protocols
+### Legacy protocols
 
-* Telnet: plaintext credentials across the network.
+* Telnet: no authentication required; the session itself is unencrypted.
 * FTP: anonymous login enabled, exposing public data.
 * Samba NT1 + LM hashes: vulnerable to cracking and man-in-the-middle attacks.
 
-### 3. Default share permissions
+### Default share permissions
 
 * `public` share allows read access to operational documents.
 * `private` share restricted only by username/password.
 * Permissions reflect typical 1990s NT/SMB defaults.
 
-### 4. Lack of patching
+### Lack of patching
 
-* Services reflect pre-2000 behaviour; any vulnerabilities documented for that era (SMBv1 buffer overflows, vsftpd misconfigurations) are present.
+Services reflect pre-2000 behaviour; any vulnerabilities documented for that era (SMBv1 buffer overflows, vsftpd misconfigurations) are present.
 
 ## Real-world vulnerabilities / CVEs
 
 | Component             | CVE / Example | Notes                                                                  |
 |-----------------------|---------------|------------------------------------------------------------------------|
 | Samba NT1 / LM hashes | CVE-1999-0484 | Weak LM hash allows offline password cracking                          |
-| vsftpd <=2.0.5        | CVE-2011-2523 | Backdoor in earlier vsftpd, conceptually matches old unpatched servers |
+| vsftpd 2.3.4 source code        | CVE-2011-2523 | Backdoor in earlier vsftpd, conceptually matches old unpatched servers |
 | Telnet service        | N/A           | Plaintext credentials, classic MITM / sniffing risk                    |
-| SSH (weak password)   | N/A           | Credential reuse + default root login; brute force easily succeeds     |
 | SMBv1 shares          | CVE-2017-0143 | EternalBlue; illustrates the old SMB protocol vulnerabilities          |
 
-Not all weaknesses map to a CVE: many are operational or protocol flaws, not software bugs. This is exactly why legacy workstations remain high-value targets.
+* Not all weaknesses map to a CVE: many are operational or protocol flaws, not software bugs. This is exactly why legacy workstations remain high-value targets.
+* EternalBlue is associated with CVE-2017-0144, and CVE-2017-0143 is a related SMBv1 RCE flaw.
 
-## Artefacts attackers should find
+## Artefacts
 
-### 1. Configuration files
+### Configuration files
 
-* `/etc/samba/smb.conf`, share names, permissions, authentication type
-* `/etc/vsftpd.conf`, FTP service parameters
-* `/etc/xinetd.d/telnet`, Telnet availability
-* `/opt/legacy/config/network_inventory.txt`, network segments, IPs, gateways, workstations
+* `UUPL\NETWORK.TXT` (public share): current network segments, 10.10.x.x IPs, 2019
+* `NETWORK_INVENTORY.TXT` (public share root): 1999 version with old IP ranges, still present
 
-### 2. Credentials
+### Credentials
 
 * Local passwords (`Administrator:hex123`, `root:hex123`)
-* Samba passwords via `smbpasswd`
-* FTP and Telnet credentials in plaintext
+* NTLMv1 authentication on all SMB connections; any captured challenge is crackable offline (Responder on the enterprise segment captures it on any SMB browse)
+* FTP: anonymous access, no credentials required. Telnet: no login prompt; session traffic unencrypted
+* Historian ingest credential (`hist_read / history2017`) in `LOGBOOK\ENGINEER.LOG` only
+* SCADA SSH credential (`scada_admin / W1nd0ws@2016`) in `LOGBOOK\ENGINEER.LOG`
 
-### 3. Logs
+### Operational documents
 
-* Samba logs: show which accounts accessed which shares
-* FTP logs: file listings and connections
-* xinetd/Telnet logs: failed or successful logins
+* The public share (`\\HEX-LEGACY-1\public`, pre-mapped as `G:`) contains:
 
-### 4. Operational documents
+  * `LOGBOOK\ENGINEER.LOG`: all system passwords; the only source of hist_read and scada_admin credentials
+  * `UUPL\NETWORK.TXT`: current network inventory (10.10.x.x, 2019)
+  * `NETWORK_INVENTORY.TXT`: 1999 network map at share root, old IP ranges, still present
+  * `PROCEDURES.TXT`: operational procedures
 
-* `data/shares/` contains:
+* The C: drive (Telnet) contains:
 
-  * network diagrams
-  * historical reports
-  * operational SOPs
-  * legacy configuration snapshots
+  * `C:\LOGBOOK\ENGINEER.LOG`: all system passwords; same content as the public share copy
+  * `C:\UUPL\NETWORK.TXT`: current network inventory; same content as the public share copy
+  * `C:\UUPL\PROCS.TXT`: Modbus coil names and actuator IPs
+  * `C:\UUPL\SCADA\LOGS.CSV`: SCADA event log 1999-2003
+  * `C:\PRIVATE\PLCACCS.CFG`: historian, SCADA, and SSH credentials
+  * `C:\PRIVATE\BACKUP.BAK`: domain admin password from 2003 migration, never deleted
 
-### 5. MOTD and notes
+* The private share (`\\HEX-LEGACY-1\private`, Administrator:hex123) contains:
 
-* `/etc/motd` / internal documentation: IPs, servers, operational quirks
-* Provides context for attacker to map network topology quickly
+  * `PLC-ACCESS.CONF`: same credentials as PLCACCS.CFG (historian, SCADA, eng-ws)
+  * `OLD-BACKUP.BAK`: copy of BACKUP.BAK from the 2003 migration
 
 ## Role in the simulator
 
@@ -110,78 +117,64 @@ Not all weaknesses map to a CVE: many are operational or protocol flaws, not sof
 Attackers typically follow:
 
 ```text
-legacy workstation compromise
+legacy workstation compromise via Telnet or anonymous FTP
         ↓
-discover credentials in smbpasswd / network_inventory.txt
+map public share (G:), read LOGBOOK\ENGINEER.LOG and UUPL\NETWORK.TXT
         ↓
-access private shares / FTP
+use Administrator:hex123 (from C:\PRIVATE\BACKUP.BAK) to access C:\PRIVATE\
         ↓
-enumerate engineering and OT hosts
+read PLCACCS.CFG for historian, SCADA, and engineer SSH credentials
         ↓
-pivot to uupl-historian or SCADA
+pivot to uupl-historian (hist_read / history2017) or SCADA (admin / admin)
 ```
 
 ## Legacy workstation artefacts
 
-Location: `/srv/smb/public` + `/srv/smb/private` + `/opt/legacy/data`
+Location: public share (`\\HEX-LEGACY-1\public`, G:) and C: drive via Telnet
 
-| File / Directory                               | Purpose / Description   | Notes for attacker                                                                                     |
-|------------------------------------------------|-------------------------|--------------------------------------------------------------------------------------------------------|
-| `/opt/legacy/config/network_inventory.txt`     | Network map             | Shows IP ranges, gateways, workstation hostnames, ideal for recon                                      |
-| `/srv/smb/public/*.txt`                        | Public operational docs | SOPs, equipment manuals, general reports; attacker can read, but not write                             |
-| `/srv/smb/private/*.conf`                      | Private configs         | Could contain PLC passwords, engineering notes, or internal scripts; accessible only via Administrator |
-| `/opt/legacy/data/`                            | Sample data snapshots   | Example SCADA logs, process reports, CSV exports                                                       |
-| `/etc/motd`                                    | Operational message     | Gives context: last update, contacts, known quirks of machinery and servers                            |
-| `.smbpasswd`                                   | LM / NTLM hashes        | For offline cracking of the Administrator password                                                     |
-| `/var/log/ftp.log` / `/var/log/samba/log.smbd` | Access logs             | Show who accessed what and when; demonstrates historical activity                                      |
-| `engineering-logbook.txt`                      | Embedded passwords      | Simulates sticky-note style plaintext passwords for PLCs or uupl-historian                                  |
+| File / Directory                               | Purpose / Description | Notes for attacker                                             |
+|------------------------------------------------|-----------------------|----------------------------------------------------------------|
+| `UUPL\NETWORK.TXT` (public share)              | Current network map   | 10.10.x.x IPs, hostnames; 2019 update                          |
+| `NETWORK_INVENTORY.TXT` (share root)           | 1999 network map      | Old IP ranges; confirms years of neglect                       |
+| `LOGBOOK\ENGINEER.LOG` (public share)          | Engineering logbook   | All system passwords; only source of hist_read and scada_admin |
+| `C:\PRIVATE\PLCACCS.CFG`                       | PLC and system access | Historian, SCADA, engineer SSH credentials                     |
+| `C:\PRIVATE\BACKUP.BAK`                        | Migration backup      | `Administrator / hex123` from 2003 migration, never deleted    |
+| `C:\UUPL\SCADA\LOGS.CSV`                       | SCADA event log       | Events 1999-2003; asset names, relay trip history              |
+| `C:\UUPL\PROCS.TXT`                            | Process procedures    | Modbus coil names and actuator IPs                             |
 
-Extras to make it feel “1999 real”:
+Extras that make it feel “1999 real”:
 
-* Random `.bak` files or `.old` configs in `/srv/smb/private`
-* Telnet session recordings (mock) or history files under `/opt/legacy`
-* Old spreadsheets with sample inventory numbers
-* Legacy backups of network diagrams in GIF or BMP format
+* `AUTOEXEC.BAT` and `CONFIG.SYS` on C: for atmosphere
+* `C:\WINDOWS\WIN.INI` and `C:\WINDOWS\SYSTEM\PROTOCOL.INI` for network config artefacts
 
-## 2. Legacy workstation folder tree
+## Legacy workstation folder tree
 
 ```
-/opt/legacy/
-├── config/
-│   └── network_inventory.txt   # IP ranges, gateways, hostnames
-├── data/
-│   └── shares/
-│       ├── procedures.txt     # Sample SOPs
-│       ├── manuals.pdf        # Equipment manuals
-│       └── logs_sample.csv    # Mock SCADA logs
-│   └── engineering-logbook.txt # Sticky-note style passwords
-└── smb-private/                # Only accessible to Administrator
-    ├── plc-access.conf         # Realistic legacy credentials
-    ├── old-backup.bak
-    └── scripts/
-        └── update_inventory.sh
+C:\   (accessible via Telnet)
+├── LOGBOOK\
+│   └── ENGINEER.LOG         # All system passwords (same as public share copy)
+├── PRIVATE\
+│   ├── BACKUP.BAK           # Administrator / hex123, 2003 migration
+│   └── PLCACCS.CFG          # historian, SCADA, engineer SSH credentials
+├── UUPL\
+│   ├── NETWORK.TXT          # Current network inventory (same as public share copy)
+│   ├── PROCS.TXT            # Modbus coil names, actuator IPs
+│   └── SCADA\
+│       └── LOGS.CSV         # SCADA event log 1999-2003
+└── WINDOWS\
+    ├── WIN.INI
+    └── SYSTEM\
+        └── PROTOCOL.INI
+
+\\HEX-LEGACY-1\public   (pre-mapped as G:, no credentials required)
+├── LOGBOOK\
+│   └── ENGINEER.LOG         # All system passwords
+├── UUPL\
+│   └── NETWORK.TXT          # Current network inventory (10.10.x.x, 2019)
+├── NETWORK_INVENTORY.TXT    # 1999 network map, old IP ranges
+└── PROCEDURES.TXT           # Operational procedures
+
+\\HEX-LEGACY-1\private  (Administrator:hex123 required)
+├── PLC-ACCESS.CONF          # Same credentials as PLCACCS.CFG
+└── OLD-BACKUP.BAK           # Copy of BACKUP.BAK from 2003 migration
 ```
-
-Example content snippets:
-
-* `network_inventory.txt`
-
-  ```
-  Operations Floor: 192.168.1.10-30
-  Engineering: 10.0.1.20-25
-  Turbine Control: 172.16.3.10-12
-  Distribution SCADA: see Sgt Colon
-  ```
-* `engineering-logbook.txt`
-
-  ```
-  Turbine PLC: plc123
-  Historian DB: hist1999
-  Backup router: admin
-  ```
-
-Optional artefacts for realism:
-
-* `.smbpasswd` with LM hashes
-* `/var/log/samba/log.smbd` (mocked)
-* FTP logs with anonymous access entries

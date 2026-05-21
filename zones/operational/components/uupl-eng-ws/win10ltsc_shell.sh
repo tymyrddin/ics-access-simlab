@@ -76,7 +76,7 @@ cmd_dir() {
         echo 'Mode                 LastWriteTime         Length Name'
         echo '----                 -------------         ------ ----'
         printf '%s        14/03/2024   9:15 AM  %10s  %s\n' \
-            '-a----' "$(stat -c%s "$real")" "$(basename "$real")"
+            '-a----' "$(stat -L -c%s "$real")" "$(basename "$real")"
         printf '\n'
         return
     fi
@@ -89,7 +89,7 @@ cmd_dir() {
             printf '%s        14/03/2024   9:15 AM                %s\n' 'd-----' "$name"
         else
             printf '%s        14/03/2024   9:15 AM  %10s  %s\n' \
-                '-a----' "$(stat -c%s "$entry")" "$name"
+                '-a----' "$(stat -L -c%s "$entry")" "$name"
         fi
     done < <(find "$real" -maxdepth 1 -mindepth 1 -print0 | sort -z)
     printf '\n'
@@ -443,11 +443,12 @@ PYEOF
 }
 
 cmd_iwr() {
-    local uri="" outfile="" method="GET" body="" content_type="" auth_header=""
+    local uri="" outfile="" infile="" method="GET" body="" content_type="" auth_header=""
     while [[ $# -gt 0 ]]; do
         case "${1,,}" in
             -uri)            shift; uri="$1" ;;
             -outfile)        shift; outfile="$(_real "$1")" ;;
+            -infile)         shift; infile="$(_real "$1")" ;;
             -method)         shift; method="${1^^}" ;;
             -body)           shift; body="$1" ;;
             -contenttype)    shift; content_type="$1" ;;
@@ -469,6 +470,7 @@ cmd_iwr() {
     local -a curl_args=(-s)
     [[ "$method" != "GET" ]] && curl_args+=(-X "$method")
     [[ -n "$body" ]]         && curl_args+=(-d "$body")
+    [[ -n "$infile" ]]       && curl_args+=(--data-binary "@$infile")
     [[ -n "$content_type" ]] && curl_args+=(-H "Content-Type: $content_type")
     [[ -n "$auth_header" ]]  && curl_args+=(-H "$auth_header")
     if [[ -n "$outfile" ]]; then

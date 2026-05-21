@@ -258,9 +258,6 @@ dir C:\ /s > C:\TEMP\c_drive_listing.txt
 Then exfiltrate via FTP (anonymous on port 21) or copy to a mapped share on
 the attacker machine.
 
-The telnet service is on port 23 but presents a Linux login prompt, not a DOS prompt.
-Participants who telnet in expecting a Windows shell encounter a brief reality check.
-
 ## Quick reference
 
 ```

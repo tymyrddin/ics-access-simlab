@@ -129,7 +129,7 @@ Schedule (runs at 01:00 daily via Task Scheduler):
   line_voltage_b.csv  , feeder B voltage, 24h
   line_current_a.csv  , feeder A current, 24h
 
-Files are written to C:\Historian\Data\exports\ (Linux: /opt/historian/data/exports/)
+Files are written to C:\Historian\Data\exports\
 EOF
 
 # ── PSReadLine history ────────────────────────────────────────────────────────
