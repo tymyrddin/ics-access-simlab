@@ -36,14 +36,13 @@ zones/internet/components/unseen-gate/adversary-keys
 # Re-run ./ctl generate to regenerate. Never commit private keys.
 certs/
 
-# CTF walkthroughs, kept private
-books/
-books/*
+# docs, kept private for now
 docs/
 docs/*
 challenges/
 challenges/*
 state.md
+to-investigate.md
 
 # captured traffic, too large for git
 data/pcap/
