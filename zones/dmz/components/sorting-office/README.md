@@ -54,9 +54,8 @@ MQTT: outbound, configured northbound output plugin.
 
 ## Built-in vulnerabilities
 
-Reused credential: `admin` / `uupl2015`. The same password is on the
-ssh-bastion root account (`contractors-gate`). An attacker who finds one
-credential can try it on the other.
+Reused credential: `admin` / `uupl2015`. The same password is the root password
+on `contractors-gate`. An attacker who finds one credential can try it on the other.
 
 Southbound device configuration: once authenticated, an attacker can add a new
 Modbus TCP device pointing at any host reachable from sorting-office. The control
@@ -96,7 +95,7 @@ operator workstations.
 ## Observability and debugging
 
 ```bash
-docker logs neuron-gateway
+docker logs sorting-office
 curl http://10.10.5.11:7000/   # management UI
 ```
 
@@ -134,7 +133,7 @@ the firewall rules both reflect 7000.
 
 ## Bottom line
 
-Neuron industrial protocol gateway, `admin` / `uupl2015` (reused from ssh-bastion).
+Neuron industrial protocol gateway, `admin` / `uupl2015` (reused from contractors-gate).
 REST API on port 7000. Northbound MQTT output to clacks-relay pre-configured.
 No southbound device: add that after gaining a foothold from which the PLC is
 reachable, and the gateway becomes a persistent exfil pipeline out through the DMZ.

@@ -1,10 +1,26 @@
 #!/usr/bin/env bash
 # distribution-scada entrypoint
-# Sets up SSH with Windows Server 2016 facade, builds virtual filesystem,
-# then starts sshd and the Flask web server.
+# Starts stunnel Modbus-TLS client, sets up SSH with Windows Server 2016 facade,
+# builds virtual filesystem, then starts sshd and the Flask web server.
 set -e
 
 HISTORIAN_IP="${HISTORIAN_IP:-10.10.2.10}"
+GATEWAY_HOST="${STUNNEL_GW_IP:-10.10.2.50}"
+CERT_DIR="/run/stunnel-certs"
+CONF_TEMPLATE="/run/stunnel-client/stunnel-client.conf"
+CONF="/etc/stunnel/scada-client.conf"
+
+mkdir -p /etc/stunnel
+sed "s|GATEWAY_HOST|${GATEWAY_HOST}|g" "${CONF_TEMPLATE}" > "${CONF}"
+
+# World-readable key, HEX-5103 (risk accepted 2020): monitoring user needs
+# access. chmod fails on read-only volume mounts, so it is best-effort here.
+chmod 644 "${CERT_DIR}/client.key" 2>/dev/null || true
+chmod 644 "${CERT_DIR}/client.crt" 2>/dev/null || true
+chmod 644 "${CERT_DIR}/ca.crt"     2>/dev/null || true
+
+echo "[distribution-scada] Starting stunnel Modbus-TLS client → ${GATEWAY_HOST}:8502"
+stunnel "${CONF}"
 PROFILE="/opt/winsvr/C/Users/scada_admin"
 
 # ── SSH ───────────────────────────────────────────────────────────────────────
@@ -22,9 +38,14 @@ EOF
 mkdir -p \
     "$PROFILE/Desktop" \
     "$PROFILE/AppData/Roaming/Microsoft/Windows/PowerShell/PSReadLine" \
-    "/opt/winsvr/C/SCADA/Config" \
+    "/opt/winsvr/C/SCADA/Config/certs" \
     "/opt/winsvr/C/SCADA/Scripts" \
     "/opt/winsvr/C/SCADA/Logs"
+
+# Expose stunnel certs in the virtual C: drive (HEX-5103)
+for _f in client.crt client.key ca.crt; do
+    ln -sf "${CERT_DIR}/${_f}" "/opt/winsvr/C/SCADA/Config/certs/${_f}"
+done
 
 # ── C:\SCADA\Config\scada.ini ─────────────────────────────────────────────────
 

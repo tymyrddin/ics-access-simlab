@@ -89,7 +89,7 @@ Enable DNSSEC validation. Hide the version string. Apply rate limiting
 ## Observability and debugging
 
 ```bash
-docker logs dns-forwarder
+docker logs city-directory
 dig @10.10.5.31 google.com                # test recursive resolution
 dig version.bind chaos txt @10.10.5.31   # BIND version disclosure
 ```

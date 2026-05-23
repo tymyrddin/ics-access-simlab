@@ -79,7 +79,7 @@ Consider whether an anonymous upload drop is appropriate in a DMZ at all.
 ## Observability and debugging
 
 ```bash
-docker logs sftp-drop
+docker logs dispatch-box
 sftp anonymous@10.10.5.21          # password: anonymous
 ```
 

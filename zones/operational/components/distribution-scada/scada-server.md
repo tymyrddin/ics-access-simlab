@@ -36,12 +36,12 @@ The container exposes two network services:
 
 Web service endpoints:
 
-| Endpoint          | Method | Auth        | Description                                      |
-|-------------------|--------|-------------|--------------------------------------------------|
-| `/`               | GET    | admin/admin | Live dashboard, polls uupl-historian for plant state  |
-| `/config`         | GET    | admin/admin | Connection config dump with credentials          |
-| `/historian-pass` | GET    | admin/admin | Proxies uupl-historian SQLi-exploitable /report call  |
-| 404 and others    |,      |,           | `X-Powered-By` header present on all responses   |
+| Endpoint          | Method | Auth        | Description                                          |
+|-------------------|--------|-------------|------------------------------------------------------|
+| `/`               | GET    | admin/admin | Live dashboard, polls uupl-historian for plant state |
+| `/config`         | GET    | admin/admin | Connection config dump with credentials              |
+| `/historian-pass` | GET    | admin/admin | Proxies uupl-historian SQLi-exploitable /report call |
+| 404 and others    | ,      | ,           | `X-Powered-By` header present on all responses       |
 
 The virtual Windows filesystem is mounted at `/opt/winsvr/C`. The shell
 presents this as `C:\`. A connection config file, alarm scripts, and PSReadLine
@@ -145,14 +145,14 @@ sufficient.
 
 ## Real-world vulnerabilities / CVEs
 
-| Weakness                          | CVE / Reference       | Notes                                                                 |
-|-----------------------------------|-----------------------|-----------------------------------------------------------------------|
-| Default web credentials           | CVE-2018-10952        | Moxa ActiveOPC: admin/admin on SCADA web interface                    |
-| Default credentials in SCADA      | CVE-2019-10915        | Several industrial HMI web interfaces shipped with default creds      |
-| Credential disclosure via web API | CVE-2021-22656        | Advantech iView: configuration endpoint exposed credentials           |
-| Version disclosure header         | CWE-200               | Information exposure through server headers                           |
-| Credential reuse across services  | ICS-CERT ICSA-19-274  | Common OT pattern: shared credentials across uupl-historian and SCADA      |
-| Hardcoded credentials in scripts  | CVE-2020-5777         | GE Proficy: hardcoded credentials in automation scripts               |
+| Weakness                          | CVE / Reference      | Notes                                                                 |
+|-----------------------------------|----------------------|-----------------------------------------------------------------------|
+| Default web credentials           | CVE-2018-10952       | Moxa ActiveOPC: admin/admin on SCADA web interface                    |
+| Default credentials in SCADA      | CVE-2019-10915       | Several industrial HMI web interfaces shipped with default creds      |
+| Credential disclosure via web API | CVE-2021-22656       | Advantech iView: configuration endpoint exposed credentials           |
+| Version disclosure header         | CWE-200              | Information exposure through server headers                           |
+| Credential reuse across services  | ICS-CERT ICSA-19-274 | Common OT pattern: shared credentials across uupl-historian and SCADA |
+| Hardcoded credentials in scripts  | CVE-2020-5777        | GE Proficy: hardcoded credentials in automation scripts               |
 
 ## Artefacts attackers should find
 

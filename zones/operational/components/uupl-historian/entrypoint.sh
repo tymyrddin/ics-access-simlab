@@ -37,6 +37,9 @@ mkdir -p \
     "/opt/winsvr/C/Historian/Data" \
     "/opt/winsvr/C/Historian/Archive"
 
+# Expose the live database in the virtual C: drive
+ln -sf "$DB_PATH" "/opt/winsvr/C/Historian/Data/historian.db"
+
 # ── C:\Historian\Config\historian.ini ─────────────────────────────────────────
 
 cat > "/opt/winsvr/C/Historian/Config/historian.ini" << EOF
@@ -126,7 +129,7 @@ Schedule (runs at 01:00 daily via Task Scheduler):
   line_voltage_b.csv  , feeder B voltage, 24h
   line_current_a.csv  , feeder A current, 24h
 
-Files are written to C:\Historian\Data\exports\ (Linux: /opt/historian/data/exports/)
+Files are written to C:\Historian\Data\exports\
 EOF
 
 # ── PSReadLine history ────────────────────────────────────────────────────────
@@ -140,9 +143,6 @@ curl http://localhost:8080/status
 curl "http://localhost:8080/report?asset=turbine_rpm&from=2026-03-01&to=2026-03-08"
 curl "http://localhost:8080/assets"
 curl "http://localhost:8080/export?tag=turbine_rpm.csv"
-sqlite3 historian.db ".tables"
-sqlite3 historian.db "SELECT * FROM config;"
-sqlite3 historian.db "SELECT * FROM alarm_config;"
 cd ~
 dir
 HIST

@@ -82,7 +82,7 @@ specific OPC-UA client addresses that legitimately need it.
 ## Observability and debugging
 
 ```bash
-docker logs opcua-server
+docker logs guild-register
 ```
 
 Connect and browse with an OPC-UA client (e.g. UaExpert, opcua-client, or

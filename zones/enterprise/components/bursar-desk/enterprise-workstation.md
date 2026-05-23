@@ -4,13 +4,19 @@
 
 The enterprise workstation represents a *normal corporate desktop that gradually accumulated operational access*.
 
-It was never intended to be part of the operational environment. It began as a standard administrative machine used by the finance department. Over time, operational staff needed occasional access to reports and monitoring data. Rather than provision a dedicated system, temporary access was granted.
+It was never intended to be part of the operational environment. It began as a standard administrative machine used by
+the finance department. Over time, operational staff needed occasional access to reports and monitoring data. Rather
+than provision a dedicated system, temporary access was granted.
 
 Temporary access tends to become permanent.
 
-The workstation now sits at the *informal boundary between corporate IT and operational technology*. It can reach systems on both networks and contains scripts, notes, and configuration fragments created by staff who needed to get work done quickly.
+The workstation now sits at the *informal boundary between corporate IT and operational technology*. It can reach
+systems on both networks and contains scripts, notes, and configuration fragments created by staff who needed to get
+work done quickly.
 
-Unlike engineering workstations or SCADA systems, this machine is not obviously part of the industrial environment. To the security team it looks like a normal corporate endpoint. To the operations team it is simply the easiest way to pull reports or check system status.
+Unlike engineering workstations or SCADA systems, this machine is not obviously part of the industrial environment. To
+the security team it looks like a normal corporate endpoint. To the operations team it is simply the easiest way to pull
+reports or check system status.
 
 From an attacker’s perspective, it is an ideal pivot point:
 
@@ -19,42 +25,35 @@ From an attacker’s perspective, it is an ideal pivot point:
 * contains credentials written down by helpful colleagues
 * operated by users who are not industrial control specialists
 
-This is the sort of system that frequently appears in incident reports as the first foothold leading into the control environment.
+This is the sort of system that frequently appears in incident reports as the first foothold leading into the control
+environment.
 
 ## Example container behaviour
 
-The simulator workstation should behave like a lightly used corporate desktop:
+The simulator workstation behaves like a lightly used corporate desktop:
 
 * SSH access enabled
 * common diagnostic tools available
-* home directory containing operational artefacts
+* user profile containing operational artefacts
 * traces of routine usage
 
 The container does not need to simulate a full desktop environment. What matters is the data left behind by normal work.
 
-Your Dockerfile already reflects this design well:
+ * Windows 10 enterprise facade, UUPL domain-joined
+ * single user account (bursardesk, local admin)
+ * SSH access
+ * common Windows network utilities
+ * scripts and configuration files in the user profile
 
-* Debian base system
-* a single user account
-* SSH access
-* common network utilities
-* scripts and configuration files in the home directory
-
-The important element is the home directory artefacts, not the OS itself.
+The important element is the user profile artefacts.
 
 ## Deliberately introduced vulnerabilities
 
-The weaknesses should reflect operational shortcuts rather than technical exploits.
+The weaknesses reflect operational shortcuts rather than technical exploits.
 
 ### Weak local credentials
 
-The local account password:
-
-```
-bursardesk:Octavo1
-```
-
-This reflects common behaviour:
+The local account password `bursardesk:Octavo1` reflects common behaviour:
 
 * password chosen during provisioning
 * never rotated
@@ -64,16 +63,8 @@ The account is also used for SSH login, meaning anyone who obtains the password 
 
 ### Stored operational credentials
 
-The configuration file:
-
-```
-~/.config/ops-access.conf
-```
-
-contains credentials for:
-
-* uupl-historian web interface
-* SCADA web console
+The configuration file `AppData\Roaming\UUPLOps\ops-access.conf` contains credentials for the uupl-historian web 
+interface and the SCADA web console.
 
 This reflects a common pattern where operational credentials are written down for convenience.
 
@@ -81,15 +72,9 @@ The file permissions (600) suggest someone attempted to secure it, but the crede
 
 ### Hard-coded passwords in scripts
 
-The report script contains:
-
-```
-PASS="Historian2015"
-```
-
-Hard-coded credentials in scripts are extremely common in operational environments.
-
-They allow automated tasks but also expose authentication secrets to anyone who can read the file.
+The PowerShell report script contains `$Pass = "Historian2015"`. Hard-coded credentials in scripts are extremely common 
+in operational environments. They allow automated tasks but also expose authentication secrets to anyone who can read 
+the file.
 
 ### Network bridging
 
@@ -98,47 +83,29 @@ The workstation has connectivity to both:
 * corporate systems
 * operational systems
 
-This is a structural vulnerability rather than a software flaw. Many incidents occur because a system with dual network access becomes compromised.
+This is a structural vulnerability rather than a software flaw. Many incidents occur because a system with dual network
+access becomes compromised.
 
-### Information leakage through shell history
+### Information leakage through Powershell history
 
-The `.bash_history` file exposes:
+The PowerShell history file (`AppData\Roaming\Microsoft\Windows\PowerShell\PSReadLine\ConsoleHost_history.txt`) exposes:
 
 * internal IP addresses
 * operational systems
-* commands used to access them
+* Invoke-WebRequest calls with embedded Base64 credentials
 * locations of sensitive files
 
-Attackers frequently use shell history to understand how a system is used operationally.
+Attackers frequently use command history to understand how a system is used operationally.
 
 ## Real-world vulnerabilities and incident patterns
 
 The weaknesses represented in the simulator map to common real-world failures.
 
-### Hardcoded credentials in scripts
+### Most common
 
-Examples:
-
-CVE-2020-5777
-Hardcoded credentials in GE Proficy applications.
-
-CVE-2021-22681
-Rockwell FactoryTalk credentials exposed in configuration.
-
-These vulnerabilities often allow attackers to extract authentication information from configuration files or scripts.
-
-### Default or unchanged passwords
-
-Examples:
-
-- CVE-2019-10915: Default credentials in several industrial web interfaces.
-- CVE-2022-25246: Default accounts in Siemens industrial software deployments.
-
-Default credentials remain one of the most frequent findings during OT security assessments.
-
-### Credential reuse across environments
-
-A common incident pattern rather than a single CVE.
+* Hardcoded credentials in applications and credentials exposed in configuration are still fairly common. These vulnerabilities often allow attackers to extract authentication information from configuration files or scripts.
+* Default credentials remain one of the most frequent findings during OT security assessments.
+* Credential reuse across environments are a common incident pattern.
 
 Attack sequence typically looks like:
 
@@ -164,36 +131,24 @@ Examples from advisories and incident reports include:
 
 These architectural shortcuts are often introduced during operational integration projects.
 
-## Artefacts attackers should find
+## Artefacts
 
-The workstation should contain artefacts that allow a participant to reconstruct how the system is used.
+The workstation contains artefacts that allow a participant to reconstruct how the system is used.
 
 ### Configuration files
 
-Example:
-
-```
-~/.config/ops-access.conf
-```
-
-Contains:
+For example, the `AppData\Roaming\UUPLOps\ops-access.conf` contains:
 
 * operational hostnames
 * ports
 * usernames
 * passwords
 
-This provides the first clue that the workstation has access to industrial systems.
+Providing a first clue that the workstation has access to industrial systems.
 
 ### Operational scripts
 
-Example:
-
-```
-~/Desktop/pull_monthly_report.sh
-```
-
-This script reveals:
+For example, the `Desktop\pull_monthly_report.ps1` script reveals:
 
 * authentication credentials
 * the uupl-historian API endpoint
@@ -203,29 +158,17 @@ Scripts like this often act as documentation of how internal systems work.
 
 ### Command history
 
-Example:
+To demonstrate, `AppData\Roaming\Microsoft\Windows\PowerShell\PSReadLine\ConsoleHost_history.txt` reveals:
 
-```
-~/.bash_history
-```
-
-Reveals:
-
-* SSH access to engineering workstation
-* uupl-historian queries
-* internal network exploration
+ * SSH access to the engineering workstation
+ * Invoke-WebRequest calls to the historian (Base64 credentials visible)
+ * internal network exploration
 
 Command history is often the quickest way for attackers to understand system usage.
 
 ### Generated reports
 
-The script creates:
-
-```
-~/reports/turbine_YYYY-MM.csv
-```
-
-These files may contain operational data such as:
+The script creates `reports\turbine_YYYY-MM.csv`. These files may contain operational data such as:
 
 * turbine speeds
 * temperatures
@@ -235,40 +178,32 @@ Operational data helps attackers understand how the plant behaves.
 
 ### Network information
 
-Tools installed in the container allow attackers to enumerate reachable systems:
+Tools installed in the container allow attackers to enumerate reachable systems: `nmap`, `ping` and `netstat`, with 
+which participants can discover the:
 
-```
-nmap
-ping
-netstat
-```
-
-Participants should be able to discover:
-
-* uupl-historian host
-* SCADA console
-* engineering workstation
-* PLC network
+* uupl-historian host (10.10.2.10)
+* SCADA console (10.10.2.20)
+* engineering workstation (10.10.2.30)
 
 ## Enterprise / engineering workstation artefacts
 
-Location: `/home/bursardesk` + `/srv/smb/public`
+Location: `C:\Users\bursardesk\`
 
-| File / Directory                    | Purpose / Description                | Notes for attacker                                                                                              |
-|-------------------------------------|--------------------------------------|-----------------------------------------------------------------------------------------------------------------|
-| `.config/ops-access.conf`           | Operational system credentials       | Contains usernames/passwords for uupl-historian and SCADA web console; the main “goldmine” for pivoting into OT |
-| `Desktop/pull_monthly_report.sh`    | Monthly uupl-historian report script | Shows how credentials are used; attacker can reuse script to access reports                                     |
-| `.bash_history`                     | Command history                      | Reveals IPs, commands, access patterns, curl commands with credentials                                          |
-| `reports/`                          | Historical CSV reports               | Could contain asset usage, sensor readings; demonstrates what data is valuable                                  |
-| `.config/editor_history` (optional) | Editor temp files                    | Could contain snippets of credentials accidentally pasted or config edits                                       |
-| `notes.txt`                         | Misc operational notes               | Could include “temp access” credentials, shortcuts, or reminders about who to call for OT systems               |
-| `/srv/smb/public/`                  | Public reports                       | Non-sensitive operational reports to make it look like a real workstation                                       |
+| File / Directory                                                                  | Purpose / Description           | Notes for attacker                                                               |
+|-----------------------------------------------------------------------------------|---------------------------------|----------------------------------------------------------------------------------|
+| `AppData\Roaming\UUPLOps\ops-access.conf`                                         | Operational system credentials  | historian + SCADA credentials; the main goldmine for pivoting into OT            |
+| `C:\Temp\ops-access.conf.bak`                                                     | Careless copy outside profile   | World-readable; same content as ops-access.conf                                  |
+| `Desktop\pull_monthly_report.ps1`                                                 | Monthly historian report script | Hard-coded `$Pass = “Historian2015”`; reveals API endpoint and asset name        |
+| `AppData\Roaming\Microsoft\Windows\PowerShell\PSReadLine\ConsoleHost_history.txt` | PowerShell history              | IWR calls with Base64 credentials, SSH to eng-ws, nmap of 10.10.2.0/24           |
+| `reports\`                                                                        | Historical CSV reports          | turbine_2024-01 through 2024-03; rpm, temperature, pressure, electrical readings |
+| `Documents\notes.txt`                                                             | Misc operational notes          | References ops-access.conf and the monthly report script; SSH to 10.10.2.30      |
+| `.ssh\known_hosts`                                                                | SSH known hosts                 | Keys for 10.10.2.10, .20, .30; confirms prior connections                        |
 
-Extras to make it feel lived-in:
+Extras that make it feel lived-in:
 
-* Temporary copies of `ops-access.conf` in `/tmp` left by careless users
-* `.ssh/known_hosts` with IPs of other workstations
-* Partial exports of historical PLC readings or CSVs named like `turbine_2024-03.csv`
+* `C:\Temp\ops-access.conf.bak`: a careless copy of ops-access.conf, world-readable
+* `.ssh\known_hosts` populated at startup with keys for historian, SCADA, and eng-ws
+* `reports\turbine_2024-01.csv` through `turbine_2024-03.csv` from the monthly script
 
 ## Role in the simulator
 
@@ -293,48 +228,31 @@ identify operational assets
 pivot toward engineering workstation or SCADA
 ```
 
-The workstation itself is not critical infrastructure. Its value lies in the context it reveals about the operational environment.
+The workstation itself is not critical infrastructure. Its value lies in the context it reveals about the operational
+environment.
 
-## Enterprise / engineering workstation folder tree
+## Enterprise workstation folder tree
 
 ```
-/home/bursardesk/
-├── .bash_history               # Commands executed, e.g., ssh, curl, ping
-├── .config/
-│   └── ops-access.conf         # Operational credentials (uupl-historian, SCADA)
-├── Desktop/
-│   └── pull_monthly_report.sh  # Script to fetch reports
-├── reports/
-│   ├── turbine_2024-01.csv
-│   ├── turbine_2024-02.csv
-│   └── turbine_2024-03.csv
-├── notes.txt                   # Misc operational notes, temporary passwords
-└── .ssh/
-    └── known_hosts             # Other workstation IPs
+C:\
+├── Temp\
+│   └── ops-access.conf.bak         # careless copy, world-readable
+└── Users\bursardesk\
+    ├── AppData\
+    │   └── Roaming\
+    │       ├── Microsoft\Windows\PowerShell\PSReadLine\
+    │       │   └── ConsoleHost_history.txt
+    │       └── UUPLOps\
+    │           └── ops-access.conf
+    ├── Desktop\
+    │   └── pull_monthly_report.ps1
+    ├── Documents\
+    │   └── notes.txt
+    ├── reports\
+    │   ├── turbine_2024-01.csv
+    │   ├── turbine_2024-02.csv
+    │   └── turbine_2024-03.csv
+    └── .ssh\
+        └── known_hosts
 ```
 
-Example content snippets:
-
-* `.config/ops-access.conf`
-
-  ```
-  # Historian access
-  uupl-historian.host=10.10.2.10
-  uupl-historian.port=8080
-  uupl-historian.user=historian
-  uupl-historian.pass=Historian2015
-
-  # SCADA read-only
-  scada.host=10.10.2.20
-  scada.port=8080
-  scada.user=admin
-  scada.pass=admin
-  ```
-
-* `Desktop/pull_monthly_report.sh`
-
-  ```bash
-  curl -s -u "uupl-historian:Historian2015" \
-       "http://10.10.2.10:8080/report?asset=turbine_main&from=${1}-01&to=${1}-28" \
-       -o ~/reports/turbine_${1}.csv
-  ```

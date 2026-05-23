@@ -11,7 +11,7 @@ FROM ghcr.io/umati/umatigateway:pr-375
 #              → browse OPC object tree → call control methods (SecurityMode=None).
 USER root
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends iproute2 gosu \
+    && apt-get install -y --no-install-recommends iproute2 gosu curl \
     && rm -rf /var/lib/apt/lists/*
 COPY umatiGatewayConfig.xml /app/umatiGatewayConfig.xml
 COPY entrypoint.sh /dmz-entrypoint.sh

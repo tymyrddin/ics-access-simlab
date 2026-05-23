@@ -28,6 +28,15 @@ _disp() {
     echo "C:\\${VIRT_CWD//\//\\}"
 }
 
+_mtime() {
+    stat -c '%y' "$1" 2>/dev/null | awk '{
+        split($1,d,"-"); split($2,t,":")
+        h=int(t[1]); m=int(t[2])
+        ap="AM"; if(h>=12){ap="PM"; if(h>12)h-=12} if(h==0)h=12
+        printf "%s/%s/%s %3d:%02d %s", d[3],d[2],d[1],h,m,ap
+    }'
+}
+
 # ── commands ──────────────────────────────────────────────────────────────────
 
 cmd_dir() {
@@ -35,7 +44,12 @@ cmd_dir() {
     local real show
     if [[ -n "$arg" ]]; then
         real="$(_real "$arg")"
-        local v="${arg//\\//}"; v="${v#\"}"; v="${v%\"}"; v="${v:2}"; v="${v#/}"
+        local v="${arg//\\//}"; v="${v#\"}"; v="${v%\"}"
+        if [[ "${v^^}" == C:/* || "${v^^}" == "C:" ]]; then
+            v="${v:2}"; v="${v#/}"
+        else
+            v="$VIRT_CWD/${v%/}"
+        fi
         show="C:\\${v//\//\\}"
     else
         real="$(_real)"; show="$(_disp)"
@@ -50,7 +64,7 @@ cmd_dir() {
         printf '\n\n    Directory: %s\n\n\n' "$pshow"
         echo 'Mode                 LastWriteTime         Length Name'
         echo '----                 -------------         ------ ----'
-        printf '%s        14/03/2024   9:15 AM  %10s  %s\n' '-a----' "$(stat -c%s "$real")" "$(basename "$real")"
+        printf '%s        %-20s  %10s  %s\n' '-a----' "$(_mtime "$real")" "$(stat -L -c%s "$real")" "$(basename "$real")"
         printf '\n'; return
     fi
     printf '\n\n    Directory: %s\n\n\n' "$show"
@@ -59,9 +73,9 @@ cmd_dir() {
     while IFS= read -r -d '' entry; do
         local name; name=$(basename "$entry")
         if [[ -d "$entry" ]]; then
-            printf '%s        14/03/2024   9:15 AM                %s\n' 'd-----' "$name"
+            printf '%s        %-20s               %s\n' 'd-----' "$(_mtime "$entry")" "$name"
         else
-            printf '%s        14/03/2024   9:15 AM  %10s  %s\n' '-a----' "$(stat -c%s "$entry")" "$name"
+            printf '%s        %-20s  %10s  %s\n' '-a----' "$(_mtime "$entry")" "$(stat -L -c%s "$entry")" "$name"
         fi
     done < <(find "$real" -maxdepth 1 -mindepth 1 -print0 | sort -z)
     printf '\n'
@@ -102,30 +116,67 @@ cmd_whoami()   { echo "ot.local\\scada_admin"; }
 cmd_hostname() { echo "SCADA-SRV01"; }
 
 cmd_ipconfig() {
-    cat << 'EOF'
-
-Windows IP Configuration
-
-
-Ethernet adapter Ethernet0 (Operational Network):
-
-   Connection-specific DNS Suffix  . : ot.local
-   IPv4 Address. . . . . . . . . . . : 10.10.2.20
-   Subnet Mask . . . . . . . . . . . : 255.255.255.0
-   Default Gateway . . . . . . . . . : 10.10.2.1
-
-EOF
+    local default_gw default_dev
+    default_gw=$(ip -4 route show default 2>/dev/null | awk 'NR==1{for(i=1;i<=NF;i++) if($i=="via"){print $(i+1);exit}}')
+    default_dev=$(ip -4 route show default 2>/dev/null | awk 'NR==1{for(i=1;i<=NF;i++) if($i=="dev"){print $(i+1);exit}}')
+    printf '\nWindows IP Configuration\n\n\n'
+    local adapter_idx=0
+    while IFS= read -r iface; do
+        [[ -z "$iface" ]] && continue
+        local cidr; cidr=$(ip -4 addr show "$iface" 2>/dev/null | awk '/inet /{print $2;exit}')
+        [[ -z "$cidr" ]] && continue
+        local ip="${cidr%%/*}" prefix="${cidr##*/}"
+        local full=$(( (0xFFFFFFFF << (32 - prefix)) & 0xFFFFFFFF ))
+        local mask; mask=$(printf '%d.%d.%d.%d' \
+            $(( (full >> 24) & 255 )) $(( (full >> 16) & 255 )) \
+            $(( (full >> 8)  & 255 )) $(( full & 255 )))
+        local label
+        case "$ip" in
+            10.10.0.*) label="Internet" ;;
+            10.10.1.*) label="Enterprise Network" ;;
+            10.10.2.*) label="Operational Network" ;;
+            10.10.3.*) label="Control Network" ;;
+            10.10.5.*) label="DMZ" ;;
+            *)         label="Ethernet" ;;
+        esac
+        local gw; [[ "$iface" == "$default_dev" ]] && gw="$default_gw" || gw=""
+        printf 'Ethernet adapter Ethernet%d (%s):\n\n' "$adapter_idx" "$label"
+        printf '   Connection-specific DNS Suffix  . : ot.local\n'
+        printf '   IPv4 Address. . . . . . . . . . . : %s\n' "$ip"
+        printf '   Subnet Mask . . . . . . . . . . . : %s\n' "$mask"
+        printf '   Default Gateway . . . . . . . . . : %s\n\n' "$gw"
+        (( adapter_idx++ ))
+    done < <(ip -4 addr show 2>/dev/null | awk '
+        /^[0-9]+:/ { iface=$2; gsub(/:$/,"",iface); gsub(/@.*/,"",iface) }
+        /inet /    { if (iface != "lo") print iface }
+    ')
 }
 
 cmd_netstat() {
+    local show_pid=0
+    [[ "$*" == *o* ]] && show_pid=1
     printf '\nActive Connections\n\n'
-    printf '  Proto  Local Address          Foreign Address        State\n'
-    printf '  TCP    0.0.0.0:22             0.0.0.0:0              LISTENING\n'
-    printf '  TCP    0.0.0.0:8080           0.0.0.0:0              LISTENING\n'
-    netstat -tn 2>/dev/null \
-      | awk 'NR>2 && /ESTABLISHED/ {
-            printf "  %-6s %-22s %-22s %s\n", "TCP", $4, $5, $6
-        }' | head -8
+    if [[ $show_pid -eq 1 ]]; then
+        printf '  Proto  Local Address          Foreign Address        State           PID\n'
+        ss -tlnp 2>/dev/null | awk 'NR>1 {
+            addr=$4; sub(/^\*:/, "0.0.0.0:", addr)
+            printf "  %-6s %-22s %-22s %-16s %d\n", "TCP", addr, "0.0.0.0:0", "LISTENING", int(100+rand()*3000)
+        }'
+        netstat -tn 2>/dev/null \
+          | awk 'NR>2 && /ESTABLISHED/ {
+                printf "  %-6s %-22s %-22s %-16s %s\n", "TCP", $4, $5, $6, int(1000+rand()*3000)
+            }' | head -8
+    else
+        printf '  Proto  Local Address          Foreign Address        State\n'
+        ss -tlnp 2>/dev/null | awk 'NR>1 {
+            addr=$4; sub(/^\*:/, "0.0.0.0:", addr)
+            printf "  %-6s %-22s %-22s %s\n", "TCP", addr, "0.0.0.0:0", "LISTENING"
+        }'
+        netstat -tn 2>/dev/null \
+          | awk 'NR>2 && /ESTABLISHED/ {
+                printf "  %-6s %-22s %-22s %s\n", "TCP", $4, $5, $6
+            }' | head -8
+    fi
     printf '\n'
 }
 
@@ -147,12 +198,12 @@ cmd_net() {
     case "$sub" in
         USER)
             printf '\nUser accounts for \\\\SCADA-SRV01\n\n'
-            printf '-------------------------------------------------------------------------------\n'
+            printf -- '-------------------------------------------------------------------------------\n'
             printf 'Administrator            scada_admin              Guest\n'
             printf 'The command completed successfully.\n\n' ;;
         VIEW)
             printf '\nServer Name            Remark\n\n'
-            printf '-------------------------------------------------------------------------------\n'
+            printf -- '-------------------------------------------------------------------------------\n'
             printf '\\\\OT-DC-01              OT Domain Controller\n'
             printf '\\\\HIST-SRV01            Process Historian\n'
             printf '\\\\ENG-WS01              Engineering Workstation\n'
@@ -167,18 +218,34 @@ cmd_nmap() { /usr/bin/nmap "$@"; }
 cmd_nc()   { /usr/bin/nc "$@"; }
 
 cmd_iwr() {
-    local uri="" outfile=""
+    local uri="" method="GET" content_type="" body="" outfile="" infile="" auth_header=""
     while [[ $# -gt 0 ]]; do
         case "${1,,}" in
-            -uri) shift; uri="$1" ;;
-            -outfile) shift; outfile="$1" ;;
+            -uri)         shift; uri="$1" ;;
+            -method)      shift; method="${1^^}" ;;
+            -contenttype) shift; content_type="$1" ;;
+            -body)        shift; body="$1" ;;
+            -outfile)     shift; outfile="$1" ;;
+            -infile)      shift; infile="$(_real "$1")" ;;
+            -headers)
+                shift
+                if [[ "$1" =~ Authorization=([^}]+) ]]; then
+                    local _v="${BASH_REMATCH[1]}"
+                    _v="${_v#\"}"; _v="${_v%\"}"
+                    auth_header="Authorization: $_v"
+                fi ;;
             http://*|https://*) uri="$1" ;;
         esac
         shift
     done
     [[ -z "$uri" ]] && { echo "Invoke-WebRequest: URI parameter required."; return; }
-    [[ -n "$outfile" ]] && { /usr/bin/curl -s "$uri" -o "$outfile"; return; }
-    /usr/bin/curl -s "$uri"
+    local args=(-s -X "$method")
+    [[ -n "$auth_header" ]]  && args+=(-H "$auth_header")
+    [[ -n "$content_type" ]] && args+=(-H "Content-Type: $content_type")
+    [[ -n "$body" ]]         && args+=(--data-raw "$body")
+    [[ -n "$infile" ]]       && args+=(--data-binary "@$infile")
+    [[ -n "$outfile" ]]      && args+=(-o "$outfile")
+    /usr/bin/curl "${args[@]}" "$uri"
 }
 
 cmd_help() {
@@ -197,6 +264,46 @@ System commands: whoami, hostname, ipconfig, netstat, ping, net, ssh, nmap, nc, 
 
 EOF
 }
+
+# ── command dispatch ──────────────────────────────────────────────────────────
+
+_dispatch() {
+    local line="$1"
+    line="${line//$'\r'/}"
+    line="${line#.\\}"; line="${line#./}"
+
+    local cmd rest
+    read -r cmd rest <<< "$line"
+
+    case "${cmd,,}" in
+        cd|set-location|sl)         cmd_cd "$rest" ;;
+        dir|ls|get-childitem|gci)   cmd_dir "$rest" ;;
+        cat|type|get-content|gc)    cmd_cat "$rest" ;;
+        pwd|get-location|gl)        cmd_pwd ;;
+        cls|clear|clear-host)       clear ;;
+        whoami)                     cmd_whoami ;;
+        hostname)                   cmd_hostname ;;
+        ipconfig)                   cmd_ipconfig ;;
+        netstat)                    cmd_netstat $rest ;;
+        ping)                       cmd_ping $rest ;;
+        net)    read -r sub _ <<< "$rest"; cmd_net "$sub" ;;
+        ssh)                        eval "$line" ;;
+        curl|wget)                  eval "$line" ;;
+        invoke-webrequest|iwr)      eval cmd_iwr "${rest//\\/\\\\}" ;;
+        nmap)                       eval "$line" ;;
+        nc)                         eval "$line" ;;
+        help|get-help)              cmd_help ;;
+        exit|quit|logout)           printf '\n'; exit 0 ;;
+        "")                         true ;;
+        *)
+            printf "'%s' is not recognized as the name of a cmdlet, function, script file,\nor operable program. Check the spelling of the name, or if a path was\nincluded, verify that the path is correct and try again.\n" "$cmd" ;;
+    esac
+}
+
+if [[ "${1:-}" == "-c" && $# -ge 2 ]]; then
+    _dispatch "$2"
+    exit
+fi
 
 # ── banner ────────────────────────────────────────────────────────────────────
 
@@ -225,31 +332,5 @@ LOGON
 while true; do
     printf 'PS %s> ' "$(_disp)"
     IFS= read -r line || break
-    line="${line//$'\r'/}"
-    line="${line#.\\}"; line="${line#./}"
-    read -r cmd rest <<< "$line"
-
-    case "${cmd,,}" in
-        cd|set-location|sl)         cmd_cd "$rest" ;;
-        dir|ls|get-childitem|gci)   cmd_dir "$rest" ;;
-        cat|type|get-content|gc)    cmd_cat "$rest" ;;
-        pwd|get-location|gl)        cmd_pwd ;;
-        cls|clear|clear-host)       clear ;;
-        whoami)                     cmd_whoami ;;
-        hostname)                   cmd_hostname ;;
-        ipconfig)                   cmd_ipconfig ;;
-        netstat)                    cmd_netstat ;;
-        ping)                       cmd_ping $rest ;;
-        net)    read -r sub _ <<< "$rest"; cmd_net "$sub" ;;
-        ssh)                        cmd_ssh $rest ;;
-        curl|wget)                  cmd_curl $rest ;;
-        invoke-webrequest|iwr)      cmd_iwr $rest ;;
-        nmap)                       cmd_nmap $rest ;;
-        nc)                         cmd_nc $rest ;;
-        help|get-help)              cmd_help ;;
-        exit|quit|logout)           printf '\n'; exit 0 ;;
-        "")                         true ;;
-        *)
-            printf "'%s' is not recognized as the name of a cmdlet, function, script file,\nor operable program. Check the spelling of the name, or if a path was\nincluded, verify that the path is correct and try again.\n" "$cmd" ;;
-    esac
+    _dispatch "$line"
 done

@@ -23,9 +23,14 @@ Exposed port: 1883/tcp (MQTT, no TLS, no authentication).
 
 Configuration: `allow_anonymous true`, `persistence false`.
 
-Published to by the Neuron gateway (sorting-office, 10.10.5.11) when northbound
-MQTT output is configured. The umatiGateway (guild-exchange, 10.10.5.10) can also
-be configured to publish here.
+Two publishers in normal operation:
+- guild-exchange (10.10.5.10): OPC-UA pump telemetry under `umati/v2/...` and
+  `umati/v3/...`, every 5-10 seconds. Starts automatically once guild-exchange
+  establishes its OPC-UA connection to guild-register. The .NET Kestrel startup
+  can take 2-3 minutes; the broker is quiet until it connects.
+- sorting-office (10.10.5.11): Modbus register data under `neuron/sorting-office/...`.
+  The northbound MQTT node is pre-configured, but no southbound device is wired
+  by default. Topics appear only after a southbound device is added via the API.
 
 ## Connections
 
@@ -66,8 +71,9 @@ own topics and limits subscriptions to legitimate consumers.
 ## Observability and debugging
 
 ```bash
-docker logs mqtt-dmz
-mosquitto_sub -h 10.10.5.12 -t '#' -v   # subscribe to all topics from DMZ
+docker logs clacks-relay
+docker exec clacks-relay mosquitto_sub -h 127.0.0.1 -t '#' -v   # subscribe inside broker container
+mosquitto_sub -h 10.10.5.12 -t '#' -v                           # subscribe from any host with network access
 ```
 
 ## Concrete attack paths

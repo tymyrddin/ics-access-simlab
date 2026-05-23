@@ -47,6 +47,15 @@ _disp() {
     fi
 }
 
+_mtime() {
+    stat -c '%y' "$1" 2>/dev/null | awk '{
+        split($1,d,"-"); split($2,t,":")
+        h=int(t[1]); m=int(t[2])
+        ap="AM"; if(h>=12){ap="PM"; if(h>12)h-=12} if(h==0)h=12
+        printf "%s/%s/%s %3d:%02d %s", d[3],d[2],d[1],h,m,ap
+    }'
+}
+
 # ── commands ──────────────────────────────────────────────────────────────────
 
 cmd_dir() {
@@ -55,7 +64,11 @@ cmd_dir() {
     if [[ -n "$arg" ]]; then
         real="$(_real "$arg")"
         local v="${arg//\\//}"; v="${v#\"}"; v="${v%\"}"
-        v="${v:2}"; v="${v#/}"
+        if [[ "${v^^}" == C:/* || "${v^^}" == "C:" ]]; then
+            v="${v:2}"; v="${v#/}"
+        else
+            v="$VIRT_CWD/${v%/}"
+        fi
         show="C:\\${v//\//\\}"
     else
         real="$(_real)"
@@ -71,8 +84,8 @@ cmd_dir() {
         printf '\n\n    Directory: %s\n\n\n' "$pshow"
         echo 'Mode                 LastWriteTime         Length Name'
         echo '----                 -------------         ------ ----'
-        printf '%s        14/03/2024   9:15 AM  %10s  %s\n' \
-            '-a----' "$(stat -c%s "$real")" "$(basename "$real")"
+        printf '%s        %-20s  %10s  %s\n' \
+            '-a----' "$(_mtime "$real")" "$(stat -L -c%s "$real")" "$(basename "$real")"
         printf '\n'
         return
     fi
@@ -82,10 +95,10 @@ cmd_dir() {
     while IFS= read -r -d '' entry; do
         local name; name=$(basename "$entry")
         if [[ -d "$entry" ]]; then
-            printf '%s        14/03/2024   9:15 AM                %s\n' 'd-----' "$name"
+            printf '%s        %-20s               %s\n' 'd-----' "$(_mtime "$entry")" "$name"
         else
-            printf '%s        14/03/2024   9:15 AM  %10s  %s\n' \
-                '-a----' "$(stat -c%s "$entry")" "$name"
+            printf '%s        %-20s  %10s  %s\n' \
+                '-a----' "$(_mtime "$entry")" "$(stat -L -c%s "$entry")" "$name"
         fi
     done < <(find "$real" -maxdepth 1 -mindepth 1 -print0 | sort -z)
     printf '\n'
@@ -139,36 +152,67 @@ cmd_whoami() { echo "ot.local\\engineer"; }
 cmd_hostname() { echo "ENG-WS01"; }
 
 cmd_ipconfig() {
-    cat << 'EOF'
-
-Windows IP Configuration
-
-
-Ethernet adapter Ethernet0 (Operational Network):
-
-   Connection-specific DNS Suffix  . : ot.local
-   IPv4 Address. . . . . . . . . . . : 10.10.2.30
-   Subnet Mask . . . . . . . . . . . : 255.255.255.0
-   Default Gateway . . . . . . . . . : 10.10.2.1
-
-Ethernet adapter Ethernet1 (Control Network):
-
-   Connection-specific DNS Suffix  . : ot.local
-   IPv4 Address. . . . . . . . . . . : 10.10.3.100
-   Subnet Mask . . . . . . . . . . . : 255.255.255.0
-   Default Gateway . . . . . . . . . :
-
-EOF
+    local default_gw default_dev
+    default_gw=$(ip -4 route show default 2>/dev/null | awk 'NR==1{for(i=1;i<=NF;i++) if($i=="via"){print $(i+1);exit}}')
+    default_dev=$(ip -4 route show default 2>/dev/null | awk 'NR==1{for(i=1;i<=NF;i++) if($i=="dev"){print $(i+1);exit}}')
+    printf '\nWindows IP Configuration\n\n\n'
+    local adapter_idx=0
+    while IFS= read -r iface; do
+        [[ -z "$iface" ]] && continue
+        local cidr; cidr=$(ip -4 addr show "$iface" 2>/dev/null | awk '/inet /{print $2;exit}')
+        [[ -z "$cidr" ]] && continue
+        local ip="${cidr%%/*}" prefix="${cidr##*/}"
+        local full=$(( (0xFFFFFFFF << (32 - prefix)) & 0xFFFFFFFF ))
+        local mask; mask=$(printf '%d.%d.%d.%d' \
+            $(( (full >> 24) & 255 )) $(( (full >> 16) & 255 )) \
+            $(( (full >> 8)  & 255 )) $(( full & 255 )))
+        local label
+        case "$ip" in
+            10.10.0.*) label="Internet" ;;
+            10.10.1.*) label="Enterprise Network" ;;
+            10.10.2.*) label="Operational Network" ;;
+            10.10.3.*) label="Control Network" ;;
+            10.10.5.*) label="DMZ" ;;
+            *)         label="Ethernet" ;;
+        esac
+        local gw; [[ "$iface" == "$default_dev" ]] && gw="$default_gw" || gw=""
+        printf 'Ethernet adapter Ethernet%d (%s):\n\n' "$adapter_idx" "$label"
+        printf '   Connection-specific DNS Suffix  . : ot.local\n'
+        printf '   IPv4 Address. . . . . . . . . . . : %s\n' "$ip"
+        printf '   Subnet Mask . . . . . . . . . . . : %s\n' "$mask"
+        printf '   Default Gateway . . . . . . . . . : %s\n\n' "$gw"
+        (( adapter_idx++ ))
+    done < <(ip -4 addr show 2>/dev/null | awk '
+        /^[0-9]+:/ { iface=$2; gsub(/:$/,"",iface); gsub(/@.*/,"",iface) }
+        /inet /    { if (iface != "lo") print iface }
+    ')
 }
 
 cmd_netstat() {
+    local show_pid=0
+    [[ "$*" == *o* ]] && show_pid=1
     printf '\nActive Connections\n\n'
-    printf '  Proto  Local Address          Foreign Address        State\n'
-    netstat -tn 2>/dev/null \
-      | awk 'NR>2 && /ESTABLISHED|LISTEN/ {
-            printf "  %-6s %-22s %-22s %s\n", "TCP", $4, $5, $6
-        }' \
-      | head -12
+    if [[ $show_pid -eq 1 ]]; then
+        printf '  Proto  Local Address          Foreign Address        State           PID\n'
+        ss -tlnp 2>/dev/null | awk 'NR>1 {
+            addr=$4; sub(/^\*:/, "0.0.0.0:", addr)
+            printf "  %-6s %-22s %-22s %-16s %d\n", "TCP", addr, "0.0.0.0:0", "LISTENING", int(100+rand()*3000)
+        }'
+        netstat -tn 2>/dev/null \
+          | awk 'NR>2 && /ESTABLISHED/ {
+                printf "  %-6s %-22s %-22s %-16s %s\n", "TCP", $4, $5, $6, int(1000+rand()*3000)
+            }' | head -10
+    else
+        printf '  Proto  Local Address          Foreign Address        State\n'
+        ss -tlnp 2>/dev/null | awk 'NR>1 {
+            addr=$4; sub(/^\*:/, "0.0.0.0:", addr)
+            printf "  %-6s %-22s %-22s %s\n", "TCP", addr, "0.0.0.0:0", "LISTENING"
+        }'
+        netstat -tn 2>/dev/null \
+          | awk 'NR>2 && /ESTABLISHED/ {
+                printf "  %-6s %-22s %-22s %s\n", "TCP", $4, $5, $6
+            }' | head -10
+    fi
     printf '\n'
 }
 
@@ -193,13 +237,13 @@ cmd_net() {
     case "$sub" in
         USER)
             printf '\nUser accounts for \\\\ENG-WS01\n\n'
-            printf '-------------------------------------------------------------------------------\n'
+            printf -- '-------------------------------------------------------------------------------\n'
             printf 'Administrator            engineer                 Guest\n'
             printf 'The command completed successfully.\n\n'
             ;;
         VIEW)
             printf '\nServer Name            Remark\n\n'
-            printf '-------------------------------------------------------------------------------\n'
+            printf -- '-------------------------------------------------------------------------------\n'
             printf '\\\\OT-DC-01              OT Domain Controller\n'
             printf '\\\\SCADA-SRV01           Distribution SCADA\n'
             printf '\\\\HIST-SRV01            Process Historian\n'
@@ -207,7 +251,7 @@ cmd_net() {
             ;;
         USE)
             printf '\nStatus       Local     Remote                             Network\n'
-            printf '-------------------------------------------------------------------------------\n'
+            printf -- '-------------------------------------------------------------------------------\n'
             printf 'OK           P:        \\\\OT-DC-01\\projects$               Microsoft Windows Network\n'
             printf 'The command completed successfully.\n\n'
             ;;
@@ -344,12 +388,18 @@ cmd_route() {
     /venv/bin/python3 << 'PYEOF'
 import subprocess, ipaddress
 
-FAKE_MACS = ['aac1ab3f18f2', 'aac1ab8520f9']
+import re as _re
 
-def iface_mac(iface, _c=[0]):
-    m = FAKE_MACS[_c[0]] if _c[0] < len(FAKE_MACS) else '000000000000'
-    _c[0] += 1
-    return m
+def iface_mac(iface):
+    try:
+        out = subprocess.check_output(['ip','link','show',iface], text=True,
+                                      stderr=subprocess.DEVNULL)
+        m = _re.search(r'link/ether ([0-9a-f:]{17})', out)
+        if m:
+            return m.group(1).replace(':', '')
+    except Exception:
+        pass
+    return '000000000000'
 
 def iface_addr(iface):
     try:
@@ -428,11 +478,12 @@ PYEOF
 }
 
 cmd_iwr() {
-    local uri="" outfile="" method="GET" body="" content_type="" auth_header=""
+    local uri="" outfile="" infile="" method="GET" body="" content_type="" auth_header=""
     while [[ $# -gt 0 ]]; do
         case "${1,,}" in
             -uri)            shift; uri="$1" ;;
             -outfile)        shift; outfile="$(_real "$1")" ;;
+            -infile)         shift; infile="$(_real "$1")" ;;
             -method)         shift; method="${1^^}" ;;
             -body)           shift; body="$1" ;;
             -contenttype)    shift; content_type="$1" ;;
@@ -454,6 +505,7 @@ cmd_iwr() {
     local -a curl_args=(-s)
     [[ "$method" != "GET" ]] && curl_args+=(-X "$method")
     [[ -n "$body" ]]         && curl_args+=(-d "$body")
+    [[ -n "$infile" ]]       && curl_args+=(--data-binary "@$infile")
     [[ -n "$content_type" ]] && curl_args+=(-H "Content-Type: $content_type")
     [[ -n "$auth_header" ]]  && curl_args+=(-H "$auth_header")
     if [[ -n "$outfile" ]]; then
@@ -556,7 +608,7 @@ _dispatch() {
         whoami)                     cmd_whoami ;;
         hostname)                   cmd_hostname ;;
         ipconfig)                   cmd_ipconfig ;;
-        netstat)                    cmd_netstat ;;
+        netstat)                    cmd_netstat $rest ;;
         ip)                         cmd_ip $rest ;;
         ping)                       cmd_ping $rest ;;
         net)    read -r sub _ <<< "$rest"; cmd_net "$sub" ;;
@@ -565,7 +617,7 @@ _dispatch() {
         socat)                      eval "$line" ;;
         openssl)                    eval "$line" ;;
         route)                      [[ "${rest,,}" == "print"* ]] && cmd_route || printf "'route %s' is not recognised\n" "$rest" ;;
-        invoke-webrequest|iwr)      eval cmd_iwr "$rest" ;;
+        invoke-webrequest|iwr)      eval cmd_iwr "${rest//\\/\\\\}" ;;
         nmap)                       eval "$line" ;;
         nc)                         eval "$line" ;;
         python|python3)             cmd_python "$rest" ;;
@@ -626,13 +678,9 @@ while true; do
         *) printf '\n'; continue ;;        # signal-interrupted read, re-prompt
     esac
 
-    # Line continuation: trailing backslash OR backtick joins the next line
-    while [[ "$line" == *\\ || "$line" == *\` ]]; do
-        if [[ "$line" == *\\ ]]; then
-            line="${line%\\}"
-        else
-            line="${line%\`}"
-        fi
+    # Line continuation: trailing backtick joins the next line (PowerShell convention)
+    while [[ "$line" == *\` ]]; do
+        line="${line%\`}"
         printf '>> '
         IFS= read -r cont || break
         cont="${cont//$'\r'/}"

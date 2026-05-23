@@ -76,8 +76,8 @@ logs from general syslog to a destination that requires authentication.
 ## Observability and debugging
 
 ```bash
-docker logs syslog-relay
-docker exec -it syslog-relay cat /var/log/syslog-relay.log
+docker logs scribes-post
+docker exec -it scribes-post cat /var/log/syslog-relay.log
 ```
 
 Send a test syslog message:

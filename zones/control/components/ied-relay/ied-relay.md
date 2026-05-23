@@ -62,8 +62,8 @@ any host with Modbus access:
 | Register                         | Default  | Effect of manipulation                          |
 |----------------------------------|----------|-------------------------------------------------|
 | `HR[0]` undervoltage_threshold_v | 196 V    | Raise to 230 V → relay trips at nominal voltage |
-| `HR[1]` overcurrent_threshold_a  | 200 A    | Lower to 1 A → relay trips on any current       |
-| `HR[2]` overspeed_threshold_rpm  | 3300 RPM | Lower to 0 → relay trips immediately            |
+| `HR[1]` overspeed_threshold_rpm  | 3300 RPM | Lower to 0 → relay trips immediately            |
+| `HR[2]` overcurrent_threshold_a  | 200 A    | Lower to 1 A → relay trips on any current       |
 
 Setting any threshold to a value that the running turbine already exceeds causes
 an immediate trip. Setting thresholds to extreme values (e.g. 0 V undervoltage)
@@ -144,8 +144,8 @@ All of these are readable and writable without credentials.
 | Address | Name                     | Default  | Attack vector                           |
 |---------|--------------------------|----------|-----------------------------------------|
 | 0       | undervoltage_threshold_v | 196 V    | Raise → spurious trip at normal voltage |
-| 1       | overcurrent_threshold_a  | 200 A    | Lower → spurious trip on normal current |
-| 2       | overspeed_threshold_rpm  | 3300 RPM | Lower → trip immediately                |
+| 1       | overspeed_threshold_rpm  | 3300 RPM | Lower → trip immediately                |
+| 2       | overcurrent_threshold_a  | 200 A    | Lower → spurious trip on normal current |
 
 ### Input Registers (FC4: read-only)
 

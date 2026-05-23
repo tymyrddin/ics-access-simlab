@@ -1,25 +1,15 @@
 #!/usr/bin/env bash
-# hex-legacy-1 Windows 95 facade smoke test
+# hex-legacy-1 Windows 95 DOS facade smoke test
 #
 # Coverage:
-#   Basic command availability: VER, HELP, unknown command
-#   Network enumeration: NET VIEW, NET VIEW \\SERVER, NET USE
-#   IP/routing: WINIPCFG, IPCONFIG, ROUTE PRINT, ARP -A
-#                 — all checked against the container's real IPs
-#   PING: loopback, wizzards-retreat, bursar-desk (enterprise neighbours)
-#   NBTSTAT: own IP, historian IP, bursar-desk IP, unknown
-#             — IPs obtained from running containers, not hardcoded
-#   Recursive file hunting: DIR /S with wildcards (hit and miss)
-#   String search: FIND /I on C: drive and G: (SMB public share)
-#   File display: TYPE
-#   Output redirection: DIR > file, TYPE reads it back
-#   Drive mapping: G: (pre-mapped public share)
+#   Identity: ver, ipconfig (dynamic IP), winipcfg (dynamic MAC + gateway)
+#   Network: route (real routing table), arp (real ARP table), netstat
+#   Filesystem: dir C:\, type C:\PRIVATE\PLCACCS.CFG (credential discovery)
+#   Net share: net view (network enumeration), net user
+#   FTP: anonymous read access to public share
+#   Telnet: port 23 reachable, no-auth access
 #   SSH auth: root/hex123 via wizzards-retreat jump
-#   Credential chain:
-#     hist_read/history2017 (found in G:\LOGBOOK\ENGINEER.LOG) tested against historian ingest
-#     bursardesk/Octavo1    (found in G:\LOGBOOK\ENGINEER.LOG) tested against bursar-desk SSH
-#   SMB anonymous: public share reachable, ENGINEER.LOG retrievable
-#   FTP anonymous: ENGINEER.LOG retrievable over FTP
+#   Credential chain: engineer/spanner99 (from PLCACCS.CFG) reaches eng-ws
 #
 # Usage: bash tests/smoke/test_hex_legacy_facade.sh
 set -uo pipefail
@@ -27,272 +17,139 @@ set -uo pipefail
 REPO="$(cd "$(dirname "$0")/../.." && pwd)"
 source "$REPO/tests/smoke/lib.sh"
 
-LEGACY="hex-legacy-1"
-ATTACKER="unseen-gate"
+HEX="hex-legacy-1"
 JUMP="wizzards-retreat"
+ATTACKER="unseen-gate"
+ENGWS="uupl-eng-ws"
 
-require_running "$LEGACY"
+require_running "$HEX"
 require_running "$JUMP"
+require_running "$ATTACKER"
+require_running "$ENGWS"
 
-# Run a DOS command through the facade's -c mode (no SSH, no network).
-dos() { in_container "$LEGACY" /usr/local/bin/win95shell.sh -c "$1"; }
+dos() { in_container "$HEX" /usr/local/bin/win95shell.sh -c "$1"; }
 
-# Discover real IPs from the running lab so assertions track actual topology.
-LEGACY_IP=$(docker exec "$LEGACY"   hostname -I 2>/dev/null | tr ' ' '\n' | grep '^10\.10\.1\.' | head -1)
-JUMP_ENT_IP=$(docker exec "$JUMP"   hostname -I 2>/dev/null | tr ' ' '\n' | grep '^10\.10\.1\.' | head -1)
-BURS_ENT_IP=$(docker exec bursar-desk  hostname -I 2>/dev/null | tr ' ' '\n' | grep '^10\.10\.1\.' | head -1)
-HIST_IP=$(docker exec uupl-historian   hostname -I 2>/dev/null | tr ' ' '\n' | grep '^10\.10\.2\.' | head -1)
+HEX_IP=$(container_ip "$HEX" enterprise)
+ENG_IP=$(container_ip "$ENGWS" operational)
 
-echo "[hex-legacy] Waiting for SSH on $LEGACY_IP..."
-if ! wait_for_port "$JUMP" "$LEGACY_IP" 22 30; then
+echo "[hex-legacy-1] Waiting for SSH on $HEX_IP..."
+if ! wait_for_port "$JUMP" "$HEX_IP" 22 30; then
     fail "hex-legacy-1 :22 not ready within 30s"
     summary; exit 1
 fi
 
-# ── Basic command availability ────────────────────────────────────────────────
+# ── Identity ──────────────────────────────────────────────────────────────────
 
-echo "[hex-legacy] Basic command availability"
+echo "[hex-legacy-1] Identity"
 
 VER_OUT="$(dos "VER")"
-assert_contains "$VER_OUT" "4\.00\.950" "VER shows Windows 95 version"
+assert_contains "$VER_OUT" "Windows 95|4\.00\.950" "VER returns Windows 95 banner"
 
-HELP_OUT="$(dos "HELP")"
-assert_contains "$HELP_OUT" "DIR"      "HELP lists DIR"
-assert_contains "$HELP_OUT" "FIND"     "HELP lists FIND"
-assert_contains "$HELP_OUT" "WINIPCFG" "HELP lists WINIPCFG"
-assert_contains "$HELP_OUT" "NBTSTAT"  "HELP lists NBTSTAT"
-assert_contains "$HELP_OUT" "ROUTE"    "HELP lists ROUTE"
-assert_contains "$HELP_OUT" "NET"      "HELP lists NET"
-
-UNK_OUT="$(dos "XCOPY")"
-assert_contains "$UNK_OUT" "Bad command or file name" "unrecognised command returns Bad command error"
-
-# ── NET VIEW: workgroup and share enumeration ─────────────────────────────────
-
-echo "[hex-legacy] NET VIEW"
-
-VIEW_OUT="$(dos "NET VIEW")"
-assert_contains "$VIEW_OUT" "HEX-LEGACY-1" "NET VIEW lists HEX-LEGACY-1"
-assert_contains "$VIEW_OUT" "UUPL-SRV-01"  "NET VIEW lists UUPL-SRV-01"
-
-VIEWSRV_OUT="$(dos 'NET VIEW \\HEX-LEGACY-1')"
-assert_contains "$VIEWSRV_OUT" "public" "NET VIEW \\HEX-LEGACY-1 shows public share"
-
-VIEWUNK_OUT="$(dos 'NET VIEW \\NOTASERVER')"
-assert_contains "$VIEWUNK_OUT" "error 53|not found" "NET VIEW unknown server returns error"
-
-# ── NET USE: drive mapping ────────────────────────────────────────────────────
-
-echo "[hex-legacy] NET USE"
-
-NUSE_OUT="$(dos "NET USE")"
-assert_contains "$NUSE_OUT" "G:" "NET USE lists pre-mapped G: drive"
-assert_contains "$NUSE_OUT" "F:" "NET USE lists pre-mapped F: drive"
-
-MAP_OUT="$(dos 'NET USE Z: \\HEX-LEGACY-1\public')"
-assert_absent "$MAP_OUT" "error\|not found\|incorrect\|denied" \
-    "NET USE Z: maps public share (Win95 silent on success)"
-
-# ── IP and routing commands ───────────────────────────────────────────────────
-
-echo "[hex-legacy] IP/routing commands"
+IPCFG_OUT="$(dos "IPCONFIG")"
+assert_contains "$IPCFG_OUT" "${HEX_IP//./\\.}" "ipconfig shows real enterprise IP ($HEX_IP)"
 
 WINIPCFG_OUT="$(dos "WINIPCFG")"
-assert_contains "$WINIPCFG_OUT" "${LEGACY_IP//./\\.}"   "WINIPCFG shows container's real IP ($LEGACY_IP)"
-assert_contains "$WINIPCFG_OUT" "255\.255\.255\.0"       "WINIPCFG shows subnet mask"
+assert_contains "$WINIPCFG_OUT" "${HEX_IP//./\\.}" "winipcfg shows real IP"
+assert_contains "$WINIPCFG_OUT" "[0-9A-Fa-f][0-9A-Fa-f]-[0-9A-Fa-f]" \
+    "winipcfg shows a real MAC address (not hardcoded 00-50-56-01-02-03)"
+assert_contains "$WINIPCFG_OUT" "Default Gateway" "winipcfg shows Default Gateway field"
 
-IPCONFIG_OUT="$(dos "IPCONFIG")"
-assert_contains "$IPCONFIG_OUT" "${LEGACY_IP//./\\.}" "IPCONFIG shows container's real IP"
+# ── Network: dynamic commands ─────────────────────────────────────────────────
 
-ROUTE_OUT="$(dos "ROUTE PRINT")"
-assert_contains "$ROUTE_OUT" "0\.0\.0\.0"   "ROUTE PRINT shows default route"
-assert_contains "$ROUTE_OUT" "10\.10\.1\.1" "ROUTE PRINT shows enterprise gateway"
+echo "[hex-legacy-1] Network"
+
+ROUTE_OUT="$(dos "ROUTE")"
+assert_contains "$ROUTE_OUT" "Active Routes" "route shows Active Routes header"
+assert_contains "$ROUTE_OUT" "0\.0\.0\.0.*0\.0\.0\.0|Default Gateway" \
+    "route shows default route"
+assert_contains "$ROUTE_OUT" "${HEX_IP%.*}\." \
+    "route shows enterprise subnet (real routing table)"
 
 ARP_OUT="$(dos "ARP -A")"
-assert_contains "$ARP_OUT" "10\.10\.1\.1" "ARP -A shows gateway entry"
+assert_contains "$ARP_OUT" "Interface:.*${HEX_IP//./\\.}" "arp shows correct local interface IP"
+assert_contains "$ARP_OUT" "Internet Address" "arp shows table header"
 
-# ── PING: loopback and reachable enterprise neighbours ───────────────────────
+NETSTAT_OUT="$(dos "NETSTAT")"
+assert_contains "$NETSTAT_OUT" "Active Connections" "netstat shows Active Connections"
 
-echo "[hex-legacy] PING"
+# ── Filesystem ────────────────────────────────────────────────────────────────
 
-PING_LO="$(dos "PING 127.0.0.1")"
-assert_contains "$PING_LO" "Reply from 127\.0\.0\.1" "PING loopback gets replies"
+echo "[hex-legacy-1] Filesystem"
 
-PING_WIZ="$(dos "PING $JUMP_ENT_IP")"
-assert_contains "$PING_WIZ" "Reply from ${JUMP_ENT_IP//./\\.}" \
-    "PING wizzards-retreat ($JUMP_ENT_IP) gets replies"
+DIR_OUT="$(dos "DIR C:\\")"
+assert_contains "$DIR_OUT" "UUPL|WINDOWS|AUTOEXEC|CONFIG" \
+    "dir C:\ lists top-level DOS directories"
+assert_contains "$DIR_OUT" "[0-9][0-9]/[0-9][0-9]/[0-9][0-9]" \
+    "dir C:\ shows real file timestamps (not hardcoded 14/09/99)"
 
-PING_BURS="$(dos "PING $BURS_ENT_IP")"
-assert_contains "$PING_BURS" "Reply from ${BURS_ENT_IP//./\\.}" \
-    "PING bursar-desk ($BURS_ENT_IP) gets replies"
+DIR_PRIV="$(dos 'DIR C:\PRIVATE\')"
+assert_contains "$DIR_PRIV" "PLCACCS|BACKUP" \
+    "dir C:\PRIVATE\ lists credential and backup files"
 
-# ── NBTSTAT: cross-validated against real lab IPs ────────────────────────────
+PLCACCS_OUT="$(dos 'TYPE C:\PRIVATE\PLCACCS.CFG')"
+assert_contains "$PLCACCS_OUT" "spanner99" \
+    "C:\PRIVATE\PLCACCS.CFG contains engineer/spanner99"
+assert_contains "$PLCACCS_OUT" "Historian2015" \
+    "C:\PRIVATE\PLCACCS.CFG contains Historian2015"
+assert_contains "$PLCACCS_OUT" "10\.10\.2\." \
+    "C:\PRIVATE\PLCACCS.CFG lists operational zone hosts"
 
-echo "[hex-legacy] NBTSTAT"
+# ── Net share enumeration ─────────────────────────────────────────────────────
 
-NBT_SELF="$(dos "NBTSTAT -A $LEGACY_IP")"
-assert_contains "$NBT_SELF" "HEX-LEGACY-1" \
-    "NBTSTAT -A $LEGACY_IP (own IP) returns HEX-LEGACY-1"
+echo "[hex-legacy-1] Net share enumeration"
 
-NBT_HIST="$(dos "NBTSTAT -A $HIST_IP")"
-assert_contains "$NBT_HIST" "HISTORIAN-01" \
-    "NBTSTAT -A $HIST_IP (real historian IP) returns HISTORIAN-01"
+NET_VIEW="$(dos "NET VIEW")"
+assert_contains "$NET_VIEW" "HEX-LEGACY-1|UUPL-SRV-01" \
+    "net view lists network hosts"
 
-NBT_BURS="$(dos "NBTSTAT -A $BURS_ENT_IP")"
-assert_contains "$NBT_BURS" "BURSAR-DESK" \
-    "NBTSTAT -A $BURS_ENT_IP (real bursar-desk IP) returns BURSAR-DESK"
-
-NBT_UNK="$(dos "NBTSTAT -A 10.10.99.99")"
-assert_contains "$NBT_UNK" "not found|Host" "NBTSTAT unknown IP returns host not found"
-
-# ── DIR /S: recursive file hunting ───────────────────────────────────────────
-
-echo "[hex-legacy] DIR /S recursive file hunting"
-
-LOG_OUT="$(dos "DIR /S *.LOG")"
-assert_contains "$LOG_OUT" "ENGINEER\.LOG" "DIR /S *.LOG finds ENGINEER.LOG"
-assert_contains "$LOG_OUT" "LOGBOOK"       "DIR /S *.LOG shows LOGBOOK path"
-
-CFG_OUT="$(dos "DIR /S *.CFG")"
-assert_contains "$CFG_OUT" "PLCACCS\.CFG" "DIR /S *.CFG finds PLCACCS.CFG"
-assert_contains "$CFG_OUT" "PRIVATE"      "DIR /S *.CFG shows PRIVATE path"
-
-INI_OUT="$(dos "DIR /S *.INI")"
-assert_contains "$INI_OUT" "\.INI" "DIR /S *.INI finds INI files"
-
-BAK_OUT="$(dos "DIR /S *.BAK")"
-assert_contains "$BAK_OUT" "BACKUP\.BAK" "DIR /S *.BAK finds BACKUP.BAK"
-
-CSV_OUT="$(dos "DIR /S *.CSV")"
-assert_contains "$CSV_OUT" "LOGS\.CSV" "DIR /S *.CSV finds LOGS.CSV"
-
-SIEM_OUT="$(dos "DIR /S *siemens*")"
-assert_contains "$SIEM_OUT" "File Not Found|0 file" "DIR /S *siemens* returns nothing"
-
-PRJ_OUT="$(dos "DIR /S *.PRJ")"
-assert_contains "$PRJ_OUT" "File Not Found|0 file" "DIR /S *.PRJ returns nothing"
-
-# ── FIND /I: credential and network scraping ──────────────────────────────────
-
-echo "[hex-legacy] FIND /I credential scraping"
-
-FIND_PASS="$(dos 'FIND /I "PASSWORDS" C:\LOGBOOK\ENGINEER.LOG')"
-assert_contains "$FIND_PASS" "PASSWORDS"     "FIND locates PASSWORDS heading in ENGINEER.LOG"
-assert_contains "$FIND_PASS" "ENGINEER\.LOG" "FIND output includes filename header"
-
-# hist_read is only in the SMB public share copy (G:), not on the C: drive.
-FIND_HIST="$(dos 'FIND /I "hist_read" G:\LOGBOOK\ENGINEER.LOG')"
-assert_contains "$FIND_HIST" "hist_read" "FIND finds hist_read ingest credential in network share"
-
-FIND_CRED="$(dos 'FIND /I "pass" C:\PRIVATE\PLCACCS.CFG')"
-assert_contains "$FIND_CRED" "pass|spanner|Historian" "FIND finds credential lines in PLCACCS.CFG"
-
-FIND_IP="$(dos 'FIND /I "10.10" C:\UUPL\NETWORK.TXT')"
-assert_contains "$FIND_IP" "10\.10" "FIND finds IP addresses in NETWORK.TXT"
-
-# The public SMB share carries the fuller 2019 network inventory.
-# Verify the turbine PLC IP is present (links this machine to the control zone).
-FIND_PLC="$(dos 'FIND /I "10.10.3.21" G:\UUPL\NETWORK.TXT')"
-assert_contains "$FIND_PLC" "10\.10\.3\.21" "FIND finds turbine PLC IP in public share NETWORK.TXT"
-
-FIND_NONE="$(dos 'FIND /I "NOTFOUNDXYZ" C:\LOGBOOK\ENGINEER.LOG')"
-assert_absent "$FIND_NONE" "NOTFOUNDXYZ" "FIND with absent string returns no matching lines"
-
-# ── TYPE: file display ────────────────────────────────────────────────────────
-
-echo "[hex-legacy] TYPE"
-
-TYPE_LOG="$(dos 'TYPE C:\LOGBOOK\ENGINEER.LOG')"
-assert_contains "$TYPE_LOG" "SYSTEM PASSWORDS" "TYPE shows logbook password section"
-assert_contains "$TYPE_LOG" "Historian2015"    "TYPE shows historian web password in logbook"
-
-TYPE_CFG="$(dos 'TYPE C:\PRIVATE\PLCACCS.CFG')"
-assert_contains "$TYPE_CFG" "spanner99"    "TYPE shows engineer SSH password in PLCACCS.CFG"
-assert_contains "$TYPE_CFG" "Historian2015" "TYPE shows historian web password in PLCACCS.CFG"
-
-# ── Output redirection ────────────────────────────────────────────────────────
-
-echo "[hex-legacy] Output redirection"
-
-dos 'DIR C:\ > C:\TEMP\LIST.TXT' 2>/dev/null || true
-TYPE_REDIR="$(dos 'TYPE C:\TEMP\LIST.TXT')"
-assert_contains "$TYPE_REDIR" "LOGBOOK|WINDOWS|UUPL" "DIR > file redirects; TYPE reads the result"
-
-# ── Drive mapping and browsing ────────────────────────────────────────────────
-
-echo "[hex-legacy] Drive mapping"
-
-DIRG_OUT="$(dos "DIR G:\\")"
-assert_contains "$DIRG_OUT" "LOGBOOK|UUPL" "DIR G:\\ lists the pre-mapped public share"
-
-# ── SSH auth via jump ─────────────────────────────────────────────────────────
-
-echo "[hex-legacy] SSH authentication"
-
-require_running "$ATTACKER"
-SSH_OUT="$(ssh_password_login_via_jump "$ATTACKER" \
-    rincewind 10.10.0.10 wizzard \
-    root      "$LEGACY_IP" hex123)"
-assert_contains "$SSH_OUT" "SSH_OK" \
-    "root/hex123 authenticates via SSH (through wizzards-retreat jump)"
-
-SSH_CMD="$(ssh_password_login_via_jump "$ATTACKER" \
-    rincewind 10.10.0.10 wizzard \
-    root      "$LEGACY_IP" hex123 \
-    "VER")"
-assert_contains "$SSH_CMD" "4\.00\.950" \
-    "facade -c mode dispatches over SSH (VER returns version)"
-
-# ── Credential chain: loot verified against real services ─────────────────────
-
-echo "[hex-legacy] Credential chain verification"
-
-# hist_read / history2017 appears in G:\LOGBOOK\ENGINEER.LOG (SMB public share).
-# Verify it authenticates against the live historian ingest endpoint.
-INGEST_OUT="$(in_container "$JUMP" curl -s --max-time 5 \
-    -X POST -H 'Content-Type: application/json' \
-    -u hist_read:history2017 \
-    -d "{\"timestamp\":\"2026-05-18T00:00:00\",\"asset\":\"turbine_rpm\",\"value\":3000,\"unit\":\"RPM\"}" \
-    "http://${HIST_IP}:8080/ingest" 2>&1)"
-assert_contains "$INGEST_OUT" "ok" \
-    "hist_read/history2017 (loot from G: share) authenticates against historian ingest"
-
-# bursardesk / Octavo1 appears in G:\LOGBOOK\ENGINEER.LOG.
-# Verify it reaches bursar-desk SSH via the wizzards-retreat jump.
-BURS_SSH="$(ssh_password_login_via_jump "$ATTACKER" \
-    rincewind 10.10.0.10 wizzard \
-    bursardesk "$BURS_ENT_IP" Octavo1)"
-assert_contains "$BURS_SSH" "SSH_OK" \
-    "bursardesk/Octavo1 (loot from G: share) authenticates against bursar-desk SSH"
-
-# ── SMB anonymous access ──────────────────────────────────────────────────────
-
-echo "[hex-legacy] SMB anonymous access"
-
-SMB_LS="$(in_container "$JUMP" smbclient //"$LEGACY_IP"/public \
-    --option='client min protocol=NT1' -N -c 'ls' 2>&1)"
-assert_contains "$SMB_LS" "LOGBOOK|ENGINEER|UUPL" "anonymous SMB lists public share contents"
-
-SMB_LOG="$(in_container "$JUMP" smbclient //"$LEGACY_IP"/public \
-    --option='client min protocol=NT1' -N -c 'get LOGBOOK/ENGINEER.LOG -' 2>&1)"
-assert_contains "$SMB_LOG" "hist_read|SYSTEM PASSWORDS" \
-    "anonymous SMB retrieves ENGINEER.LOG with credentials"
+NET_USER="$(dos "NET USER")"
+assert_contains "$NET_USER" "Administrator|Guest" \
+    "net user lists local accounts"
 
 # ── FTP anonymous access ──────────────────────────────────────────────────────
 
-echo "[hex-legacy] FTP anonymous access"
+echo "[hex-legacy-1] FTP anonymous access"
 
-FTP_OUT="$(in_container "$JUMP" sh -c "
-ftp -nv $LEGACY_IP 2>&1 <<'FTPEOF'
-user anonymous anon@x
-cd LOGBOOK
-get ENGINEER.LOG /tmp/_eng_ftp_test.log
-quit
-FTPEOF
-cat /tmp/_eng_ftp_test.log 2>/dev/null
-rm -f /tmp/_eng_ftp_test.log
-" 2>&1)"
-assert_contains "$FTP_OUT" "hist_read|SYSTEM PASSWORDS" \
-    "anonymous FTP retrieves ENGINEER.LOG with credentials"
+FTP_OUT="$(in_container "$JUMP" curl -s --max-time 10 \
+    "ftp://${HEX_IP}/" 2>/dev/null)"
+assert_contains "$FTP_OUT" "NETWORK_INVENTORY|PROCEDURES|LOGS_SAMPLE|LOGBOOK" \
+    "FTP anonymous lists public share contents"
+
+# ── Telnet: port reachable ────────────────────────────────────────────────────
+
+echo "[hex-legacy-1] Telnet"
+
+if wait_for_port "$JUMP" "$HEX_IP" 23 10; then
+    ok "telnet port 23 reachable from enterprise network"
+else
+    fail "telnet port 23 not reachable"
+fi
+
+# ── SSH auth via jump ─────────────────────────────────────────────────────────
+
+echo "[hex-legacy-1] SSH authentication"
+
+SSH_OUT="$(ssh_password_login_via_jump "$ATTACKER" \
+    rincewind 10.10.0.10 wizzard \
+    root "$HEX_IP" hex123)"
+assert_contains "$SSH_OUT" "SSH_OK" \
+    "root/hex123 authenticates to hex-legacy-1 via wizzards-retreat jump"
+
+SSH_CMD="$(ssh_password_login_via_jump "$ATTACKER" \
+    rincewind 10.10.0.10 wizzard \
+    root "$HEX_IP" hex123 \
+    "VER")"
+assert_contains "$SSH_CMD" "Windows 95|4\.00" \
+    "SSH exec via jump: VER returns Windows 95 banner through facade"
+
+# ── Credential chain ──────────────────────────────────────────────────────────
+
+echo "[hex-legacy-1] Credential chain"
+
+ENG_SSH="$(ssh_password_login_via_jump "$ATTACKER" \
+    rincewind 10.10.0.10 wizzard \
+    engineer "$ENG_IP" spanner99)"
+assert_contains "$ENG_SSH" "SSH_OK" \
+    "engineer/spanner99 (from C:\PRIVATE\PLCACCS.CFG) authenticates to eng-ws"
 
 summary

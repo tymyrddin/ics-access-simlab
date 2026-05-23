@@ -45,6 +45,14 @@ print(c.get('attacker_machine', {}).get('auth_mode', 'key'))
 " 2>/dev/null || echo key
 }
 
+_attacker_ip() {
+    python3 -c "
+import yaml
+c = yaml.safe_load(open('$CONFIG'))
+print(c['attacker_machine'].get('internet_ip', '10.10.0.5'))
+" 2>/dev/null || echo 10.10.0.5
+}
+
 _compose_up() {
     local f="$1"; shift
     [ -f "$f" ] || return 0
@@ -188,15 +196,15 @@ case "$CMD" in
 
   ssh)
     USER="${2:-ponder}"
-    PORT="$(_ssh_port)"
-    echo "[ctl] Connecting as ${USER}@localhost:${PORT} ..."
+    IP="$(_attacker_ip)"
+    echo "[ctl] Connecting as ${USER}@${IP} ..."
     if [ -f "$REPO/lab-key" ] && [ "$(_auth_mode)" = "key" ]; then
         exec ssh -o IdentitiesOnly=yes -i "$REPO/lab-key" \
             -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
-            "${USER}@localhost" -p "$PORT"
+            "${USER}@${IP}"
     else
         exec ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
-            "${USER}@localhost" -p "$PORT"
+            "${USER}@${IP}"
     fi
     ;;
 

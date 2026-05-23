@@ -15,6 +15,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     python3-venv \
     openssh-server \
     openssh-client \
+    stunnel4 \
+    iproute2 \
     curl \
     net-tools \
     iputils-ping \
@@ -32,6 +34,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY app/ ./app/
 COPY entrypoint.sh /entrypoint.sh
+COPY stunnel-client.conf /run/stunnel-client/stunnel-client.conf
 COPY winserver2016_shell.sh /usr/local/bin/winserver2016_shell.sh
 RUN chmod +x /entrypoint.sh /usr/local/bin/winserver2016_shell.sh
 

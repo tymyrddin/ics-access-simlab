@@ -78,6 +78,8 @@ assert_contains "$IPALL_OUT" "${BURSAR_OPS_IP//./\\.}" \
     "ipconfig /all shows operational IP ($BURSAR_OPS_IP) — dual-homed"
 assert_contains "$IPALL_OUT" "Ethernet 1" \
     "ipconfig /all lists second adapter"
+assert_contains "$IPALL_OUT" "[0-9A-Fa-f][0-9A-Fa-f]-[0-9A-Fa-f][0-9A-Fa-f]-[0-9A-Fa-f]" \
+    "ipconfig /all shows real MAC address (not hardcoded)"
 
 ARP_OUT="$(ps1 "arp -a")"
 assert_contains "$ARP_OUT" "10\.10\." "arp -a shows ARP entries"
@@ -111,6 +113,8 @@ assert_contains "$CSV_OUT" "turbine_2024" "dir /s *.csv finds turbine CSV report
 
 DOCS_OUT="$(ps1 'dir Documents\')"
 assert_contains "$DOCS_OUT" "notes\.txt" "dir Documents\ lists notes.txt"
+assert_contains "$DOCS_OUT" "[0-9][0-9]/[0-9][0-9]/[0-9][0-9][0-9][0-9]" \
+    "dir Documents\ shows real file timestamps (not hardcoded)"
 
 APPDATA_OUT="$(ps1 'dir AppData\Roaming\UUPLOps\')"
 assert_contains "$APPDATA_OUT" "ops-access\.conf" "dir AppData\Roaming\UUPLOps\ shows ops-access.conf"
@@ -187,12 +191,13 @@ HIST_ASSETS="$(in_container "$BURSAR" curl -s --max-time 10 \
 assert_contains "$HIST_ASSETS" "turbine_rpm" \
     "historian:Historian2015 (from ops-access.conf) authenticates against historian /assets"
 
-# admin:admin from ops-access.conf; verify distribution-scada is reachable
+# admin:admin from ops-access.conf; verify distribution-scada returns 200
 SCADA_HTTP="$(in_container "$BURSAR" curl -s --max-time 10 \
+    -u admin:admin \
     -o /dev/null -w '%{http_code}' \
     "http://${SCADA_IP}:8080/" 2>&1)"
-assert_contains "$SCADA_HTTP" "[0-9][0-9][0-9]" \
-    "bursar-desk reaches distribution-scada HTTP via operational interface"
+assert_contains "$SCADA_HTTP" "200" \
+    "admin:admin (from ops-access.conf) authenticates against distribution-scada"
 
 # Facade CURL: verify the facade passthrough reaches historian
 FACADE_CURL="$(ps1 "curl -s -u historian:Historian2015 http://${HIST_IP}:8080/assets")"
@@ -222,10 +227,11 @@ echo "[bursar-desk] Credential chain"
 
 # historian:Historian2015 from ops-access.conf → /report — exactly what pull_monthly_report.ps1 does.
 # This is the realistic bursar-desk chain: find credential in script, use it yourself.
+HIST_MONTH="$(date +%Y-%m)"
 REPORT_OUT="$(in_container "$BURSAR" curl -s --max-time 10 \
     -u historian:Historian2015 \
-    "http://${HIST_IP}:8080/report?asset=turbine_main&from=2026-01-01&to=2026-02-01" 2>&1)"
-assert_contains "$REPORT_OUT" "turbine_main|timestamp|rpm|value" \
+    "http://${HIST_IP}:8080/report?asset=turbine_rpm&from=${HIST_MONTH}-01&to=${HIST_MONTH}-28" 2>&1)"
+assert_contains "$REPORT_OUT" "timestamp,value,unit" \
     "historian:Historian2015 (from ops-access.conf) retrieves /report — same path as pull_monthly_report.ps1"
 
 summary

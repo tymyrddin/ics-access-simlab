@@ -50,7 +50,7 @@ def index():
         "<p>Authorised users only. "
         "See <a href='/report'>/report</a> for data access.</p>"
         "<p><small>v1.4, Hex Computing Division</small></p>"
-        "</body></html>"
+        "</body></html>\n"
     )
 
 
@@ -73,7 +73,7 @@ def report():
     to_date = request.args.get("to", "2024-12-31")
 
     if not asset:
-        return "asset parameter required", 400
+        return "asset parameter required\n", 400
 
     db = get_db()
     try:
@@ -88,7 +88,7 @@ def report():
     except sqlite3.OperationalError as e:
         # The error message is returned verbatim.
         # "Helps with debugging when something goes wrong."
-        return f"Query error: {e}", 500
+        return f"Query error: {e}\n", 500
     finally:
         db.close()
 
@@ -96,7 +96,7 @@ def report():
     for row in rows:
         lines.append(f"{row['timestamp']},{row['value']},{row['unit']}")
 
-    return Response("\n".join(lines), mimetype="text/csv")
+    return Response("\n".join(lines) + "\n", mimetype="text/csv")
 
 
 @app.route("/assets")
@@ -108,7 +108,7 @@ def assets():
     finally:
         db.close()
     names = [row["asset"] for row in rows]
-    return "\n".join(names)
+    return "\n".join(names) + "\n"
 
 
 @app.route("/status")
@@ -138,7 +138,7 @@ def export():
     """
     tag = request.args.get("tag", "")
     if not tag:
-        return "tag parameter required", 400
+        return "tag parameter required\n", 400
     path = os.path.join(EXPORT_DIR, tag)
     try:
         with open(path, "rb") as f:
@@ -151,11 +151,11 @@ def export():
             mime = "application/octet-stream"
         return Response(content, mimetype=mime)
     except FileNotFoundError:
-        return f"no export for tag: {tag}", 404
+        return f"no export for tag: {tag}\n", 404
     except PermissionError:
-        return "access denied", 403
+        return "access denied\n", 403
     except Exception as e:
-        return f"error: {e}", 500
+        return f"error: {e}\n", 500
 
 
 @app.route("/ingest", methods=["POST"])
@@ -171,10 +171,10 @@ def ingest():
     """
     data = request.get_json(silent=True)
     if not data:
-        return "expected JSON body: {timestamp, asset, value, unit}", 400
+        return "expected JSON body: {timestamp, asset, value, unit}\n", 400
     missing = [k for k in ("timestamp", "asset", "value", "unit") if k not in data]
     if missing:
-        return f"missing fields: {missing}", 400
+        return f"missing fields: {missing}\n", 400
     db = get_db()
     try:
         db.execute(
@@ -182,9 +182,9 @@ def ingest():
             (data["timestamp"], data["asset"], float(data["value"]), data["unit"]),
         )
         db.commit()
-        return "ok"
+        return "ok\n"
     except Exception as e:
-        return f"error: {e}", 500
+        return f"error: {e}\n", 500
     finally:
         db.close()
 

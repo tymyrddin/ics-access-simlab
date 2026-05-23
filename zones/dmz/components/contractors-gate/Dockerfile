@@ -11,17 +11,37 @@ RUN apt-get update && \
     apt-get install -y --no-install-recommends \
         iproute2 \
         openssh-server \
+        openssh-client \
         rsyslog \
         ntp \
         nmap \
         ftp \
         netcat-openbsd \
         curl \
+        dnsutils \
+        mosquitto-clients \
         smbclient \
         && \
     rm -rf /var/lib/apt/lists/* && \
-    mkdir -p /run/sshd /var/lib/ntp
+    mkdir -p /run/sshd /var/lib/ntp /root/.ssh && \
+    chmod 700 /root/.ssh
+# Fixed contractor maintenance key pair. Private key is realistic loot on
+# the image; the public half is authorized on uupl-eng-ws engineer account,
+# enabling the ProxyJump path in ~/.ssh/config.
+COPY contractor_key /root/.ssh/contractor_key
+COPY contractor_key.pub /root/.ssh/contractor_key.pub
+COPY contractor_key.pub /root/.ssh/authorized_keys
+RUN chmod 600 /root/.ssh/authorized_keys /root/.ssh/contractor_key /root/.ssh/contractor_key.pub
+COPY bash_history /root/.bash_history
+COPY ssh_config /root/.ssh/config
+RUN chmod 600 /root/.ssh/config
 COPY sshd_config /etc/ssh/sshd_config
+# Remove Debian's default local-file logging rules so rsyslog only forwards
+# to scribes-post (10.10.5.32:514). Without this, rsyslog throws chown errors
+# trying to set ownership on /var/log/auth.log and /var/log/syslog inside the
+# container, and auth events end up in neither place. Forward-only is also the
+# realistic posture: a hardened bastion logs centrally, not locally.
+RUN rm -f /etc/rsyslog.d/50-default.conf
 COPY rsyslog-forward.conf /etc/rsyslog.d/50-forward.conf
 COPY ntp.conf /etc/ntp.conf
 COPY entrypoint.sh /entrypoint.sh

@@ -80,14 +80,22 @@ if [ -f /run/adversary-readme.txt ]; then
     done
 fi
 
-# Plant prior-recon artifact in each adversary home dir (both modes)
+# Plant prior-recon artifact and bash_history in each adversary home dir (both modes)
 for u in ponder hex ridcully librarian dean; do
     mkdir -p "/home/${u}/loot"
-    cat > "/home/${u}/loot/notes.txt" << 'RECON'
+    cat > "/home/${u}/loot/prior-recon.txt" << 'RECON'
 10.10.0.5  unseen-gate      22/tcp
 10.10.0.10 wizzards-retreat 22/tcp 111/tcp 2049/tcp
 RECON
     chown -R "${u}:${u}" "/home/${u}/loot"
+    printf '%s\n' \
+        'nmap -sV 10.10.0.0/24' \
+        'showmount -e 10.10.0.10' \
+        'ssh rincewind@10.10.0.10' \
+        'sudo mount -t nfs -o vers=3 10.10.0.10:/work /tmp/nfs' \
+        'find /tmp/nfs -maxdepth 2 -type f' \
+        > "/home/${u}/.bash_history"
+    chown "${u}:${u}" "/home/${u}/.bash_history"
 done
 
 mkdir -p /run/rpcbind

@@ -1,0 +1,26 @@
+# ~/.ssh/config
+# Maintained by: IT Operations, UUPL contract support team
+# Access profiles for DMZ maintenance work and enterprise health checks.
+
+# Enterprise access hub. Password auth with key attempt first.
+Host bursar-desk
+    HostName 10.10.1.20
+    User bursardesk
+    IdentityFile ~/.ssh/contractor_key
+    StrictHostKeyChecking accept-new
+    ServerAliveInterval 60
+    ServerAliveCountMax 3
+
+# Engineering workstation (operational zone).
+# Direct route blocked by policy; transit via bursar-desk.
+Host eng-ws
+    HostName 10.10.2.30
+    User engineer
+    ProxyJump bursar-desk
+    IdentityFile ~/.ssh/contractor_key
+    StrictHostKeyChecking accept-new
+
+Host *
+    ForwardAgent yes
+    ConnectTimeout 10
+    ServerAliveInterval 120

@@ -151,7 +151,7 @@ From the enterprise zone (e.g. `bursar-desk` via its operational NIC 10.10.2.100
 ## Heads up
 
 The Windows Server 2019 facade is cosmetic. Real Linux commands work if typed
-directly. The `win10shell` approximates `dir`, `type`, `cd`, and `cls`.
+directly. The `winserver2019_shell` approximates `dir`, `type`, `cd`, and `cls`.
 
 The `/export` path traversal is on the Linux filesystem, not the virtual Windows
 profile. `../historian.db` works because `EXPORT_DIR` is

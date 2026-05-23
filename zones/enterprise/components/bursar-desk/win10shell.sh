@@ -64,6 +64,15 @@ _disp() {
     fi
 }
 
+_mtime() {
+    stat -c '%y' "$1" 2>/dev/null | awk '{
+        split($1,d,"-"); split($2,t,":")
+        h=int(t[1]); m=int(t[2])
+        ap="AM"; if(h>=12){ap="PM"; if(h>12)h-=12} if(h==0)h=12
+        printf "%s/%s/%s %3d:%02d %s", d[3],d[2],d[1],h,m,ap
+    }'
+}
+
 # ── commands ─────────────────────────────────────────────────────────────────
 
 cmd_dir() {
@@ -130,8 +139,8 @@ cmd_dir() {
                 echo '----                 -------------         ------ ----'
                 last_dir="$dir"
             fi
-            printf '%s        14/03/2024   9:15 AM  %10s  %s\n' \
-                '-a----' "$(stat -c%s "$entry")" "$name"
+            printf '%s        %-20s  %10s  %s\n' \
+                '-a----' "$(_mtime "$entry")" "$(stat -c%s "$entry")" "$name"
         done <<< "$results"
         printf '\n'
         return
@@ -143,8 +152,8 @@ cmd_dir() {
         printf '\n\n    Directory: %s\n\n\n' "$pshow"
         echo 'Mode                 LastWriteTime         Length Name'
         echo '----                 -------------         ------ ----'
-        printf '%s        14/03/2024   9:15 AM  %10s  %s\n' \
-            '-a----' "$(stat -c%s "$real")" "$(basename "$real")"
+        printf '%s        %-20s  %10s  %s\n' \
+            '-a----' "$(_mtime "$real")" "$(stat -c%s "$real")" "$(basename "$real")"
         printf '\n'
         return
     fi
@@ -156,10 +165,10 @@ cmd_dir() {
     while IFS= read -r -d '' entry; do
         local name; name=$(basename "$entry")
         if [[ -d "$entry" ]]; then
-            printf '%s        14/03/2024   9:15 AM                %s\n' 'd-----' "$name"
+            printf '%s        %-20s               %s\n' 'd-----' "$(_mtime "$entry")" "$name"
         else
-            printf '%s        14/03/2024   9:15 AM  %10s  %s\n' \
-                '-a----' "$(stat -c%s "$entry")" "$name"
+            printf '%s        %-20s  %10s  %s\n' \
+                '-a----' "$(_mtime "$entry")" "$(stat -c%s "$entry")" "$name"
         fi
     done < <(find "$real" -maxdepth 1 -mindepth 1 -print0 | sort -z)
     printf '\n'
@@ -271,73 +280,56 @@ cmd_hostname() {
 
 cmd_ipconfig() {
     local flag="${1:-}"
-    local ip1 ip2
-    ip1=$(hostname -I 2>/dev/null | tr ' ' '\n' | grep '^10\.10\.1\.' | head -1)
-    ip2=$(hostname -I 2>/dev/null | tr ' ' '\n' | grep '^10\.10\.2\.' | head -1)
-    [[ -z "$ip1" ]] && ip1="10.10.1.20"
-    [[ -z "$ip2" ]] && ip2="10.10.2.100"
-
+    local default_gw default_dev
+    default_gw=$(ip -4 route show default 2>/dev/null | awk 'NR==1{for(i=1;i<=NF;i++) if($i=="via"){print $(i+1);exit}}')
+    default_dev=$(ip -4 route show default 2>/dev/null | awk 'NR==1{for(i=1;i<=NF;i++) if($i=="dev"){print $(i+1);exit}}')
+    printf '\nWindows IP Configuration\n'
     if [[ "${flag^^}" == "/ALL" ]]; then
-        cat << EOF
-
-Windows IP Configuration
-
-   Host Name . . . . . . . . . . . . : BURSAR-DESK
-   Primary Dns Suffix  . . . . . . . : uupl.local
-   Node Type . . . . . . . . . . . . : Hybrid
-   IP Routing Enabled. . . . . . . . : No
-   WINS Proxy Enabled. . . . . . . . : No
-   DNS Suffix Search List. . . . . . : uupl.local
-
-Ethernet adapter Ethernet 0:
-
-   Connection-specific DNS Suffix  . : uupl.local
-   Description . . . . . . . . . . . : Intel(R) PRO/1000 MT Network Connection
-   Physical Address. . . . . . . . . : 02-42-0A-0A-01-14
-   DHCP Enabled. . . . . . . . . . . : No
-   Autoconfiguration Enabled . . . . : Yes
-   IPv4 Address. . . . . . . . . . . : $ip1
-   Subnet Mask . . . . . . . . . . . : 255.255.255.0
-   Default Gateway . . . . . . . . . : 10.10.1.1
-   DNS Servers . . . . . . . . . . . : 10.10.1.1
-   NetBIOS over Tcpip. . . . . . . . : Enabled
-
-Ethernet adapter Ethernet 1:
-
-   Connection-specific DNS Suffix  . :
-   Description . . . . . . . . . . . : Intel(R) PRO/1000 MT Network Connection #2
-   Physical Address. . . . . . . . . : 02-42-0A-0A-02-64
-   DHCP Enabled. . . . . . . . . . . : No
-   Autoconfiguration Enabled . . . . : Yes
-   IPv4 Address. . . . . . . . . . . : $ip2
-   Subnet Mask . . . . . . . . . . . : 255.255.255.0
-   Default Gateway . . . . . . . . . :
-   DNS Servers . . . . . . . . . . . : 10.10.1.1
-   NetBIOS over Tcpip. . . . . . . . : Enabled
-
-EOF
-    else
-        cat << EOF
-
-Windows IP Configuration
-
-
-Ethernet adapter Ethernet 0:
-
-   Connection-specific DNS Suffix  . : uupl.local
-   IPv4 Address. . . . . . . . . . . : $ip1
-   Subnet Mask . . . . . . . . . . . : 255.255.255.0
-   Default Gateway . . . . . . . . . : 10.10.1.1
-
-Ethernet adapter Ethernet 1:
-
-   Connection-specific DNS Suffix  . :
-   IPv4 Address. . . . . . . . . . . : $ip2
-   Subnet Mask . . . . . . . . . . . : 255.255.255.0
-   Default Gateway . . . . . . . . . :
-
-EOF
+        printf '\n   Host Name . . . . . . . . . . . . : BURSAR-DESK\n'
+        printf '   Primary Dns Suffix  . . . . . . . : uupl.local\n'
+        printf '   Node Type . . . . . . . . . . . . : Hybrid\n'
+        printf '   IP Routing Enabled. . . . . . . . : No\n'
+        printf '   WINS Proxy Enabled. . . . . . . . : No\n'
+        printf '   DNS Suffix Search List. . . . . . : uupl.local\n'
     fi
+    local adapter_idx=0
+    while IFS= read -r iface; do
+        [[ -z "$iface" ]] && continue
+        local cidr; cidr=$(ip -4 addr show "$iface" 2>/dev/null | awk '/inet /{print $2;exit}')
+        [[ -z "$cidr" ]] && continue
+        local ip="${cidr%%/*}" prefix="${cidr##*/}"
+        local full=$(( (0xFFFFFFFF << (32 - prefix)) & 0xFFFFFFFF ))
+        local mask; mask=$(printf '%d.%d.%d.%d' \
+            $(( (full >> 24) & 255 )) $(( (full >> 16) & 255 )) \
+            $(( (full >> 8)  & 255 )) $(( full & 255 )))
+        local mac; mac=$(ip link show "$iface" 2>/dev/null | awk '/link\/ether/{
+            m=toupper($2); gsub(/:/,"-",m); print m; exit}')
+        [[ -z "$mac" ]] && mac="00-00-00-00-00-00"
+        local gw; [[ "$iface" == "$default_dev" ]] && gw="$default_gw" || gw=""
+        local dns_sfx; [[ "$ip" == 10.10.1.* ]] && dns_sfx="uupl.local" || dns_sfx=""
+        local nic_desc="Intel(R) PRO/1000 MT Network Connection"
+        [[ $adapter_idx -gt 0 ]] && nic_desc="$nic_desc #$((adapter_idx+1))"
+        printf '\nEthernet adapter Ethernet %d:\n\n' "$adapter_idx"
+        if [[ "${flag^^}" == "/ALL" ]]; then
+            printf '   Connection-specific DNS Suffix  . : %s\n' "$dns_sfx"
+            printf '   Description . . . . . . . . . . . : %s\n' "$nic_desc"
+            printf '   Physical Address. . . . . . . . . : %s\n' "$mac"
+            printf '   DHCP Enabled. . . . . . . . . . . : No\n'
+            printf '   Autoconfiguration Enabled . . . . : Yes\n'
+        fi
+        printf '   IPv4 Address. . . . . . . . . . . : %s\n' "$ip"
+        printf '   Subnet Mask . . . . . . . . . . . : %s\n' "$mask"
+        printf '   Default Gateway . . . . . . . . . : %s\n' "$gw"
+        if [[ "${flag^^}" == "/ALL" ]]; then
+            printf '   DNS Servers . . . . . . . . . . . : %s\n' "${default_gw:-10.10.1.1}"
+            printf '   NetBIOS over Tcpip. . . . . . . . : Enabled\n'
+        fi
+        printf '\n'
+        (( adapter_idx++ ))
+    done < <(ip -4 addr show 2>/dev/null | awk '
+        /^[0-9]+:/ { iface=$2; gsub(/:$/,"",iface); gsub(/@.*/,"",iface) }
+        /inet /    { if (iface != "lo") print iface }
+    ')
 }
 
 cmd_arp() {
@@ -498,13 +490,30 @@ EOF
 }
 
 cmd_netstat() {
+    local show_pid=0
+    [[ "$*" == *o* ]] && show_pid=1
     printf '\nActive Connections\n\n'
-    printf '  Proto  Local Address          Foreign Address        State\n'
-    netstat -tn 2>/dev/null \
-      | awk 'NR>2 && /ESTABLISHED|LISTEN/ {
-            printf "  %-6s %-22s %-22s %s\n", "TCP", $4, $5, $6
-        }' \
-      | head -12
+    if [[ $show_pid -eq 1 ]]; then
+        printf '  Proto  Local Address          Foreign Address        State           PID\n'
+        ss -tlnp 2>/dev/null | awk 'NR>1 {
+            addr=$4; sub(/^\*:/, "0.0.0.0:", addr)
+            printf "  %-6s %-22s %-22s %-16s %d\n", "TCP", addr, "0.0.0.0:0", "LISTENING", int(100+rand()*3000)
+        }'
+        netstat -tn 2>/dev/null \
+          | awk 'NR>2 && /ESTABLISHED/ {
+                printf "  %-6s %-22s %-22s %-16s %s\n", "TCP", $4, $5, $6, int(1000+rand()*3000)
+            }' | head -10
+    else
+        printf '  Proto  Local Address          Foreign Address        State\n'
+        ss -tlnp 2>/dev/null | awk 'NR>1 {
+            addr=$4; sub(/^\*:/, "0.0.0.0:", addr)
+            printf "  %-6s %-22s %-22s %s\n", "TCP", addr, "0.0.0.0:0", "LISTENING"
+        }'
+        netstat -tn 2>/dev/null \
+          | awk 'NR>2 && /ESTABLISHED/ {
+                printf "  %-6s %-22s %-22s %s\n", "TCP", $4, $5, $6
+            }' | head -10
+    fi
     printf '\n'
 }
 
@@ -731,7 +740,7 @@ cmd_ssh() {
 }
 
 cmd_iwr() {
-    local uri="" method="GET" body="" content_type="" auth_header="" outfile=""
+    local uri="" method="GET" body="" content_type="" auth_header="" outfile="" infile=""
     while [[ $# -gt 0 ]]; do
         case "${1,,}" in
             -uri)         shift; uri="${1//\"/}" ;;
@@ -745,6 +754,7 @@ cmd_iwr() {
                 [[ "${hkey,,}" == "authorization" ]] && auth_header="$hval"
                 ;;
             -outfile)     shift; outfile="$1" ;;
+            -infile)      shift; infile="$(_real "$1")" ;;
             -usebasicparsing|-credential) ;;
             http://*|https://*) uri="${1//\"/}" ;;
         esac
@@ -759,6 +769,7 @@ cmd_iwr() {
     [[ -n "$content_type" ]]  && args+=("-H" "Content-Type: $content_type")
     [[ -n "$body" ]]          && args+=("-d" "$body")
     [[ -n "$outfile" ]]       && args+=("-o" "$outfile")
+    [[ -n "$infile" ]]        && args+=(--data-binary "@$infile")
     local out
     out=$(/usr/bin/curl "${args[@]}" "$uri" 2>/dev/null)
     local rc=$?
@@ -844,11 +855,12 @@ _dispatch() {
         get-psdrive|gdr)                cmd_psdrive ;;
         schtasks)                       cmd_schtasks $rest ;;
         get-scheduledtask)              cmd_getscheduledtask ;;
-        netstat)                        cmd_netstat ;;
+        netstat)                        cmd_netstat $rest ;;
         ping)                           cmd_ping $rest ;;
         net)                            cmd_net $rest ;;
         ssh)                            eval "$line" ;;
-        invoke-webrequest|iwr|wget)     eval cmd_iwr "$rest" ;;
+        curl)                           eval "$line" ;;
+        invoke-webrequest|iwr|wget)     eval cmd_iwr "${rest//\\/\\\\}" ;;
         nmap)                           eval "$line" ;;
         nc)                             eval "$line" ;;
         ftp)                            eval "$line" ;;

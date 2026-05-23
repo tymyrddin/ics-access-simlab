@@ -91,7 +91,7 @@ to addresses outside that list.
 ## Observability and debugging
 
 ```bash
-docker logs umati-gateway
+docker logs guild-exchange
 curl http://10.10.5.10:8080/            # management UI
 ```
 
@@ -115,8 +115,12 @@ firewall access):
 ## Known oddities
 
 The pr-375 image is a pre-merge build and may have startup quirks not present in
-a release image. If the container exits at start, check `docker logs` for .NET
-runtime errors.
+a release image. If the container exits at start, check `docker logs guild-exchange`
+for .NET runtime errors.
+
+The .NET/Kestrel server takes 2-3 minutes to bind port 8080 after the container
+starts. Smoke tests wait up to 300 seconds for the port to open. A fresh `./ctl up`
+will show guild-exchange as running before port 8080 is actually ready.
 
 The gateway requires network reachability to any OPC-UA server it is configured
 to connect to. Within the DMZ, this is unrestricted. Connections to the

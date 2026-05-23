@@ -2,31 +2,55 @@ probes_path = '/usr/share/nmap/nmap-service-probes'
 with open(probes_path) as f:
     content = f.read()
 
-# hex-legacy-1 telnet sends IAC WILL CHARSET + WILL LINEMODE + DO TERMTYPE +
-# DO FLOWCONTROL + DO NAWS + DO ENVIRON + DO OLD-ENVIRON in response to the
-# GenericLines probe. nmap has no match for this sequence, so it emits a
-# fingerprint blob instead of labelling the service version.
-new_match = (
-    r'match telnet m|^\xff\xfb\x25\xff\xfb\x26\xff\xfd\x18'
-    r'\xff\xfd\x20\xff\xfd\x23\xff\xfd\x27\xff\xfd\x24| p/telnet/'
-)
-
-if new_match in content:
+SENTINEL = '# ics-simlab patches applied'
+if SENTINEL in content:
     exit(0)
 
-gl_pos = content.find('\nProbe TCP GenericLines ')
-if gl_pos == -1:
-    raise SystemExit('GenericLines probe not found in nmap-service-probes')
 
-next_probe = content.find('\nProbe ', gl_pos + 1)
-section = content[gl_pos:next_probe] if next_probe != -1 else content[gl_pos:]
+def insert_first(text, probe_name, match_line):
+    """Insert match_line before the first match entry in the named TCP probe section."""
+    marker = f'\nProbe TCP {probe_name} '
+    pos = text.find(marker)
+    if pos == -1:
+        return text
+    next_probe = text.find('\nProbe ', pos + 1)
+    end = next_probe if next_probe != -1 else len(text)
+    section = text[pos:end]
+    first = section.find('\nmatch ')
+    insert_at = pos + (first if first != -1 else len(section))
+    return text[:insert_at + 1] + match_line + '\n' + text[insert_at + 1:]
 
-first_telnet = section.find('\nmatch telnet ')
-if first_telnet == -1:
-    insert_at = gl_pos + len(section)
-else:
-    insert_at = gl_pos + first_telnet
 
-patched = content[:insert_at + 1] + new_match + '\n' + content[insert_at + 1:]
+# hex-legacy-1 port 23: win95shell.sh sends a clear-screen sequence then the
+# "Microsoft Windows 95" banner.  It never emits IAC bytes; it only drains
+# incoming ones.  An existing landesk-rc match in GenericLines fires on the
+# response first.  Insert our match before all others in that section.
+content = insert_first(content, 'GenericLines',
+    'match telnet m|Microsoft Windows 95| '
+    'p/hex-legacy-1 legacy shell/ i/no authentication, direct access/')
+
+# Flask/Werkzeug services return HTTP 400/404 to RTSP, Help, Socks5, and
+# FourOhFourRequest probes.  nmap has no match for these response formats so
+# it emits fingerprint blobs.  Add matches in each probe section to suppress
+# the blobs without affecting how the service is already labelled from
+# GetRequest and HTTPOptions.
+content = insert_first(content, 'RTSPRequest',
+    r'softmatch http m|^HTTP/1\.1 400 Bad Request\r\nServer: Werkzeug| '
+    r'p/Werkzeug Flask HTTP/ i/rejects RTSP probe/')
+
+content = insert_first(content, 'Help',
+    r'softmatch http m|^HTTP/1\.1 400 Bad Request\r\nServer: Werkzeug| '
+    r'p/Werkzeug Flask HTTP/ i/rejects Help probe/')
+
+content = insert_first(content, 'Socks5',
+    r'softmatch http m|^HTTP/1\.1 400 Bad Request\r\nServer: Werkzeug| '
+    r'p/Werkzeug Flask HTTP/ i/rejects Socks5 probe/')
+
+content = insert_first(content, 'FourOhFourRequest',
+    r'softmatch http m|^HTTP/1\.1 404 NOT FOUND\r\nServer: Werkzeug| '
+    r'p/Werkzeug Flask HTTP/')
+
+content += f'\n{SENTINEL}\n'
+
 with open(probes_path, 'w') as f:
-    f.write(patched)
+    f.write(content)
