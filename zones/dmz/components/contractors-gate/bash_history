@@ -1,0 +1,14 @@
+uname -a
+ip addr
+ip route
+nmap -sn 10.10.1.0/24 -oG /tmp/enterprise-sweep.txt
+cat /tmp/enterprise-sweep.txt
+nc -zv 10.10.1.20 22
+nc -zv 10.10.1.10 23
+ssh bursardesk@10.10.1.20
+scp /usr/bin/nmap bursardesk@10.10.1.20:/tmp/
+cat /etc/ntp.conf
+cat /etc/rsyslog.d/50-forward.conf
+dig @10.10.5.31 uupl-historian.uupl.am
+curl -s http://10.10.5.11:7000/api/v2/ping
+ls /tmp/

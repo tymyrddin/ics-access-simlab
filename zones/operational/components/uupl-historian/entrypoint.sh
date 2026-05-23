@@ -143,9 +143,6 @@ curl http://localhost:8080/status
 curl "http://localhost:8080/report?asset=turbine_rpm&from=2026-03-01&to=2026-03-08"
 curl "http://localhost:8080/assets"
 curl "http://localhost:8080/export?tag=turbine_rpm.csv"
-sqlite3 historian.db ".tables"
-sqlite3 historian.db "SELECT * FROM config;"
-sqlite3 historian.db "SELECT * FROM alarm_config;"
 cd ~
 dir
 HIST

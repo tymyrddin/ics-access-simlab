@@ -69,7 +69,7 @@ internet to prevent amplification.
 ## Observability and debugging
 
 ```bash
-docker logs ntp-server
+docker logs guild-clock
 ntpq -p 10.10.5.30          # peer list query
 ntpdate -q 10.10.5.30       # query time offset without changing local clock
 ```

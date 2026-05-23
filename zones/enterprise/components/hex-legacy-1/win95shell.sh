@@ -123,6 +123,16 @@ _path_drive() {
     echo " "
 }
 
+_mtime_dos() {
+    stat -c '%y' "$1" 2>/dev/null | awk '{
+        split($1,d,"-"); split($2,t,":")
+        h=int(t[1]); m=int(t[2])
+        ap="a"; if(h>=12){ap="p"; if(h>12)h-=12} if(h==0)h=12
+        yr=substr(d[1],3)
+        printf "%02d/%02d/%s %3d:%02d%s", d[3],d[2],yr,h,m,ap
+    }'
+}
+
 # ── commands ──────────────────────────────────────────────────────────────────
 
 cmd_ver() { printf '\nMicrosoft Windows 95 [Version 4.00.950]\n\n'; }
@@ -187,11 +197,11 @@ _dir_listing() {
         local name; name=$(basename "$entry")
         local dosname="${name^^}"
         if [[ -d "$entry" ]]; then
-            printf '%s  %s   <DIR>         %s\n' "14/09/99" " 9:23a" "$dosname"
+            printf '%s   <DIR>         %s\n' "$(_mtime_dos "$entry")" "$dosname"
             (( dirs++ )) || true
         else
             local sz; sz=$(stat -c%s "$entry" 2>/dev/null || echo 0)
-            printf '%s  %s   %9s  %s\n' "14/09/99" " 9:23a" "$sz" "$dosname"
+            printf '%s   %9s  %s\n' "$(_mtime_dos "$entry")" "$sz" "$dosname"
             (( files++ )) || true; (( total += sz )) || true
         fi
     done < <(find "$real" -maxdepth 1 -mindepth 1 "${find_args[@]}" -print0 2>/dev/null | sort -z)
@@ -230,13 +240,13 @@ _dr_walk() {
         if [[ -z "$pattern" ]]; then
             for sd in "${subdirs[@]}"; do
                 local name="${sd##*/}"
-                printf '%s  %s   <DIR>         %s\n' "14/09/99" " 9:23a" "${name^^}"
+                printf '%s   <DIR>         %s\n' "$(_mtime_dos "$sd")" "${name^^}"
             done
         fi
         for mf in "${files[@]}"; do
             local name="${mf##*/}"; local dosname="${name^^}"
             local sz; sz=$(stat -c%s "$mf" 2>/dev/null || echo 0)
-            printf '%s  %s   %9s  %s\n' "14/09/99" " 9:23a" "$sz" "$dosname"
+            printf '%s   %9s  %s\n' "$(_mtime_dos "$mf")" "$sz" "$dosname"
             (( _DR_FILES++ )) || true; (( _DR_BYTES += sz )) || true
         done
     fi
@@ -531,41 +541,84 @@ cmd_netstat() {
 
 cmd_route() {
     printf '\nActive Routes:\n'
-    printf 'Network Address   Netmask           Gateway Address   Interface    Metric\n'
-    printf '          0.0.0.0         0.0.0.0       10.10.1.1     10.10.1.10       1\n'
-    printf '       10.10.1.0   255.255.255.0     10.10.1.10     10.10.1.10       1\n'
-    printf '     127.0.0.0     255.0.0.0         127.0.0.1       127.0.0.1       1\n'
-    printf '\nDefault Gateway:   10.10.1.1\n\n'
+    printf '%-18s %-18s %-18s %-13s %s\n' \
+        'Network Address' 'Netmask' 'Gateway Address' 'Interface' 'Metric'
+    local default_gw=""
+    while IFS=$'\t' read -r iface dest gw _flags _ref _use metric mask _rest; do
+        local net_ip gw_ip mask_ip
+        net_ip=$(printf '%d.%d.%d.%d' \
+            $(( 16#${dest:6:2} )) $(( 16#${dest:4:2} )) \
+            $(( 16#${dest:2:2} )) $(( 16#${dest:0:2} )))
+        gw_ip=$(printf '%d.%d.%d.%d' \
+            $(( 16#${gw:6:2} )) $(( 16#${gw:4:2} )) \
+            $(( 16#${gw:2:2} )) $(( 16#${gw:0:2} )))
+        mask_ip=$(printf '%d.%d.%d.%d' \
+            $(( 16#${mask:6:2} )) $(( 16#${mask:4:2} )) \
+            $(( 16#${mask:2:2} )) $(( 16#${mask:0:2} )))
+        local local_ip
+        local_ip=$(ip -4 addr show "$iface" 2>/dev/null | awk '/inet /{split($2,a,"/"); print a[1]; exit}')
+        [[ -z "$local_ip" ]] && local_ip="0.0.0.0"
+        [[ "$net_ip" == "0.0.0.0" && "$mask_ip" == "0.0.0.0" ]] && default_gw="$gw_ip"
+        local gw_disp; [[ "$gw_ip" == "0.0.0.0" ]] && gw_disp="$local_ip" || gw_disp="$gw_ip"
+        printf '%-18s %-18s %-18s %-13s %s\n' \
+            "$net_ip" "$mask_ip" "$gw_disp" "$local_ip" "$metric"
+    done < <(awk 'NR>1' /proc/net/route 2>/dev/null)
+    printf '%-18s %-18s %-18s %-13s %s\n' '127.0.0.0' '255.0.0.0' '127.0.0.1' '127.0.0.1' '1'
+    printf '\nDefault Gateway:   %s\n\n' "${default_gw:-10.10.1.1}"
 }
 
 cmd_arp() {
-    printf '\nInterface: 10.10.1.10 on Interface 0x2\n'
+    local ip; ip=$(hostname -I 2>/dev/null | awk '{print $1}')
+    [[ -z "$ip" ]] && ip="10.10.1.10"
+    printf '\nInterface: %s on Interface 0x2\n' "$ip"
     printf '  Internet Address      Physical Address      Type\n'
-    printf '  10.10.1.1             00-14-22-01-23-45     dynamic\n'
-    printf '  10.10.1.20            00-50-56-aa-bb-cc     dynamic\n\n'
+    local entries
+    entries=$(arp -n 2>/dev/null | awk 'NR>1 && $3!="(incomplete)" {
+        mac=$3; gsub(/:/,"-",mac)
+        printf "  %-21s %-21s %s\n", $1, mac, "dynamic"
+    }')
+    if [[ -n "$entries" ]]; then
+        printf '%s\n' "$entries"
+    else
+        local sub="${ip%.*}"
+        printf '  %-21s %-21s %s\n' "${sub}.1" "00-14-22-01-23-45" "dynamic"
+    fi
+    printf '\n'
 }
 
 cmd_winipcfg() {
     local ip; ip=$(hostname -I 2>/dev/null | awk '{print $1}')
     [[ -z "$ip" ]] && ip="10.10.1.10"
+    local gw; gw=$(ip -4 route show default 2>/dev/null | awk 'NR==1{for(i=1;i<=NF;i++) if($i=="via"){print $(i+1);exit}}')
+    [[ -z "$gw" ]] && gw="10.10.1.1"
+    local iface; iface=$(ip -4 addr show 2>/dev/null | awk -v ip="$ip" '
+        /^[0-9]+:/ { cur=$2; gsub(/:$/,"",cur); gsub(/@.*/,"",cur) }
+        /inet / { if ($2 ~ ("^" ip "/")) { print cur; exit } }
+    ')
+    local mac=""
+    [[ -n "$iface" ]] && mac=$(ip link show "$iface" 2>/dev/null | awk '/link\/ether/{
+        m=toupper($2); gsub(/:/,"-",m); print m; exit}')
+    [[ -z "$mac" ]] && mac="00-50-56-01-02-03"
     printf '\nIP Configuration\n\n'
     printf '   Ethernet Adapter: SMC EtherCard ELITE16T\n\n'
-    printf '   Adapter Address:  00-50-56-01-02-03\n'
+    printf '   Adapter Address:  %s\n' "$mac"
     printf '   IP Address:       %s\n' "$ip"
     printf '   Subnet Mask:      255.255.255.0\n'
-    printf '   Default Gateway:  10.10.1.1\n\n'
-    printf '   DNS Server:       10.10.1.1\n'
+    printf '   Default Gateway:  %s\n\n' "$gw"
+    printf '   DNS Server:       %s\n' "$gw"
     printf '   DHCP:             Disabled\n\n'
 }
 
 cmd_ipconfig() {
     local ip; ip=$(hostname -I 2>/dev/null | awk '{print $1}')
     [[ -z "$ip" ]] && ip="10.10.1.10"
+    local gw; gw=$(ip -4 route show default 2>/dev/null | awk 'NR==1{for(i=1;i<=NF;i++) if($i=="via"){print $(i+1);exit}}')
+    [[ -z "$gw" ]] && gw="10.10.1.1"
     printf '\nWindows IP Configuration\n\n'
     printf '\nEthernet adapter:\n\n'
     printf '   IP Address. . . . . . . . . : %s\n' "$ip"
     printf '   Subnet Mask . . . . . . . . : 255.255.255.0\n'
-    printf '   Default Gateway . . . . . . : 10.10.1.1\n\n'
+    printf '   Default Gateway . . . . . . : %s\n\n' "$gw"
 }
 
 cmd_nbtstat() {

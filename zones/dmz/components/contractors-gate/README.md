@@ -27,6 +27,9 @@ which is the exact version shipped with the original Debian 12.0 image.
 
 Base image: `debian:12.0`. Ships `openssh-server 9.2p1-2`.
 
+Installed packages: `openssh-server`, `openssh-client`, `rsyslog`, `ntp`, `nmap`,
+`ftp`, `netcat-openbsd`, `curl`, `dnsutils`, `mosquitto-clients`, `smbclient`.
+
 SSH configuration:
 - `PermitRootLogin yes`
 - `PasswordAuthentication yes`
@@ -43,6 +46,26 @@ attack path is the `root` / `uupl2015` credential.
 rsyslog is running inside the container and forwards all syslog events (including
 sshd auth successes, failures, and session open/close) to `scribes-post`
 (10.10.5.32:514) over UDP. No TLS.
+
+Operational residue is baked into the image to simulate a machine with prior use:
+- `/root/.ssh/contractor_key` and `contractor_key.pub`: fixed ed25519 key pair,
+  comment `contract-admin@uupl-maintenance`. Committed as source files so the
+  public key can be referenced from other images. The public key is in `authorized_keys`
+  (self-referential sediment) and is also authorised on `engineer@uupl-eng-ws`,
+  enabling the ProxyJump path in `~/.ssh/config`.
+- `/root/.ssh/config`: SSH client configuration with stanzas for `bursar-desk`
+  (10.10.1.20, user `bursardesk`) and `eng-ws` (10.10.2.30, user `engineer`,
+  `ProxyJump bursar-desk`). The contractor key is listed as `IdentityFile` for
+  both. The jump through `bursar-desk` requires the `bursardesk` password; the
+  destination accepts the contractor key.
+- `/root/.ssh/known_hosts`: populated at container start by `ssh-keyscan` against
+  `10.10.1.20`, `10.10.1.10`, and `10.10.1.3` once eth2 is up (background loop with
+  15 s delay for enterprise SSH daemons to start).
+- `/root/.bash_history`: copied from `bash_history` at build time; contains a
+  realistic prior-session command sequence.
+- `/tmp/enterprise-sweep.txt`: written at container start by `nmap -sn -PS22,23
+  10.10.1.0/24` (same background loop as known_hosts). May not be present if the
+  loop has not completed yet.
 
 Exposed port: 22/tcp.
 
@@ -104,7 +127,7 @@ specific hosts that legitimately use this bastion.
 ## Observability and debugging
 
 ```bash
-docker logs ssh-bastion
+docker logs contractors-gate
 ssh root@10.10.5.20          # password: uupl2015 (from ics_dmz or ics_internet)
 ```
 
@@ -121,6 +144,15 @@ Password credential (primary path):
 2. From the enterprise NIC (10.10.1.30), reach `ics_enterprise` hosts.
 3. `ssh bursardesk@10.10.1.20` or `smbclient //10.10.1.10/public -N` using
    credentials from the enterprise zone.
+
+Contractor key pivot to engineering workstation:
+1. `ssh root@10.10.5.20` (password `uupl2015`).
+2. `cat ~/.ssh/config` reveals `eng-ws` at `10.10.2.30` reachable via `ProxyJump bursar-desk`.
+3. `ssh eng-ws` — SSH proxies through `bursar-desk` (prompts for `bursardesk` password),
+   then authenticates to `uupl-eng-ws` using `contractor_key`. Lands as `engineer`.
+4. The `engineer` profile contains credentials for every control zone device, but
+   the shell is a Windows 10 LTSC facade. Root is not available; control zone
+   access requires a further step.
 
 Agent forwarding pivot:
 1. SSH to the bastion with agent forwarding: `ssh -A root@10.10.5.20`.

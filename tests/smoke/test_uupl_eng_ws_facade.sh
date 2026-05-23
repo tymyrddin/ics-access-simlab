@@ -66,6 +66,8 @@ assert_contains "$IPCFG_OUT" "10\.10\.3\.100" \
 ROUTE_OUT="$(ws "route print")"
 assert_contains "$ROUTE_OUT" "10\.10\.3\.0" \
     "route print shows control-zone subnet 10.10.3.0 directly attached"
+assert_contains "$ROUTE_OUT" "[0-9a-f]{12}" \
+    "route print Interface List shows real MAC address (not hardcoded)"
 
 NETSTAT_OUT="$(ws "netstat -ano")"
 assert_contains "$NETSTAT_OUT" "Active Connections" "netstat shows Active Connections header"
@@ -99,6 +101,8 @@ echo "[uupl-eng-ws] Backup archive"
 
 BACKUP_OUT="$(ws 'dir backups\')"
 assert_contains "$BACKUP_OUT" "PLC_Backup_2019" "dir backups\ lists PLC_Backup_2019.tar.gz"
+assert_contains "$BACKUP_OUT" "[0-9][0-9]/[0-9][0-9]/[0-9][0-9][0-9][0-9]" \
+    "dir backups\ shows real file timestamps (not hardcoded)"
 
 # ── PLC tools: live readings ──────────────────────────────────────────────────
 

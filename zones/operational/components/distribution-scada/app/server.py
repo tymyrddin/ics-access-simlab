@@ -69,7 +69,7 @@ def dashboard():
         except Exception:
             status_rows.append({"asset": asset, "timestamp": ",", "value": "error", "unit": ""})
 
-    return render_template_string(DASHBOARD_TEMPLATE, rows=status_rows, historian=HISTORIAN_IP)
+    return render_template_string(DASHBOARD_TEMPLATE, rows=status_rows, historian=HISTORIAN_IP) + "\n"
 
 
 DASHBOARD_TEMPLATE = """

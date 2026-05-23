@@ -47,11 +47,14 @@ _probe_runner() {
 
 # TCP connectivity probe from inside a representative in-zone container.
 # bash /dev/tcp avoids needing nc inside every image.
+# Write-only (>) rather than read-write (<>) so that server-speaks-first
+# protocols (SSH, SMTP) do not cause the bidirectional open to fail when the
+# server sends its banner before we send anything.
 # Usage: probe_tcp <zone-or-runner> <host> <port>
 probe_tcp() {
     local runner; runner=$(_probe_runner "$1")
     local host="$2" port="$3"
-    docker exec "$runner" timeout 3 bash -c "exec 3<>/dev/tcp/$host/$port" 2>/dev/null
+    docker exec "$runner" timeout 3 bash -c "exec 3>/dev/tcp/$host/$port" 2>/dev/null
 }
 
 # Inverse probe, succeeds when the port is NOT reachable.
@@ -322,7 +325,7 @@ wait_for_port() {
     while [ "$i" -lt "$timeout" ]; do
         # Each attempt is bounded by 'timeout 2' so a hung TCP connect on a
         # filtered port does not consume the whole window.
-        if docker exec "$runner" timeout 2 bash -c "exec 3<>/dev/tcp/$host/$port" 2>/dev/null; then
+        if docker exec "$runner" timeout 2 bash -c "exec 3>/dev/tcp/$host/$port" 2>/dev/null; then
             return 0
         fi
         sleep 1

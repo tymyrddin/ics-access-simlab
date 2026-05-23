@@ -79,6 +79,8 @@ assert_contains "$README_OUT" "export\?tag=\.\./historian\.db|path traversal|exp
 
 DIR_DATA="$(hist 'dir C:\Historian\Data\')"
 assert_contains "$DIR_DATA" "historian\.db" "dir Data\ lists historian.db"
+assert_contains "$DIR_DATA" "[0-9][0-9]/[0-9][0-9]/[0-9][0-9][0-9][0-9]" \
+    "dir Data\ shows real file timestamps (not hardcoded)"
 
 SCHED_OUT="$(hist 'cat C:\Historian\Archive\export_schedule.txt')"
 assert_contains "$SCHED_OUT" "tag=\.\./historian\.db|historian\.db|traversal" \

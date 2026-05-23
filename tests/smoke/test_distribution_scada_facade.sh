@@ -58,6 +58,10 @@ NETSTAT_OUT="$(ps1 "netstat -ano")"
 assert_contains "$NETSTAT_OUT" "8080"          "netstat shows port 8080 (SCADA web)"
 assert_contains "$NETSTAT_OUT" "5020"          "netstat shows 127.0.0.1:5020 (stunnel Modbus relay)"
 
+DIR_HOME="$(ps1 "dir")"
+assert_contains "$DIR_HOME" "[0-9][0-9]/[0-9][0-9]/[0-9][0-9][0-9][0-9]" \
+    "dir shows real file timestamps (not hardcoded)"
+
 # ── Configuration file ────────────────────────────────────────────────────────
 
 echo "[distribution-scada] Configuration file"

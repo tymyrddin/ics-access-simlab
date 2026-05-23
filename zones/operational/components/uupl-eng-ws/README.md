@@ -61,9 +61,12 @@ The `win10ltsc` facade shell honours `-c "<cmd>"`, so
 `ssh engineer@10.10.2.30 'cat config\plc-access.conf'` returns the file
 contents rather than the banner.
 
-The authorised key list includes a static Ed25519 public key corresponding to
-the private key stored at `~/.ssh-keys/uupl_eng_key` on `wizzards-retreat`
-(Rincewind's home machine at 10.10.0.10).
+Two Ed25519 keys are authorised for the `engineer` account:
+- `uupl-admin@rincewind-home`: the private key is at `~/.ssh-keys/uupl_eng_key`
+  on `wizzards-retreat` (10.10.0.10). Admin trust, accumulated over years.
+- `contract-admin@uupl-maintenance`: the private key is at `/root/.ssh/contractor_key`
+  on `contractors-gate` (10.10.5.20). Added 2023-09-14 by Ponder to let the IT
+  field team run PLC health checks without calling him. Engineer-only; not root.
 
 ## Connections
 
@@ -71,7 +74,8 @@ the private key stored at `~/.ssh-keys/uupl_eng_key` on `wizzards-retreat`
 - `ics_control`: 10.10.3.100 (the control zone NIC)
 - Connects outbound to turbine PLC (10.10.3.21), relays (10.10.3.31/32), HMI
   (10.10.3.10), uupl-historian (10.10.2.10), SCADA (10.10.2.20)
-- Reachable from `wizzards-retreat` (Ed25519 key) and from `distribution-scada`
+- Reachable from `wizzards-retreat` (Ed25519 `uupl_eng_key`), from `contractors-gate`
+  (Ed25519 `contractor_key`, via ProxyJump through `bursar-desk`), and from `distribution-scada`
 
 ## Protocols
 
@@ -90,10 +94,18 @@ Backup archive: `PLC_Backup_2019.tar.gz` contains a network map with IP
 addresses and credentials for the entire OT estate as of 2019. The SCADA
 password in the archive is stale, but the rest remain current.
 
-Ed25519 authorised key: the public key on this machine corresponds to the
-private key at `~/.ssh-keys/uupl_eng_key` on `wizzards-retreat`. Compromising
-Rincewind's home machine gives direct SSH access to the engineering workstation
-without a password.
+Ed25519 authorised keys: two separate trust relationships, both present in
+`/home/engineer/.ssh/authorized_keys`.
+
+`uupl-admin@rincewind-home`: private key at `~/.ssh-keys/uupl_eng_key` on
+`wizzards-retreat`. Compromising Rincewind's home machine gives direct SSH
+access to the engineering workstation without a password.
+
+`contract-admin@uupl-maintenance`: private key at `/root/.ssh/contractor_key` on
+`contractors-gate`. The `~/.ssh/config` on that bastion pre-configures a
+`ProxyJump` through `bursar-desk` to reach this machine. Compromising the bastion
+and knowing the `bursardesk` password is enough to chain through to `engineer`
+here. The contractor key does not grant root.
 
 Control zone NIC: the operational NIC at 10.10.3.100 provides direct access
 to all control zone devices. Combined with the Modbus utilities in `Tools\`, an
@@ -139,7 +151,7 @@ Inside, the virtual C: drive is at `/opt/win10/C/`. The Modbus utilities are at
 
 ## Concrete attack paths
 
-Via `wizzards-retreat` (the intended pivot path):
+Via `wizzards-retreat` (admin trust path):
 
 1. Compromise `wizzards-retreat` (any of its three paths).
 2. `~/.ssh-keys/uupl_eng_key` is the Ed25519 private key.
@@ -149,9 +161,18 @@ Via `wizzards-retreat` (the intended pivot path):
    `/venv/bin/python3 Tools/modbus_read.py 10.10.3.21 502 holding 0 4`
 6. Write to the emergency stop coil: `... modbus_write.py 10.10.3.21 502 coil 0 1`
 
-Alternative path (password brute force or credential reuse):
+Via `contractors-gate` (vendor trust path):
 
-1. `ssh engineer@10.10.2.30` with `spanner99` (visible in the SCADA engineering
+1. Compromise `contractors-gate` (`ssh root@10.10.5.20`, password `uupl2015`).
+2. `cat ~/.ssh/config` reveals the `eng-ws` ProxyJump stanza.
+3. `ssh eng-ws` — SSH proxies through `bursar-desk` (prompts for `bursardesk`
+   password), then authenticates here with `contractor_key`. Lands as `engineer`.
+4. Same profile access as the wizzards-retreat path. Root is not available;
+   reaching control zone devices requires the Modbus tools or a further pivot.
+
+Password path (credential reuse):
+
+1. `ssh engineer@10.10.2.30` with `spanner99` (visible in SCADA engineering
    notes after SCADA compromise).
 2. Same profile access as above.
 
@@ -169,14 +190,16 @@ The cron job polling the PLC writes to `/home/engineer/plc_poll.log`. This file
 is on the real Linux filesystem. It confirms the PLC is reachable and provides
 a timestamp of the last successful poll.
 
-`~/.ssh-keys/uupl_eng_key` on `wizzards-retreat` is the private key. The
-matching public key is in `/home/engineer/.ssh/authorized_keys` on this
-workstation and in the virtual profile at `C:\Users\engineer\.ssh\id_rsa.pub`.
+Two Ed25519 keys are in `/home/engineer/.ssh/authorized_keys`: `uupl_eng_key`
+from `wizzards-retreat`, and `contractor_key` from `contractors-gate`. The
+`wizzards-retreat` key is the admin trust path; the contractor key is the vendor
+trust path, routed via `bursar-desk` as a jump host.
 
 ## At a glance
 
 Ponder's engineering workstation, dual-homed into operational and control
-networks. Profile contains credentials for every device in the plant. The
-authorised SSH key lives on Rincewind's home machine on the internet. Compromising
-the admin@home machine gives passwordless access to the machine that can write to
-any register on the turbine PLC.
+networks. Profile contains credentials for every device in the plant. Two
+separate trust failures authorise SSH: the admin@home key (wizzards-retreat,
+internet zone) and the contractor key (contractors-gate, DMZ). Both land as
+`engineer`, not root. From there, the Modbus tools and the control zone NIC
+provide a path to the turbine PLC.

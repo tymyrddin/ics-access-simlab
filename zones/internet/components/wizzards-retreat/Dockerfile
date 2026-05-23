@@ -24,6 +24,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     python3 \
     python3-flask \
     python3-venv \
+    telnet \
+    tree \
+    cron \
+    sudo \
     && rm -rf /var/lib/apt/lists/*
 
 # Patch nmap-service-probes: add a match for hex-legacy-1's telnet IAC sequence
@@ -47,14 +51,33 @@ RUN mkdir -p /var/run/sshd && \
     sed -i 's/PasswordAuthentication no/PasswordAuthentication yes/' /etc/ssh/sshd_config && \
     echo "PermitRootLogin no" >> /etc/ssh/sshd_config
 
-# Loot: VPN config, SSH key for engineering workstation, notes
-COPY loot/vpn/   /home/rincewind/.vpn/
+# Rincewind's home directory files
+COPY vpn/uupl-vpn.conf /home/rincewind/.vpn/uupl-vpn.conf
+COPY work/notes.txt /home/rincewind/notes.txt
+# Loot: SSH key for engineering workstation, world-readable via NFS (the vulnerability)
 COPY loot/ssh/   /home/rincewind/.ssh-keys/
-COPY loot/notes.txt /home/rincewind/notes.txt
+# Bash history: accumulated admin activity, not placed deliberately
+RUN printf '%s\n' \
+    'ls -la' \
+    'cat notes.txt' \
+    'ssh -i ~/.ssh-keys/uupl_eng_key engineer@10.10.2.30' \
+    'curl -s http://10.10.2.10:8080/assets' \
+    'ssh hist_admin@10.10.2.10' \
+    'ls -la ~/.ssh-keys/' \
+    'nmap -sn 10.10.1.0/24' \
+    'ftp 10.10.1.10' \
+    'curl -s http://10.10.2.20:8080/ -u admin:admin' \
+    'ping 10.10.2.30' \
+    'ssh -i ~/.ssh-keys/uupl_eng_key engineer@10.10.2.30' \
+    'curl -s "http://10.10.2.10:8080/report?asset=turbine_rpm&from=2024-01-01&to=2024-02-01"' \
+    'nmap -sn 10.10.2.0/24' \
+    'curl -s http://10.10.2.10:8080/assets' \
+    'cat notes.txt' \
+    > /home/rincewind/.bash_history
 
 # NFS work share, world-readable, no auth required (misconfiguration)
 RUN mkdir -p /home/rincewind/work
-COPY loot/notes.txt /home/rincewind/work/notes.txt
+COPY work/notes.txt /home/rincewind/work/notes.txt
 RUN chmod 755 /home/rincewind/work && \
     chmod 644 /home/rincewind/work/notes.txt
 
@@ -74,6 +97,9 @@ RUN chown -R rincewind:rincewind /home/rincewind/ && \
     chmod 700 /home/rincewind/.vpn /home/rincewind/.ssh-keys \
               /home/rincewind/.ssh && \
     chmod 600 /home/rincewind/.ssh/authorized_keys
+
+# Allow smbclient to negotiate legacy SMB1/NT1 as used by hex-legacy-1
+RUN printf '\n[global]\n    client min protocol = NT1\n' >> /etc/samba/smb.conf
 
 # NFS-Ganesha config (user-space NFS server, no kernel modules required)
 RUN mkdir -p /etc/ganesha /var/run/ganesha /var/log/ganesha

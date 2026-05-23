@@ -28,6 +28,15 @@ _disp() {
     echo "C:\\${VIRT_CWD//\//\\}"
 }
 
+_mtime() {
+    stat -c '%y' "$1" 2>/dev/null | awk '{
+        split($1,d,"-"); split($2,t,":")
+        h=int(t[1]); m=int(t[2])
+        ap="AM"; if(h>=12){ap="PM"; if(h>12)h-=12} if(h==0)h=12
+        printf "%s/%s/%s %3d:%02d %s", d[3],d[2],d[1],h,m,ap
+    }'
+}
+
 # ── commands ──────────────────────────────────────────────────────────────────
 
 cmd_dir() {
@@ -55,7 +64,7 @@ cmd_dir() {
         printf '\n\n    Directory: %s\n\n\n' "$pshow"
         echo 'Mode                 LastWriteTime         Length Name'
         echo '----                 -------------         ------ ----'
-        printf '%s        14/03/2024   9:15 AM  %10s  %s\n' '-a----' "$(stat -L -c%s "$real")" "$(basename "$real")"
+        printf '%s        %-20s  %10s  %s\n' '-a----' "$(_mtime "$real")" "$(stat -L -c%s "$real")" "$(basename "$real")"
         printf '\n'; return
     fi
     printf '\n\n    Directory: %s\n\n\n' "$show"
@@ -64,9 +73,9 @@ cmd_dir() {
     while IFS= read -r -d '' entry; do
         local name; name=$(basename "$entry")
         if [[ -d "$entry" ]]; then
-            printf '%s        14/03/2024   9:15 AM                %s\n' 'd-----' "$name"
+            printf '%s        %-20s               %s\n' 'd-----' "$(_mtime "$entry")" "$name"
         else
-            printf '%s        14/03/2024   9:15 AM  %10s  %s\n' '-a----' "$(stat -L -c%s "$entry")" "$name"
+            printf '%s        %-20s  %10s  %s\n' '-a----' "$(_mtime "$entry")" "$(stat -L -c%s "$entry")" "$name"
         fi
     done < <(find "$real" -maxdepth 1 -mindepth 1 -print0 | sort -z)
     printf '\n'
@@ -107,19 +116,40 @@ cmd_whoami()   { echo "ot.local\\hist_admin"; }
 cmd_hostname() { echo "HIST-SRV01"; }
 
 cmd_ipconfig() {
-    cat << 'EOF'
-
-Windows IP Configuration
-
-
-Ethernet adapter Ethernet0 (Operational Network):
-
-   Connection-specific DNS Suffix  . : ot.local
-   IPv4 Address. . . . . . . . . . . : 10.10.2.10
-   Subnet Mask . . . . . . . . . . . : 255.255.255.0
-   Default Gateway . . . . . . . . . : 10.10.2.1
-
-EOF
+    local default_gw default_dev
+    default_gw=$(ip -4 route show default 2>/dev/null | awk 'NR==1{for(i=1;i<=NF;i++) if($i=="via"){print $(i+1);exit}}')
+    default_dev=$(ip -4 route show default 2>/dev/null | awk 'NR==1{for(i=1;i<=NF;i++) if($i=="dev"){print $(i+1);exit}}')
+    printf '\nWindows IP Configuration\n\n\n'
+    local adapter_idx=0
+    while IFS= read -r iface; do
+        [[ -z "$iface" ]] && continue
+        local cidr; cidr=$(ip -4 addr show "$iface" 2>/dev/null | awk '/inet /{print $2;exit}')
+        [[ -z "$cidr" ]] && continue
+        local ip="${cidr%%/*}" prefix="${cidr##*/}"
+        local full=$(( (0xFFFFFFFF << (32 - prefix)) & 0xFFFFFFFF ))
+        local mask; mask=$(printf '%d.%d.%d.%d' \
+            $(( (full >> 24) & 255 )) $(( (full >> 16) & 255 )) \
+            $(( (full >> 8)  & 255 )) $(( full & 255 )))
+        local label
+        case "$ip" in
+            10.10.0.*) label="Internet" ;;
+            10.10.1.*) label="Enterprise Network" ;;
+            10.10.2.*) label="Operational Network" ;;
+            10.10.3.*) label="Control Network" ;;
+            10.10.5.*) label="DMZ" ;;
+            *)         label="Ethernet" ;;
+        esac
+        local gw; [[ "$iface" == "$default_dev" ]] && gw="$default_gw" || gw=""
+        printf 'Ethernet adapter Ethernet%d (%s):\n\n' "$adapter_idx" "$label"
+        printf '   Connection-specific DNS Suffix  . : ot.local\n'
+        printf '   IPv4 Address. . . . . . . . . . . : %s\n' "$ip"
+        printf '   Subnet Mask . . . . . . . . . . . : %s\n' "$mask"
+        printf '   Default Gateway . . . . . . . . . : %s\n\n' "$gw"
+        (( adapter_idx++ ))
+    done < <(ip -4 addr show 2>/dev/null | awk '
+        /^[0-9]+:/ { iface=$2; gsub(/:$/,"",iface); gsub(/@.*/,"",iface) }
+        /inet /    { if (iface != "lo") print iface }
+    ')
 }
 
 cmd_netstat() {
@@ -128,16 +158,20 @@ cmd_netstat() {
     printf '\nActive Connections\n\n'
     if [[ $show_pid -eq 1 ]]; then
         printf '  Proto  Local Address          Foreign Address        State           PID\n'
-        printf '  TCP    0.0.0.0:22             0.0.0.0:0              LISTENING       532\n'
-        printf '  TCP    0.0.0.0:8080           0.0.0.0:0              LISTENING       1148\n'
+        ss -tlnp 2>/dev/null | awk 'NR>1 {
+            addr=$4; sub(/^\*:/, "0.0.0.0:", addr)
+            printf "  %-6s %-22s %-22s %-16s %d\n", "TCP", addr, "0.0.0.0:0", "LISTENING", int(100+rand()*3000)
+        }'
         netstat -tn 2>/dev/null \
           | awk 'NR>2 && /ESTABLISHED/ {
                 printf "  %-6s %-22s %-22s %-16s %s\n", "TCP", $4, $5, $6, int(1000+rand()*3000)
             }' | head -8
     else
         printf '  Proto  Local Address          Foreign Address        State\n'
-        printf '  TCP    0.0.0.0:22             0.0.0.0:0              LISTENING\n'
-        printf '  TCP    0.0.0.0:8080           0.0.0.0:0              LISTENING\n'
+        ss -tlnp 2>/dev/null | awk 'NR>1 {
+            addr=$4; sub(/^\*:/, "0.0.0.0:", addr)
+            printf "  %-6s %-22s %-22s %s\n", "TCP", addr, "0.0.0.0:0", "LISTENING"
+        }'
         netstat -tn 2>/dev/null \
           | awk 'NR>2 && /ESTABLISHED/ {
                 printf "  %-6s %-22s %-22s %s\n", "TCP", $4, $5, $6
