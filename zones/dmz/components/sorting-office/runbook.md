@@ -10,10 +10,10 @@ root@contractors-gate:~# nc -zv 10.10.5.11 7000
 ```
 
 ```bash
-root@contractors-gate:~# curl -s http://10.10.5.11:7000/api/v2/ping
+root@contractors-gate:~# curl -s -X POST http://10.10.5.11:7000/api/v2/ping
 ```
 
-Returns `{"error":0}`. The path structure and response format match Neuron, an industrial protocol gateway from EMQ that
+Returns `{}`. The path structure and response format match Neuron, an industrial protocol gateway from EMQ that
 bridges southbound device protocols to a northbound MQTT publisher. The ping endpoint answers without a credential.
 
 ## Authentication
@@ -27,10 +27,7 @@ root@contractors-gate:~# curl -s -X POST http://10.10.5.11:7000/api/v2/login \
 ```
 
 ```json
-{
-  "token": "eyJ...",
-  "error": 0
-}
+{"token": "eyJ..."}
 ```
 
 The credential `admin / uupl2015` works. The password is the same one used on contractors-gate; it appears to be the
@@ -54,14 +51,14 @@ root@contractors-gate:~# curl -s -H "Authorization: Bearer $TOKEN" \
 ```
 
 One northbound node appears: `uupl-mqtt-north`. It publishes to clacks-relay at `10.10.5.12:1883` under the
-`neuron/<sorting-office>/` topic prefix.
+`/neuron/sorting-office/` topic prefix.
 
 ```bash
 root@contractors-gate:~# curl -s -H "Authorization: Bearer $TOKEN" \
     'http://10.10.5.11:7000/api/v2/node?type=1'
 ```
 
-Returns `{"nodes":[]}`. No southbound device is configured by default. The northbound publisher exists but has nothing to forward yet.
+Returns `{"nodes": []}`. No southbound device is configured by default. The northbound publisher exists but has nothing to forward yet.
 
 ## Available drivers
 
@@ -70,14 +67,13 @@ root@contractors-gate:~# curl -s -H "Authorization: Bearer $TOKEN" \
     http://10.10.5.11:7000/api/v2/plugin
 ```
 
-Installed driver plugins include Modbus TCP, OPC-UA, IEC-60870-5-104, and DNP3. Each one can be pointed at a device
-inside a zone that is not directly reachable from the current foothold. Sorting-office may have routing paths that
-contractors-gate does not.
+The response lists every installed driver. Southbound plugins of interest here include Modbus TCP, OPC UA,
+IEC60870-5-104 standard, and DNP 3.0. Each one can be pointed at a device inside a zone that is not directly
+reachable from the current foothold. Sorting-office may have routing paths that contractors-gate does not.
 
 ## Adding a southbound device
 
-The API accepts new node definitions from any machine that can reach port 7000. Pointing a Modbus node at the control
-zone (10.10.3.0/24) is only meaningful if sorting-office can route there. Create a node:
+The API accepts new node definitions from any machine that can reach port 7000. Create a node:
 
 ```bash
 root@contractors-gate:~# curl -s -X POST http://10.10.5.11:7000/api/v2/node \
@@ -86,18 +82,29 @@ root@contractors-gate:~# curl -s -X POST http://10.10.5.11:7000/api/v2/node \
     -d '{"name":"turbine-plc","plugin":"Modbus TCP"}'
 ```
 
-Configure the target address:
+Configure the target address. The Modbus TCP plugin requires all fields even when defaults are acceptable:
 
 ```bash
 root@contractors-gate:~# curl -s -X POST http://10.10.5.11:7000/api/v2/node/setting \
     -H "Authorization: Bearer $TOKEN" \
     -H 'Content-Type: application/json' \
-    -d '{"node":"turbine-plc","params":{"host":"10.10.3.21","port":502,"timeout":3000}}'
+    -d '{"node":"turbine-plc","params":{"connection_mode":0,"host":"10.10.3.21","port":502,"timeout":3000,"check_header":0,"device_degrade":0,"max_retries":0,"retry_interval":0,"endianess":1,"endianess_64":1,"address_base":1,"interval":20}}'
 ```
 
-Once a register group and tags are added and the node is started, Neuron polls the PLC and `uupl-mqtt-north` forwards
-readings to clacks-relay. A subscriber on port 1883 then receives live PLC telemetry without directly touching the
-control zone.
+The node is created and configured without error, but pointing it at the control zone (10.10.3.21) is only useful if
+sorting-office can route there. The default gateway is 10.10.5.201 (`dmz-ent-fw`, the DMZ-to-enterprise router), so any
+path to 10.10.3.0/24 runs through enterprise and operational and finally `ops-ctrl-fw`. A direct probe settles it:
+
+```bash
+root@contractors-gate:~# nc -zv -w5 10.10.3.21 502
+```
+
+The connection times out rather than being refused: the control firewall drops it. Inbound Modbus to the control zone is
+permitted only from the engineering workstation (10.10.2.30), so from the DMZ the poll never connects and nothing
+reaches `uupl-mqtt-north`. The node sits in a connecting state and clacks-relay stays silent on the Neuron prefix. This
+is the misconfiguration surface that does not pay off from here: the gateway can be told to reach the PLC, but the
+segmentation between the DMZ and the control zone holds. A foothold that can route to 10.10.3.0/24 would be needed to
+make the same node poll succeed.
 
 ## Persistence
 
@@ -112,24 +119,9 @@ Access:
 
 Nodes:
 
-- Northbound: `uupl-mqtt-north`, publishing to `clacks-relay` at `10.10.5.12:1883`
-- Southbound: empty by default; Modbus TCP, OPC-UA, IEC-60870-5-104, DNP3 available
+- Northbound: `uupl-mqtt-north`, publishing to `clacks-relay` at `10.10.5.12:1883` under `/neuron/sorting-office/`
+- Southbound: empty by default; Modbus TCP, OPC UA, IEC60870-5-104, DNP3 available
 
 Credential reuse:
 
 - `uupl2015` is the contractors-gate root password and the Neuron admin password
-
-## Quick reference
-
-```
-root@contractors-gate:~# curl -s http://10.10.5.11:7000/api/v2/ping              ping, no auth
-root@contractors-gate:~# curl -s -X POST http://10.10.5.11:7000/api/v2/login \
-    -H 'Content-Type: application/json' \
-    -d '{"name":"admin","pass":"uupl2015"}'                                       get JWT
-root@contractors-gate:~# curl -s -H "Authorization: Bearer $TOKEN" \
-    'http://10.10.5.11:7000/api/v2/node?type=2'                                   northbound nodes
-root@contractors-gate:~# curl -s -H "Authorization: Bearer $TOKEN" \
-    'http://10.10.5.11:7000/api/v2/node?type=1'                                   southbound nodes (empty)
-root@contractors-gate:~# curl -s -H "Authorization: Bearer $TOKEN" \
-    http://10.10.5.11:7000/api/v2/plugin                                           driver plugins
-```

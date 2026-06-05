@@ -1,18 +1,21 @@
 #!/bin/bash
-# Neuron startup wrapper.
+# Neuron startup wrapper and process supervisor.
 # Starts Neuron, waits for the API to respond, bootstraps the MQTT northbound
-# node and changes the password on first run, then keeps the process alive.
+# node and changes the password on first run, then supervises the Neuron
+# process. If Neuron exits it is respawned in place rather than allowed to take
+# PID 1 down with it: a container restart destroys the netns, and clab does not
+# re-attach eth1 on restart (the host veth is gone), leaving the node
+# single-homed and unreachable on 10.10.5.0/24. Keeping PID 1 alive across a
+# Neuron crash preserves the netns and its eth1. See docs/to-investigate.md,
+# "DMZ veth lost when a clab node restarts".
 # Idempotent: if the password has already been changed, the login with the
-# factory default simply returns a non-token response and the config step is
-# skipped without error.
+# factory default returns a non-token response and the config step is skipped.
 
 set -e
 
-# Re-attach the lab IP on every container start. clab's per-node `exec:`
-# only runs once at deploy, so a docker restart leaves eth1 without an
-# address and the container looks alive but is unreachable on 10.10.5.0/24.
-# The check makes this idempotent: first start (clab already set the IP) is
-# a no-op; second-and-later starts (post-crash) restore it.
+# Re-attach the lab IP if eth1 exists but lost its address. This cannot help
+# after a full container restart (eth1 is gone entirely then); the supervisor
+# below is what prevents that restart in the first place.
 if ! ip addr show dev eth1 2>/dev/null | grep -q '10\.10\.5\.11'; then
     echo "[neuron-bootstrap] eth1 lacks lab IP, restoring 10.10.5.11/24..."
     ip addr add 10.10.5.11/24 dev eth1 || true
@@ -20,8 +23,23 @@ if ! ip addr show dev eth1 2>/dev/null | grep -q '10\.10\.5\.11'; then
     ip route replace default via 10.10.5.201 || true
 fi
 
-/usr/bin/entrypoint.sh &
-NEURON_PID=$!
+NEURON_PID=""
+SHUTTING_DOWN=0
+
+# Forward SIGTERM/SIGINT to Neuron and stop supervising, so `docker stop`
+# (./ctl down) exits promptly instead of triggering a respawn.
+terminate() {
+    SHUTTING_DOWN=1
+    [ -n "$NEURON_PID" ] && kill -TERM "$NEURON_PID" 2>/dev/null || true
+}
+trap terminate TERM INT
+
+start_neuron() {
+    /usr/bin/entrypoint.sh &
+    NEURON_PID=$!
+}
+
+start_neuron
 
 # Wait up to 30 s for the API to come up
 echo "[neuron-bootstrap] Waiting for API..."
@@ -30,9 +48,8 @@ for i in $(seq 1 30); do
     sleep 1
 done
 
-# Try to log in with the factory default. If the password has already been
-# changed (container restart), this returns an error body with no token field
-# and TOKEN stays empty, the config block is skipped cleanly.
+# First-run configuration. On a later start the password is no longer the
+# factory default, login returns no token, and this block is skipped cleanly.
 TOKEN=$(curl -s -X POST http://127.0.0.1:7000/api/v2/login \
     -H 'Content-Type: application/json' \
     -d '{"name":"admin","pass":"0000"}' \
@@ -64,4 +81,12 @@ else
     echo "[neuron-bootstrap] Already configured or login unavailable, continuing."
 fi
 
-wait $NEURON_PID
+# Supervise: if Neuron exits while we are not shutting down, respawn it so the
+# container, and its clab-attached eth1, stays up.
+while true; do
+    wait "$NEURON_PID" || true
+    [ "$SHUTTING_DOWN" -eq 1 ] && break
+    echo "[neuron-bootstrap] Neuron exited unexpectedly, respawning in 2s..." >&2
+    sleep 2
+    start_neuron
+done

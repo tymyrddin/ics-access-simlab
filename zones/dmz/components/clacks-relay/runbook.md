@@ -22,27 +22,29 @@ The broker is quiet until guild-exchange establishes its OPC-UA connection to gu
 
 Two publishers feed the broker in normal operation.
 
-guild-exchange publishes pump telemetry from guild-register every five to ten seconds:
+guild-exchange publishes one burst every five seconds under the `umati/v2/umati-guild-exchange/` prefix. A `#` subscription sees the whole burst:
 
 ```
-umati/v2/<namespace>/<node-name>    every 5 seconds
-umati/v3/<namespace>/<node-name>    every 10 seconds
+umati/v2/umati-guild-exchange/bad_list/errors []
+umati/v2/umati-guild-exchange/clientOnline 1
+umati/v2/umati-guild-exchange/gw-version umatiGateway-1.0.0-rc8+d80d512e5dca30c3e4d2ff7e543f4ac4fe7ccd39
+umati/v2/umati-guild-exchange/online/nsu=http_3A_2F_2Fwww.cumulocity.com;i=7 1
+umati/v2/umati-guild-exchange/online/nsu=http_3A_2F_2Fwww.cumulocity.com;i=9 1
+umati/v2/umati-guild-exchange/online/nsu=http_3A_2F_2Fwww.cumulocity.com;i=11 1
+umati/v2/umati-guild-exchange/list/BaseDataVariableType []
+umati/v2/umati-guild-exchange/list/BaseDataVariableType []
+umati/v2/umati-guild-exchange/list/BaseDataVariableType []
+umati/v2/umati-guild-exchange/BaseDataVariableType/nsu=http_3A_2F_2Fwww.cumulocity.com;i=7 {}
+umati/v2/umati-guild-exchange/BaseDataVariableType/nsu=http_3A_2F_2Fwww.cumulocity.com;i=9 {}
+umati/v2/umati-guild-exchange/BaseDataVariableType/nsu=http_3A_2F_2Fwww.cumulocity.com;i=11 {}
 ```
 
-The namespace segment comes from the OPC-UA namespace URL `http://www.cumulocity.com`. The three node names are the OPC-UA display names for the Pump01 object on guild-register:
-
-| Topic suffix         | OPC node ID | Meaning              | Unit |
-|----------------------|-------------|----------------------|------|
-| `.../operatingLevel` | 7           | pump operating level | %    |
-| `.../flow`           | 9           | volumetric flow rate | m³/h |
-| `.../power`          | 11          | power draw           | kW   |
-
-When `stopPump` is called on guild-register, all three values change within one publish interval.
+The `gw-version` topic names the exact gateway build, `umatiGateway-1.0.0-rc8`, which is enough to confirm the CVE-2025-27615 exposure without touching the management UI. The namespace `nsu=http_3A_2F_2Fwww.cumulocity.com` is the URL-encoded form of `http://www.cumulocity.com`. Node IDs 7, 9, and 11 are the OPC-UA identifiers for Pump01's operatingLevel, flow, and power nodes on guild-register. The data payloads are `{}`: guild-exchange cannot serialise plain process-value nodes into the umati schema, so the topic structure is the finding. No process values are visible in the MQTT stream from this publisher.
 
 sorting-office publishes Modbus register data northbound under its own prefix once a southbound device is configured:
 
 ```
-neuron/<sorting-office>/<group>/<tag>
+/neuron/sorting-office/<node>/<group>/<tag>
 ```
 
 No southbound device is wired by default, so the Neuron topics are absent until one is added.
@@ -64,8 +66,8 @@ Access:
 - MQTT at `10.10.5.12:1883`: anonymous publish and subscribe, all topics visible, no ACLs, no TLS
 
 Data in flight:
-- guild-exchange: `umati/v2/...` and `umati/v3/...` (pump telemetry, continuous once guild-exchange is up)
-- sorting-office: `neuron/.../...` (Modbus readings, only after a southbound device is added)
+- guild-exchange: `umati/v2/umati-guild-exchange/...` (pump subscription events, continuous; payloads are `{}`)
+- sorting-office: `/neuron/sorting-office/...` (Modbus readings, only after a southbound device is added)
 
 ## Quick reference
 

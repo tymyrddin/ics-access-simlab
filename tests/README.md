@@ -36,14 +36,11 @@ facade shells answer `ssh user@host '<cmd>'` with the command output. They
 assume `./ctl up` has already been run; each test waits for its required
 services with `wait_for_port` before probing.
 
-Five drivers aggregate the runs:
+Run them all, or run any one directly:
 
 ```bash
-bash tests/smoke/test_phase1.sh   # IT/OT pivot chains
-bash tests/smoke/test_phase2.sh   # DMZ-direct chains + neuron exfil
-bash tests/smoke/test_phase3.sh   # operational/control Stage 2/3 attacks
-bash tests/smoke/test_phase4.sh   # L2/L3 fabric (FRR admin plane, etc.)
-bash tests/smoke/test_phase5.sh   # persistence (keys, cron, scheduled tasks)
+make test-smoke                              # every tests/smoke/test_*.sh
+bash tests/smoke/test_dmz_sorting_office.sh  # or a single chain
 ```
 
 Helpers live in `tests/smoke/lib.sh`; the SSH probes use paramiko inside
@@ -58,7 +55,6 @@ targets.
 | `tests/unit/`                  | Python, PyYAML                 |
 | `tests/integration/`           | Python, PyYAML                 |
 | `tests/smoke/test_*.sh`        | Full lab up via `./ctl up`     |
-| `tests/smoke/test_phase*.sh`   | Full lab up via `./ctl up`     |
 
 To generate compose files before running smoke tests directly:
 

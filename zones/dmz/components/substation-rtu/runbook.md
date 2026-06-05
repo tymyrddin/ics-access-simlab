@@ -9,15 +9,7 @@ root@contractors-gate:~# curl -s http://10.10.5.14:8080/
 ```
 
 ```json
-{
-  "rtu": "uupl-substation",
-  "feeder": "Dolly Sisters / Nap Hill",
-  "endpoints": [
-    "GET  /datapoints         list all",
-    "GET  /datapoints/<id>    read one",
-    "POST /datapoints/<id>    write one (body: {\"value\": ...})"
-  ]
-}
+{"endpoints":["GET  /datapoints         list all","GET  /datapoints/<id>    read one","POST /datapoints/<id>    write one (body: {\"value\": ...})"],"feeder":"Dolly Sisters / Nap Hill","rtu":"uupl-substation"}
 ```
 
 A REST API for a substation RTU. It names the feeder segment and documents its own interface. Nothing in the response mentions authentication.
@@ -36,8 +28,8 @@ Six datapoints appear: four measured floating-point values and two boolean break
 | 2  | feeder_b_voltage | 13   | kV   |
 | 3  | load_current     | 13   | A    |
 | 4  | frequency        | 13   | Hz   |
-| 5  | breaker_a_state  | 1    | bool |
-| 6  | breaker_b_state  | 1    | bool |
+| 5  | breaker_a_state  | 1    | (empty, true/false) |
+| 6  | breaker_b_state  | 1    | (empty, true/false) |
 
 Type 13 is `M_ME_NC_1` (measured floating-point) and type 1 is `M_SP_NA_1` (single-point boolean). Both are standard IEC-104 type identifiers. The values shown are the live operational readings for this feeder segment.
 
@@ -48,7 +40,7 @@ root@contractors-gate:~# curl -s http://10.10.5.14:8080/datapoints/4
 ```
 
 ```json
-{"id": 4, "name": "frequency", "type": 13, "unit": "Hz", "value": 49.98}
+{"id":4,"name":"frequency","type":13,"unit":"Hz","value":49.98}
 ```
 
 Any of the six IDs work.
@@ -64,7 +56,7 @@ root@contractors-gate:~# curl -s -X POST http://10.10.5.14:8080/datapoints/4 \
 ```
 
 ```json
-{"id": 4, "status": "ok", "value": 47.2}
+{"id":4,"status":"ok","value":47.2}
 ```
 
 The value is committed immediately. Any IEC-104 master connected to port 2404 receives a spontaneous update at once, without waiting for the next periodic report. A GET confirms the write:

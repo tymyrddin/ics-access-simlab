@@ -45,7 +45,7 @@ A Hetzner CX32 (4 vCPU / 8 GB) runs the full stack comfortably.
 ```bash
 ./ctl up          # generate + build images + clab deploy (prompts sudo once for host bridges)
 ./ctl ssh         # drop into unseen-gate as ponder
-./ctl verify      # print Step 2 verification commands
+./ctl verify      # audit per-node NICs, then print verification commands
 ./ctl down        # destroy clab labs, remove host bridges (sudo)
 ```
 
@@ -67,14 +67,15 @@ users cannot read them (`chmod 700 .` or equivalent).
 | `./ctl down`             | Destroy clab labs, remove host bridges, prune networks             |
 | `./ctl ssh [user]`       | SSH into unseen-gate (default user: `ponder`)                      |
 | `./ctl cohort-keys`      | Generate a participant keypair for Hetzner deployments             |
-| `./ctl verify`           | Print verification commands for the current scenario               |
+| `./ctl verify`           | Audit each node's expected in-lab NICs, then print verification commands |
 | `./ctl generate`         | Regenerate the per-zone build manifests + clab helper scripts      |
 | `./ctl clean`            | `down` + remove generated files                                    |
 | `./ctl purge`            | `clean` + remove all images + prune build cache                    |
 
-To use an alternate config:
+The active config defaults to `orchestrator/ctf-config.yaml`. To run a different
+config, point `CONFIG` at it:
 ```bash
-CONFIG=orchestrator/configs/smart-grid.yaml ./ctl up
+CONFIG=path/to/other-config.yaml ./ctl up
 ```
 
 ## Authentication modes
@@ -211,26 +212,27 @@ make test
 
 ### Lab smoke tests
 
-Once the lab is up (`./ctl up`), the smoke tests verify each attack chain
-end-to-end against the running stack. Five phase drivers aggregate the
-individual component tests:
+Once the lab is up (`./ctl up`), the smoke tests exercise each attack chain
+end-to-end against the running stack. There is one script per chain in
+`tests/smoke/`. Run them all:
 
 ```bash
-bash tests/smoke/test_phase1.sh   # IT/OT pivot chains
-bash tests/smoke/test_phase2.sh   # DMZ-direct + neuron covert exfil
-bash tests/smoke/test_phase3.sh   # inner-zone Stage 2/3 attacks
-bash tests/smoke/test_phase4.sh   # L2/L3 fabric (FRR admin plane, etc.)
-bash tests/smoke/test_phase5.sh   # persistence (keys, cron, scheduled tasks)
+make test-smoke
 ```
 
-Individual component tests (e.g. `test_hex_legacy_facade.sh`,
-`test_bursar_desk_facade.sh`) can also be run directly. Each test asserts on
-visitor-realistic behaviour: passwords authenticate, files leak via the
-documented paths, modbus / IEC-104 / OPC-UA / TLS probes complete, facade
-shells return command output. Helpers live in `tests/smoke/lib.sh`; SSH
-probes run via `unseen-gate` and chain through `wizzards-retreat` for
-enterprise and operational targets, so no test-only dependencies are added
-to lab containers.
+or run any one directly, for example:
+
+```bash
+bash tests/smoke/test_dmz_sorting_office.sh
+bash tests/smoke/test_hex_legacy_facade.sh
+```
+
+Each test asserts on visitor-realistic behaviour: passwords authenticate, files
+leak via the documented paths, modbus / IEC-104 / OPC-UA / TLS probes complete,
+facade shells return command output. Helpers live in `tests/smoke/lib.sh`; SSH
+probes run inside `unseen-gate` (paramiko in its attacker venv) and chain through
+`wizzards-retreat` for enterprise and operational targets, so no test-only
+dependencies are added to lab containers.
 
 ## Configuration
 
@@ -249,7 +251,8 @@ Contributions welcome:
 
 Each device component keeps its own `runbook.md` alongside the Dockerfile.
 Per-device runbooks are the canonical reference for that component; the
-per-zone `books/` directory is a scratch space and is not committed.
+top-level `books/` directory is author scratch space for cross-zone attack
+chains.
 
 Before adding tests, read [tests/README.md](tests/README.md) for dependency ordering.
 Respect the layering: *fix the architecture, not the test*.

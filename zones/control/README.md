@@ -6,19 +6,20 @@ valve, opens a breaker, or changes a setpoint the turbine governor is actively r
 
 ## What lives here
 
-| Hostname          | IP         | Role                                                                                                                                                     |
-|-------------------|------------|----------------------------------------------------------------------------------------------------------------------------------------------------------|
+| Hostname          | IP         | Role                                                                                                                                                                                                        |
+|-------------------|------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | uupl-hmi          | 10.10.3.10 | Control HMI, FUXA 1.1.7 (pinned, vulnerable). Web UI on :1881. CVE-2023-32545 path traversal via /api/upload, CVE-2023-32546 stored XSS via /api/project, CVE-2023-32547 unauthenticated /api/project read. |
-| uupl-modbus-gw    | 10.10.3.50 | Stunnel TLS gateway, control NIC. Also on operational as 10.10.2.50. Forwards port 8502 to the PLC at 502.                                               |
-| hex-turbine-plc   | 10.10.3.21 | Turbine PLC. Modbus :502, DNP3 :20000, IEC-104 :2404, SNMP :161. No authentication on any of these. Publishes telemetry to the MQTT broker.              |
-| uupl-relay-a      | 10.10.3.31 | Protective relay IED, Dolly Sisters feeder. Modbus :502, web UI admin/relay1234. Undervoltage, overcurrent, and overspeed thresholds all writable.       |
-| uupl-relay-b      | 10.10.3.32 | Protective relay IED, Nap Hill feeder. Same configuration as relay-a.                                                                                    |
-| uupl-meter        | 10.10.3.33 | Revenue meter. Modbus read-only (FC4). Polls the PLC every 2 seconds.                                                                                    |
-| uupl-fuel-valve   | 10.10.3.51 | Modbus actuator (pymodbus-sim). HOLDING_REGISTERS[0]: valve position 0-100%.                                                                             |
-| uupl-cooling-pump | 10.10.3.52 | Modbus actuator (pymodbus-sim). HOLDING_REGISTERS[0]: pump speed 0-100%.                                                                                 |
-| uupl-breaker-a    | 10.10.3.53 | Modbus actuator (pymodbus-sim). COILS: state/trip/close for the Dolly Sisters feeder.                                                                    |
-| uupl-breaker-b    | 10.10.3.54 | Modbus actuator (pymodbus-sim). COILS: state/trip/close for the Nap Hill feeder.                                                                         |
-| uupl-mqtt         | 10.10.3.60 | Mosquitto broker. Port 1883, allow_anonymous true. Receives turbine telemetry and relay trip events.                                                     |
+| uupl-modbus-gw    | 10.10.3.50 | Stunnel TLS gateway, control NIC. Also on operational as 10.10.2.50. Forwards port 8502 to the PLC at 502.                                                                                                  |
+| hex-turbine-plc   | 10.10.3.21 | Turbine PLC. Modbus :502, DNP3 :20000, IEC-104 :2404, SNMP :161. No authentication on any of these. Publishes telemetry to the MQTT broker.                                                                 |
+| hex-turbine-opcua | 10.10.3.21 | OPC-UA sidecar on hex-turbine-plc. Shares the PLC's network namespace; endpoint at `opc.tcp://10.10.3.21:4840`. SecurityMode None, anonymous auth.                                                          |
+| uupl-relay-a      | 10.10.3.31 | Protective relay IED, Dolly Sisters feeder. Modbus :502, web UI admin/relay1234. Undervoltage, overcurrent, and overspeed thresholds all writable.                                                          |
+| uupl-relay-b      | 10.10.3.32 | Protective relay IED, Nap Hill feeder. Same configuration as relay-a.                                                                                                                                       |
+| uupl-meter        | 10.10.3.33 | Revenue meter. Modbus read-only (FC4). Polls the PLC every 2 seconds.                                                                                                                                       |
+| uupl-fuel-valve   | 10.10.3.51 | Modbus actuator (pymodbus-sim). HOLDING_REGISTERS[0]: valve position 0-100%.                                                                                                                                |
+| uupl-cooling-pump | 10.10.3.52 | Modbus actuator (pymodbus-sim). HOLDING_REGISTERS[0]: pump speed 0-100%.                                                                                                                                    |
+| uupl-breaker-a    | 10.10.3.53 | Modbus actuator (pymodbus-sim). COILS: state/trip/close for the Dolly Sisters feeder.                                                                                                                       |
+| uupl-breaker-b    | 10.10.3.54 | Modbus actuator (pymodbus-sim). COILS: state/trip/close for the Nap Hill feeder.                                                                                                                            |
+| uupl-mqtt         | 10.10.3.60 | Mosquitto broker. Port 1883, allow_anonymous true. Receives turbine telemetry and relay trip events.                                                                                                        |
 
 ## Firewall position
 

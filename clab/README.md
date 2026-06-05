@@ -96,7 +96,7 @@ ics_wan (10.10.4.0/24)          OT/RTU WAN (placeholder)
 
 ics_dmz (10.10.5.0/24)          Guild Quarter, externally-reachable attack surface
   guild-exchange     10.10.5.10  umatiGateway (CVE-2025-27615, no auth UI :8080)
-  sorting-office     10.10.5.11  Neuron protocol gateway (admin/0000, :7000)
+  sorting-office     10.10.5.11  Neuron protocol gateway (admin/uupl2015, :7000)
   clacks-relay       10.10.5.12  MQTT broker (allow_anonymous, :1883)
   guild-register     10.10.5.13  OPC-UA server (anonymous, SecurityMode=None, :4840)
   substation-rtu     10.10.5.14  IEC-104 RTU (no-auth REST :8080, IEC-104 :2404)
