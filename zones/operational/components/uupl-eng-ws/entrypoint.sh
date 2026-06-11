@@ -554,34 +554,34 @@ bridge of all topics above, republished verbatim by mqtt_bridge.py
 running on this workstation.
 TOPICS
 
-cat > "$PROFILE/Documents/telemetry_sample_2024-01-20.log" << 'TELEM'
-# uupl/turbine/telemetry capture, 2024-01-20 09:00:00--09:02:05
+cat > "$PROFILE/Documents/telemetry_sample_2026-01-20.log" << 'TELEM'
+# uupl/turbine/telemetry capture, 2026-01-20 09:00:00--09:02:05
 # mosquitto_sub -h 10.10.3.60 -t uupl/turbine/telemetry
 # Saved by: P. Stibbons
-{"rpm":2941,"temp_c":174,"pressure":84,"voltage_a":226,"voltage_b":224,"current_a":73,"current_b":71,"freq_x10":500,"power_kw":30,"estop":0}
-{"rpm":2958,"temp_c":175,"pressure":84,"voltage_a":227,"voltage_b":225,"current_a":74,"current_b":72,"freq_x10":500,"power_kw":31,"estop":0}
-{"rpm":2947,"temp_c":173,"pressure":84,"voltage_a":225,"voltage_b":223,"current_a":73,"current_b":71,"freq_x10":500,"power_kw":30,"estop":0}
-{"rpm":2939,"temp_c":176,"pressure":83,"voltage_a":226,"voltage_b":224,"current_a":73,"current_b":71,"freq_x10":499,"power_kw":30,"estop":0}
-{"rpm":2951,"temp_c":174,"pressure":84,"voltage_a":228,"voltage_b":226,"current_a":74,"current_b":72,"freq_x10":500,"power_kw":31,"estop":0}
-{"rpm":2944,"temp_c":177,"pressure":84,"voltage_a":225,"voltage_b":223,"current_a":73,"current_b":71,"freq_x10":500,"power_kw":30,"estop":0}
-{"rpm":2963,"temp_c":175,"pressure":84,"voltage_a":229,"voltage_b":227,"current_a":74,"current_b":72,"freq_x10":500,"power_kw":31,"estop":0}
-{"rpm":2937,"temp_c":173,"pressure":83,"voltage_a":224,"voltage_b":222,"current_a":72,"current_b":70,"freq_x10":499,"power_kw":30,"estop":0}
-{"rpm":2948,"temp_c":174,"pressure":84,"voltage_a":226,"voltage_b":224,"current_a":73,"current_b":71,"freq_x10":500,"power_kw":30,"estop":0}
-{"rpm":2955,"temp_c":175,"pressure":84,"voltage_a":227,"voltage_b":225,"current_a":73,"current_b":71,"freq_x10":500,"power_kw":30,"estop":0}
-{"rpm":2942,"temp_c":176,"pressure":84,"voltage_a":225,"voltage_b":223,"current_a":73,"current_b":71,"freq_x10":499,"power_kw":30,"estop":0}
-{"rpm":2961,"temp_c":174,"pressure":84,"voltage_a":228,"voltage_b":226,"current_a":74,"current_b":72,"freq_x10":500,"power_kw":31,"estop":0}
-{"rpm":2946,"temp_c":175,"pressure":84,"voltage_a":226,"voltage_b":224,"current_a":73,"current_b":71,"freq_x10":500,"power_kw":30,"estop":0}
-{"rpm":2932,"temp_c":173,"pressure":83,"voltage_a":223,"voltage_b":221,"current_a":72,"current_b":70,"freq_x10":499,"power_kw":29,"estop":0}
-{"rpm":2950,"temp_c":174,"pressure":84,"voltage_a":225,"voltage_b":223,"current_a":73,"current_b":71,"freq_x10":500,"power_kw":30,"estop":0}
-{"rpm":2957,"temp_c":175,"pressure":84,"voltage_a":227,"voltage_b":225,"current_a":74,"current_b":72,"freq_x10":500,"power_kw":31,"estop":0}
-{"rpm":2945,"temp_c":174,"pressure":84,"voltage_a":226,"voltage_b":224,"current_a":73,"current_b":71,"freq_x10":500,"power_kw":30,"estop":0}
-{"rpm":2939,"temp_c":176,"pressure":83,"voltage_a":224,"voltage_b":222,"current_a":72,"current_b":70,"freq_x10":499,"power_kw":30,"estop":0}
-{"rpm":2953,"temp_c":175,"pressure":84,"voltage_a":226,"voltage_b":224,"current_a":73,"current_b":71,"freq_x10":500,"power_kw":30,"estop":0}
-{"rpm":2941,"temp_c":173,"pressure":84,"voltage_a":225,"voltage_b":223,"current_a":73,"current_b":71,"freq_x10":500,"power_kw":30,"estop":0}
-{"rpm":2958,"temp_c":174,"pressure":84,"voltage_a":228,"voltage_b":226,"current_a":74,"current_b":72,"freq_x10":500,"power_kw":31,"estop":0}
-{"rpm":2949,"temp_c":175,"pressure":84,"voltage_a":226,"voltage_b":224,"current_a":73,"current_b":71,"freq_x10":500,"power_kw":30,"estop":0}
-{"rpm":2936,"temp_c":174,"pressure":83,"voltage_a":224,"voltage_b":222,"current_a":72,"current_b":70,"freq_x10":499,"power_kw":30,"estop":0}
-{"rpm":2952,"temp_c":175,"pressure":84,"voltage_a":226,"voltage_b":224,"current_a":73,"current_b":71,"freq_x10":500,"power_kw":30,"estop":0}
+{"rpm":2941,"temp_c":174,"pressure":84,"voltage_a":226,"voltage_b":224,"current_a":73,"current_b":71,"freq_x10":491,"power_kw":30,"estop":0}
+{"rpm":2958,"temp_c":175,"pressure":84,"voltage_a":227,"voltage_b":225,"current_a":74,"current_b":72,"freq_x10":492,"power_kw":31,"estop":0}
+{"rpm":2947,"temp_c":173,"pressure":84,"voltage_a":225,"voltage_b":223,"current_a":73,"current_b":71,"freq_x10":490,"power_kw":30,"estop":0}
+{"rpm":2939,"temp_c":176,"pressure":83,"voltage_a":226,"voltage_b":224,"current_a":73,"current_b":71,"freq_x10":489,"power_kw":30,"estop":0}
+{"rpm":2951,"temp_c":174,"pressure":84,"voltage_a":228,"voltage_b":226,"current_a":74,"current_b":72,"freq_x10":492,"power_kw":31,"estop":0}
+{"rpm":2944,"temp_c":177,"pressure":84,"voltage_a":225,"voltage_b":223,"current_a":73,"current_b":71,"freq_x10":491,"power_kw":30,"estop":0}
+{"rpm":2963,"temp_c":175,"pressure":84,"voltage_a":229,"voltage_b":227,"current_a":74,"current_b":72,"freq_x10":493,"power_kw":31,"estop":0}
+{"rpm":2937,"temp_c":173,"pressure":83,"voltage_a":224,"voltage_b":222,"current_a":72,"current_b":70,"freq_x10":489,"power_kw":30,"estop":0}
+{"rpm":2948,"temp_c":174,"pressure":84,"voltage_a":226,"voltage_b":224,"current_a":73,"current_b":71,"freq_x10":491,"power_kw":30,"estop":0}
+{"rpm":2955,"temp_c":175,"pressure":84,"voltage_a":227,"voltage_b":225,"current_a":73,"current_b":71,"freq_x10":492,"power_kw":30,"estop":0}
+{"rpm":2942,"temp_c":176,"pressure":84,"voltage_a":225,"voltage_b":223,"current_a":73,"current_b":71,"freq_x10":490,"power_kw":30,"estop":0}
+{"rpm":2961,"temp_c":174,"pressure":84,"voltage_a":228,"voltage_b":226,"current_a":74,"current_b":72,"freq_x10":492,"power_kw":31,"estop":0}
+{"rpm":2946,"temp_c":175,"pressure":84,"voltage_a":226,"voltage_b":224,"current_a":73,"current_b":71,"freq_x10":491,"power_kw":30,"estop":0}
+{"rpm":2932,"temp_c":173,"pressure":83,"voltage_a":223,"voltage_b":221,"current_a":72,"current_b":70,"freq_x10":489,"power_kw":29,"estop":0}
+{"rpm":2950,"temp_c":174,"pressure":84,"voltage_a":225,"voltage_b":223,"current_a":73,"current_b":71,"freq_x10":490,"power_kw":30,"estop":0}
+{"rpm":2957,"temp_c":175,"pressure":84,"voltage_a":227,"voltage_b":225,"current_a":74,"current_b":72,"freq_x10":492,"power_kw":31,"estop":0}
+{"rpm":2945,"temp_c":174,"pressure":84,"voltage_a":226,"voltage_b":224,"current_a":73,"current_b":71,"freq_x10":491,"power_kw":30,"estop":0}
+{"rpm":2939,"temp_c":176,"pressure":83,"voltage_a":224,"voltage_b":222,"current_a":72,"current_b":70,"freq_x10":489,"power_kw":30,"estop":0}
+{"rpm":2953,"temp_c":175,"pressure":84,"voltage_a":226,"voltage_b":224,"current_a":73,"current_b":71,"freq_x10":491,"power_kw":30,"estop":0}
+{"rpm":2941,"temp_c":173,"pressure":84,"voltage_a":225,"voltage_b":223,"current_a":73,"current_b":71,"freq_x10":490,"power_kw":30,"estop":0}
+{"rpm":2958,"temp_c":174,"pressure":84,"voltage_a":228,"voltage_b":226,"current_a":74,"current_b":72,"freq_x10":492,"power_kw":31,"estop":0}
+{"rpm":2949,"temp_c":175,"pressure":84,"voltage_a":226,"voltage_b":224,"current_a":73,"current_b":71,"freq_x10":491,"power_kw":30,"estop":0}
+{"rpm":2936,"temp_c":174,"pressure":83,"voltage_a":224,"voltage_b":222,"current_a":72,"current_b":70,"freq_x10":489,"power_kw":30,"estop":0}
+{"rpm":2952,"temp_c":175,"pressure":84,"voltage_a":226,"voltage_b":224,"current_a":73,"current_b":71,"freq_x10":491,"power_kw":30,"estop":0}
 TELEM
 
 cat > "$PROFILE/Documents/snmp_plc_2024-03-15.txt" << 'SNMPW'
