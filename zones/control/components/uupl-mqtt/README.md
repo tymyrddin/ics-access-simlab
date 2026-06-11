@@ -79,7 +79,7 @@ topic and limits subscriptions to legitimate consumers.
 ## Observability and debugging
 
 ```bash
-docker logs mosquitto-broker
+docker logs uupl-mqtt
 mosquitto_sub -h 10.10.3.60 -t '#' -v          # subscribe to all topics
 mosquitto_sub -h 10.10.3.60 -t 'uupl/turbine/telemetry'
 mosquitto_sub -h 10.10.3.60 -t 'uupl/relay/+/trip'

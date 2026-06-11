@@ -50,7 +50,7 @@ async def poll_loop(store):
     """Poll PLC for voltage, current, frequency; derive power and power factor."""
     while True:
         try:
-            regs = await asyncio.get_event_loop().run_in_executor(None, _read_plc)
+            regs = await asyncio.get_running_loop().run_in_executor(None, _read_plc)
             if regs:
                 v      = regs[3]   # line_voltage_a
                 i      = regs[4]   # line_current_a

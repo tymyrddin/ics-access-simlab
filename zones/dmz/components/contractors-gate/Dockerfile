@@ -21,10 +21,16 @@ RUN apt-get update && \
         dnsutils \
         mosquitto-clients \
         smbclient \
+        python3 \
+        python3-venv \
         && \
     rm -rf /var/lib/apt/lists/* && \
     mkdir -p /run/sshd /var/lib/ntp /root/.ssh && \
     chmod 700 /root/.ssh
+# asyncua: OPC-UA client library for reaching guild-register (10.10.5.13:4840).
+# Installed in /venv to match the eng-ws convention; run with /venv/bin/python3.
+RUN python3 -m venv /venv && \
+    /venv/bin/pip install --quiet asyncua
 # Fixed contractor maintenance key pair. Private key is realistic loot on
 # the image; the public half is authorized on uupl-eng-ws engineer account,
 # enabling the ProxyJump path in ~/.ssh/config.

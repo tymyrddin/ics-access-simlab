@@ -47,6 +47,8 @@ import os
 import random
 import struct
 
+import paho.mqtt.client as mqtt
+
 from pymodbus.datastore import (
     ModbusSequentialDataBlock,
     ModbusSlaveContext,
@@ -235,7 +237,7 @@ async def _read_coil(ip, addr):
         client = AsyncModbusTcpClient(ip, port=502, timeout=2)
         await client.connect()
         r = await client.read_coils(addr, count=1, slave=1)
-        await client.close()
+        client.close()  # pymodbus async close() is synchronous; do not await
         if not r.isError():
             return int(r.bits[0])
     except Exception:
@@ -420,16 +422,21 @@ async def handle_iec104(reader, writer, store):
 async def mqtt_publish_loop(store):
     """Publish turbine telemetry to uupl/turbine/telemetry every 5 s.
 
-    Uses paho-mqtt in a thread executor to avoid blocking the event loop.
-    Best-effort: MQTT unavailability is silently ignored so the PLC keeps running.
+    Persistent paho connection with automatic reconnect (backoff 1-30 s).
+    Best-effort: MQTT unavailability does not stop the PLC.
     allow_anonymous=true on the broker, no credentials required.
     """
-    import paho.mqtt.client as mqtt
+    client = mqtt.Client()
+    client.reconnect_delay_set(min_delay=1, max_delay=30)
+    client.loop_start()
+    try:
+        client.connect(MQTT_BROKER_IP, 1883, keepalive=60)
+    except Exception:
+        pass  # loop_start retries in the background
 
-    def _publish():
+    await asyncio.sleep(30.0)  # Wait for broker and physics to stabilise
+    while True:
         try:
-            client = mqtt.Client()
-            client.connect(MQTT_BROKER_IP, 1883, keepalive=10)
             payload = json.dumps({
                 "rpm":       store.getValues(FC_IR, IR_RPM,      count=1)[0],
                 "temp_c":    store.getValues(FC_IR, IR_TEMP,     count=1)[0],
@@ -443,13 +450,8 @@ async def mqtt_publish_loop(store):
                 "estop":     store.getValues(FC_CO, COIL_ESTOP,  count=1)[0],
             })
             client.publish("uupl/turbine/telemetry", payload, qos=0)
-            client.disconnect()
         except Exception:
             pass
-
-    await asyncio.sleep(30.0)  # Wait for broker to start
-    while True:
-        await asyncio.get_event_loop().run_in_executor(None, _publish)
         await asyncio.sleep(5.0)
 
 
@@ -477,7 +479,7 @@ async def main():
                 c = AsyncModbusTcpClient(FUEL_VALVE_IP, port=502, timeout=2)
                 await c.connect()
                 await c.write_register(0, val, slave=1)
-                await c.close()
+                c.close()  # pymodbus async close() is synchronous; do not await
             except Exception:
                 pass
             await asyncio.sleep(1.0)
@@ -490,7 +492,7 @@ async def main():
                 c = AsyncModbusTcpClient(COOLING_PUMP_IP, port=502, timeout=2)
                 await c.connect()
                 await c.write_register(0, val, slave=1)
-                await c.close()
+                c.close()  # pymodbus async close() is synchronous; do not await
             except Exception:
                 pass
             await asyncio.sleep(1.0)

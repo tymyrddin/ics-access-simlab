@@ -154,3 +154,43 @@ def test_dmz_ips_in_output():
     assert "10.10.5.20" in content, "ssh-bastion IP 10.10.5.20 missing"
     assert "10.10.5.30" in content, "ntp-server IP 10.10.5.30 missing"
     assert "10.10.1.30" in content, "ssh-bastion enterprise IP 10.10.1.30 missing"
+
+
+# ---------------------------------------------------------------------------
+# eng-ws entrypoint artefacts
+# ---------------------------------------------------------------------------
+
+ENG_WS_ENTRYPOINT = (
+    REPO_ROOT / "zones" / "operational" / "components" / "uupl-eng-ws" / "entrypoint.sh"
+)
+
+
+def test_eng_ws_relay_config_artefacts():
+    """entrypoint.sh creates relay config artefacts in Projects/RelayConfigs/."""
+    content = ENG_WS_ENTRYPOINT.read_text()
+    assert "trip_history_2024.txt" in content, "trip_history_2024.txt heredoc missing"
+    assert "Annual Report" in content, "trip history labelled Annual Report, not YTD"
+    assert "threshold_override_2023-09.txt" in content, "threshold_override heredoc missing"
+    assert "sorting-office" in content, "threshold_override references sorting-office gateway"
+    assert "relay_maintenance_log.txt" in content, "relay_maintenance_log heredoc missing"
+    assert "2025" in content, "relay_maintenance_log has 2025 inspection entry"
+
+
+def test_eng_ws_document_artefacts():
+    """entrypoint.sh creates document artefacts in Documents/."""
+    content = ENG_WS_ENTRYPOINT.read_text()
+    assert "mqtt_topics.txt" in content, "mqtt_topics.txt heredoc missing"
+    assert "freq_x10" in content, "mqtt_topics.txt explains freq_x10 scaling"
+    assert "telemetry_sample_2024-01-20.log" in content, "telemetry_sample heredoc missing"
+    assert "snmp_plc_2024-03-15.txt" in content, "snmp_walk heredoc missing"
+    assert "rwcommunity" in content, "snmp_walk notes rwcommunity is active"
+    assert "grafana_turbine_panel.json" in content, "grafana_turbine_panel heredoc missing"
+    assert "alarm_history_2024-Q1.csv" in content, "alarm_history heredoc missing"
+
+
+def test_eng_ws_backup_2022_archive():
+    """entrypoint.sh creates backup_2022_final_v3.zip with two inner files."""
+    content = ENG_WS_ENTRYPOINT.read_text()
+    assert "backup_2022_final_v3.zip" in content, "2022 backup zip missing from entrypoint"
+    assert "plc-access-2022.conf" in content, "2022 backup inner file plc-access-2022.conf missing"
+    assert "setpoints_2022.txt" in content, "2022 backup inner file setpoints_2022.txt missing"

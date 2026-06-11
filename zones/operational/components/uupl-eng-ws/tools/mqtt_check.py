@@ -14,7 +14,7 @@ TOPIC  = sys.argv[2] if len(sys.argv) > 2 else "uupl/turbine/telemetry"
 def on_message(client, userdata, msg):
     print(msg.topic, msg.payload.decode(), flush=True)
 
-c = mqtt.Client(mqtt.CallbackAPIVersion.VERSION1)
+c = mqtt.Client()
 c.on_message = on_message
 c.connect(BROKER, 1883)
 c.subscribe(TOPIC)

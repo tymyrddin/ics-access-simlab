@@ -1,6 +1,6 @@
 # Stunnel TLS gateway
 
-`uupl-stunnel-gw` is the mTLS termination point between the SCADA system and
+`uupl-modbus-gw` is the mTLS termination point between the SCADA system and
 the turbine PLC. It accepts TLS connections on port 8502, verifies the client
 certificate, and forwards plain Modbus TCP to the PLC at port 502. The intent is
 mutual authentication: only the SCADA system holds a valid client certificate,
@@ -83,9 +83,9 @@ client, but not vice versa from the client's perspective).
 
 ## Modifying vulnerabilities
 
-To enable TLSv1.2: remove the `sslVersion = TLSv1` line from `stunnel.conf`.
-The client configuration in `distribution-scada/stunnel-client.conf` also requires
-updating if the CA is enforced end-to-end.
+To allow TLSv1.3: change `sslVersionMax = TLSv1.2` to `sslVersionMax = TLSv1.3`
+in `stunnel.conf` after confirming the SCADA client library supports it (see
+HEX-3887).
 
 To disable mTLS (remove client cert requirement): change `verify = 2` to
 `verify = 0` in `stunnel.conf`. This reduces the gateway to a plain TLS
@@ -156,6 +156,6 @@ substitution.
 
 TLS-to-Modbus gateway between SCADA and PLC. mTLS is technically in place but
 one-sided: the gateway verifies the client certificate, but the SCADA client
-does not verify the gateway. TLSv1 only. Server cert expired. The client
-certificate and key are world-readable on the SCADA container, which is the
-primary loot here.
+does not verify the gateway. TLSv1.2 only (pinned). Server cert expired. The
+client certificate and key are world-readable on the SCADA container, which is
+the primary loot here.

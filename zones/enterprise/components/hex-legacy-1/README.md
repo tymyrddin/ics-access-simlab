@@ -118,7 +118,7 @@ Connectivity: `FTP`, `TFTP`, `TELNET`. Win95 had no SSH client, no netcat, no HT
 
 Commands not recognised produce `Bad command or file name`.
 
-The machine exposes Telnet but the Linux login prompt appears, not a DOS prompt. Participants who telnet in and expect a Windows shell will encounter a brief reality check.
+Telnet drops directly into the win95 shell with no login prompt. The Windows 95 banner and `C:\>` prompt appear immediately.
 
 `C:\PRIVATE\PLCACCS.CFG` inside the virtual filesystem and `\\hex-legacy-1\private\PLC-ACCESS.CONF` on the Samba share contain the same credentials in different formats.
 

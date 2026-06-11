@@ -55,8 +55,6 @@ COMPONENT_DIRS = {
     "hex-turbine-plc":         ZONES_DIR / "control" / "components" / "hex-turbine-plc",
     "ied-relay":               ZONES_DIR / "control" / "components" / "ied-relay",          # 1:N (relay-a + relay-b), generic
     "uupl-meter":              ZONES_DIR / "control" / "components" / "uupl-meter",
-    "hmi":                     ZONES_DIR / "control" / "components" / "hmi",                # legacy/unused, kept for back-compat
-    "actuator":                ZONES_DIR / "control" / "components" / "actuator",           # legacy/unused
     "actuator-modbus-sim":     ZONES_DIR / "control" / "components" / "actuator-modbus-sim",# 1:N (4 actuators), generic
     "uupl-mqtt":               ZONES_DIR / "control" / "components" / "uupl-mqtt",
     "uupl-modbus-gw":          ZONES_DIR / "control" / "components" / "uupl-modbus-gw",

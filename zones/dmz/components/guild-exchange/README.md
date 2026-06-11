@@ -27,10 +27,11 @@ Documentation: https://deepwiki.com/umati/umatiGateway/5.1-docker-deployment
 Exposed port: 8080/tcp (web management UI, no authentication).
 
 The gateway is pre-configured with an OPC-UA connection to `guild-register`
-(10.10.5.13:4840), SecurityMode None, anonymous authentication. The connection
-is visible in the web UI at `/OPCConnection` with status "Idle": the gateway
-is configured to connect but has not initiated the connection at startup.
-An MQTT northbound output to `clacks-relay` (10.10.5.12:1883) is also configured.
+(10.10.5.13:4840), SecurityMode None, anonymous authentication. Both the OPC
+connection and the MQTT northbound output start automatically on boot
+(`startOPCConnection="True"`, `startMqttProvider="True"`). The connection
+status is visible in the web UI at `/OPCConnection`. An MQTT northbound output
+to `clacks-relay` (10.10.5.12:1883) is also configured and active on startup.
 
 The original image binds to `127.0.0.1:7079` (a known quirk of this build).
 The Dockerfile patches this by COPYing a custom `umatiGatewayConfig.xml` that
@@ -78,8 +79,8 @@ The OPC connection and MQTT publisher both start on boot
 (`startOPCConnection="True"`, `startMqttProvider="True"` in
 `<StartConfiguration>`). The app crashes at startup if the OPC server is
 unreachable, so the compose ordering needs guild-register to be up before
-guild-exchange. To turn either off (for example, to model a "configured
-but not connected" gateway), flip the relevant flag back to `"False"`.
+guild-exchange. To disable auto-connect (for example, to model a "configured
+but not active" gateway), flip the relevant flag to `"False"`.
 
 ## Hardening suggestions
 

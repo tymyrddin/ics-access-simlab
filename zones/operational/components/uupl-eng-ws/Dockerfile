@@ -29,7 +29,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 RUN python3 -m venv /venv
 ENV PATH="/venv/bin:$PATH"
 
-RUN pip install --no-cache-dir pymodbus==3.6.8 paho-mqtt
+RUN pip install --no-cache-dir pymodbus==3.6.8 paho-mqtt==1.6.1
 
 # Install mbpoll wrapper (pymodbus-based replacement for native mbpoll)
 COPY mbpoll-wrapper.py /usr/local/bin/mbpoll
@@ -42,6 +42,7 @@ RUN chmod +x /entrypoint.sh /usr/local/bin/win10ltsc_shell.sh
 
 RUN useradd -m -s /usr/local/bin/win10ltsc_shell.sh engineer
 RUN echo "engineer:spanner99" | chpasswd
+RUN chmod u+s /usr/bin/nmap
 
 # ICS_PROCESS and CONTROL_SUBNET are set by the orchestrator.
 ENV ICS_PROCESS=intelligent_electronic_device

@@ -41,26 +41,34 @@ Exposed ports:
 
 ## Datapoints
 
-Pre-seeded UUPL substation values representing the Dolly Sisters and Nap Hill
-feeder segment, common address 20:
+Live UUPL substation values representing the Dolly Sisters and Nap Hill
+feeder segment, common address 20. Values are updated every ten seconds by
+`rtu_updater.py` running on `uupl-eng-ws`:
 
-| Id | Name | TypeId | Initial value | Description |
+| Id | Name | TypeId | Source | Description |
 |---|---|---|---|---|
-| 1 | feeder_a_voltage | M_ME_NC_1 (13) | 10.8 | Feeder A voltage, kV |
-| 2 | feeder_b_voltage | M_ME_NC_1 (13) | 11.1 | Feeder B voltage, kV |
-| 3 | load_current    | M_ME_NC_1 (13) | 340.0 | Load current, A |
-| 4 | frequency       | M_ME_NC_1 (13) | 49.98 | Grid frequency, Hz |
-| 5 | breaker_a_state | M_SP_NA_1 (1)  | true | Feeder A breaker: closed |
-| 6 | breaker_b_state | M_SP_NA_1 (1)  | true | Feeder B breaker: closed |
+| 1 | feeder_a_voltage | M_ME_NC_1 (13) | PLC IR[3] × 0.05 | Feeder A voltage, kV |
+| 2 | feeder_b_voltage | M_ME_NC_1 (13) | PLC IR[5] × 0.05 | Feeder B voltage, kV |
+| 3 | load_current     | M_ME_NC_1 (13) | PLC IR[4] | Load current, A |
+| 4 | frequency        | M_ME_NC_1 (13) | PLC IR[7] ÷ 10 | Grid frequency, Hz |
+| 5 | breaker_a_state  | M_SP_NA_1 (1)  | relay-a COIL[0] inverted | Feeder A breaker: true=closed |
+| 6 | breaker_b_state  | M_SP_NA_1 (1)  | relay-b COIL[0] inverted | Feeder B breaker: true=closed |
+
+The voltage scaling maps the LV bus (220 V nominal) through the step-up
+transformer to the 11 kV distribution feeder. Breaker state is the logical
+inverse of the relay trip coil: COIL[0]=1 (tripped) appears here as false
+(open).
 
 The correlation matters for the attack: setting feeder voltage to 0 while the
-breaker state stays true creates an operationally impossible reading. A
-trained operator or protection system may notice the inconsistency.
+breaker state stays true creates an operationally impossible reading. With live
+values flowing in every ten seconds, injected values get overwritten within one
+polling cycle.
 
 ## Connections
 
 - `ics_dmz`: 10.10.5.14
 - Reachable from `ics_internet` and from within `ics_dmz`
+- `uupl-eng-ws` (10.10.2.30) pushes live values via the REST API every 10 s
 - An IEC-104 master can subscribe to spontaneous data from port 2404
 
 ## REST API

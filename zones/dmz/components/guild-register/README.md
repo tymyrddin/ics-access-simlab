@@ -1,7 +1,7 @@
 # OPC-UA server
 
-`guild-register` runs the thin-edge OPC-UA demo server, a Rust application that
-simulates an industrial pump with callable OPC-UA methods. Authentication is
+`guild-register` runs the thin-edge OPC-UA demo server, a Python application
+(asyncua) that simulates an industrial pump with callable OPC-UA methods. Authentication is
 anonymous. Security mode is None. Any OPC-UA client that reaches port 4840 can
 browse the node tree, read all values, and call all methods including
 `stopPump()`.
@@ -12,12 +12,12 @@ OPC-UA servers with anonymous authentication and `SecurityMode=None` are common
 in industrial environments where the OPC-UA specification was adopted for data
 integration but the security model was left at factory defaults. Callable methods
 are the most operationally significant feature: unlike passive data reads, method
-calls can change device state. In a real site, calling `stopPump` on a process-
-critical cooling pump has immediate physical consequences.
+calls can change device state. In a real site, calling `stopPump` on a
+process-critical cooling pump has immediate physical consequences.
 
 ## Container details
 
-Base image: `ghcr.io/thin-edge/opc-ua-demo-server:0.0.8`. Rust application. https://github.com/thin-edge/opc-ua-demo-server
+Base image: `ghcr.io/thin-edge/opc-ua-demo-server:0.0.8`. Python/asyncua application. https://github.com/thin-edge/opc-ua-demo-server
 
 Exposed port: 4840/tcp (OPC-UA binary protocol).
 
@@ -85,15 +85,13 @@ specific OPC-UA client addresses that legitimately need it.
 docker logs guild-register
 ```
 
-Connect and browse with an OPC-UA client (e.g. UaExpert, opcua-client, or
-the Python `opcua` library):
+Connect and browse with an OPC-UA client (e.g. UaExpert, or the Python `asyncua` library):
 
-```python
-from opcua import Client
-c = Client("opc.tcp://10.10.5.13:4840")
-c.connect()
-root = c.get_root_node()
-print(root.get_children())
+```
+from asyncua.sync import Client
+
+with Client("opc.tcp://10.10.5.13:4840") as c:
+    print(c.nodes.objects.get_children())
 ```
 
 ## Concrete attack paths
@@ -105,17 +103,14 @@ From the internet zone or from within the DMZ:
 3. Read current pump status variables.
 4. Call `stopPump()` to stop the simulated pump.
 
-Using the Python `opcua` library:
+Using the Python `asyncua` library:
 
-```python
-from opcua import Client
-c = Client("opc.tcp://10.10.5.13:4840")
-c.connect()
-# Browse objects to find the pump node
-objects = c.get_objects_node()
-# Call stopPump method on the pump object, exact NodeId depends on the server tree
-pump_node = objects.get_child(["..."])
-pump_node.call_method("stopPump")
+```
+from asyncua.sync import Client
+
+with Client("opc.tcp://10.10.5.13:4840") as c:
+    pump = c.get_node("ns=2;i=6")  # Pump01
+    pump.call_method("2:stopPump")
 ```
 
 Alternatively, configure the umatiGateway at 10.10.5.10 to connect to this

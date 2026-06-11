@@ -64,6 +64,14 @@ topology:
     uupl-relay-a:
       image: control-uupl-relay-a
       cap-add: [NET_ADMIN]
+      env:
+        RELAY_ID: "a"
+        FEEDER: "Dolly Sisters"
+        PLC_IP: "10.10.3.21"
+        BREAKER_IP: "10.10.3.53"
+        VOLTAGE_REG: "3"
+        CURRENT_REG: "4"
+        MQTT_BROKER_IP: "10.10.3.60"
       exec:
         - sh -c "n=0; until ip link show eth1 >/dev/null 2>&1; do n=$((n+1)); [ $n -ge 30 ] && break; sleep 1; done; ip addr add 10.10.3.31/24 dev eth1 && ip link set eth1 up"
         - sh -c "ip route replace default via 10.10.3.203"
@@ -71,6 +79,14 @@ topology:
     uupl-relay-b:
       image: control-uupl-relay-b
       cap-add: [NET_ADMIN]
+      env:
+        RELAY_ID: "b"
+        FEEDER: "Nap Hill"
+        PLC_IP: "10.10.3.21"
+        BREAKER_IP: "10.10.3.54"
+        VOLTAGE_REG: "5"
+        CURRENT_REG: "6"
+        MQTT_BROKER_IP: "10.10.3.60"
       exec:
         - sh -c "n=0; until ip link show eth1 >/dev/null 2>&1; do n=$((n+1)); [ $n -ge 30 ] && break; sleep 1; done; ip addr add 10.10.3.32/24 dev eth1 && ip link set eth1 up"
         - sh -c "ip route replace default via 10.10.3.203"

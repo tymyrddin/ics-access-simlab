@@ -34,7 +34,7 @@ Exposed ports (on 10.10.3.21):
 - 20000/tcp: DNP3 (minimal outstation, responds to Read FC)
 - 2404/tcp: IEC-104 (Type 9 periodic measurements, live register data)
 - 161/udp: SNMP (community `public` read, `private` read-write)
-- 4840/tcp: OPC-UA (sidecar `hex-turbine-opcua`, SecurityMode None, anonymous auth)
+- 4840/tcp: OPC-UA (sidecar `hex-turbine-opcua`, SecurityMode None, anonymous auth; see `../hex-turbine-opcua/README.md`)
 
 Modbus register map:
 
@@ -124,8 +124,8 @@ exposure.
 ## Observability and debugging
 
 ```bash
-docker logs turbine-plc
-docker exec -it turbine-plc bash
+docker logs hex-turbine-plc
+docker exec -it hex-turbine-plc bash
 ```
 
 Read current RPM:
@@ -177,9 +177,11 @@ is set to zero, the fuel valve closes and the turbine coasts down. This looks
 different from an emergency stop: the trip coil remains zero and the physics
 continue to run (just with no fuel input).
 
-The MQTT publish loop waits 30 seconds after startup before connecting to the
-broker, to give the broker container time to initialise. If the broker is not
-reachable, the PLC silently skips MQTT publishing and continues running normally.
+The MQTT publish loop waits 30 seconds after startup before sending the first
+message, to give the broker container time to initialise. The connection is
+persistent: the PLC connects once and paho-mqtt reconnects automatically if the
+broker is temporarily unavailable (backoff 1-30 s). If the broker is unreachable
+the PLC continues running normally; telemetry resumes once the broker comes back.
 
 Writing to holding register 3 (overcurrent_threshold) changes the threshold
 stored in the PLC, but the relay IEDs hold their own copies. Modifying the PLC

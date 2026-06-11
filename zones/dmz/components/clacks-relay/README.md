@@ -23,11 +23,15 @@ Exposed port: 1883/tcp (MQTT, no TLS, no authentication).
 
 Configuration: `allow_anonymous true`, `persistence false`.
 
-Two publishers in normal operation:
+Three publishers in normal operation:
+- uupl-eng-ws (10.10.2.30 / 10.10.3.100): live turbine telemetry and relay trip
+  events bridged from the control-zone broker (`uupl-mqtt`, 10.10.3.60) by
+  `mqtt_bridge.py`. Topics: `uupl/turbine/telemetry` (every five seconds) and
+  `uupl/relay/#` (event-driven). Starts once eng-ws finishes its startup sequence.
 - guild-exchange (10.10.5.10): OPC-UA pump telemetry under `umati/v2/...` and
   `umati/v3/...`, every 5-10 seconds. Starts automatically once guild-exchange
   establishes its OPC-UA connection to guild-register. The .NET Kestrel startup
-  can take 2-3 minutes; the broker is quiet until it connects.
+  can take 2-3 minutes.
 - sorting-office (10.10.5.11): Modbus register data under `neuron/sorting-office/...`.
   The northbound MQTT node is pre-configured, but no southbound device is wired
   by default. Topics appear only after a southbound device is added via the API.
@@ -93,8 +97,11 @@ was published misses it. For telemetry injection to be effective, the injection
 rate needs to exceed the legitimate publisher's rate or the subscriber needs to
 be redirected to trust injected messages.
 
-The DMZ MQTT broker (`clacks-relay`) is separate from the control-zone broker
-(`uupl-mqtt` at 10.10.3.60). They do not bridge to each other by default.
+The DMZ MQTT broker (`clacks-relay`) and the control-zone broker (`uupl-mqtt` at
+10.10.3.60) are bridged by `mqtt_bridge.py` running on `uupl-eng-ws`. The bridge
+subscribes to `uupl-mqtt` and republishes to `clacks-relay` verbatim. Traffic
+flows one way: control zone to DMZ. A subscriber on `clacks-relay` sees live plant
+data but has no path back into the control zone through this channel.
 
 ## At a glance
 

@@ -25,7 +25,7 @@ The virtual profile contains:
 - `Documents\notes.txt`: operational notes
 - `reports\turbine_2024-0*.csv`: pre-generated turbine reports
 - `.ssh\known_hosts`: uupl-historian, SCADA, and engineering workstation fingerprints
-- `/tmp/ops-access.conf.bak`: a copy left outside the profile by someone who needed it quickly
+- `C:\Temp\ops-access.conf.bak` (`/opt/win10/C/Temp/ops-access.conf.bak`): a copy left in a temp directory by someone who needed it quickly
 
 ## Connections
 
@@ -41,7 +41,7 @@ SSH: port 22.
 
 Credential exposure: `ops-access.conf` contains uupl-historian credentials (`uupl-historian`/`Historian2015`) and SCADA 
 credentials (`admin`/`admin`). The PowerShell script on the Desktop contains the same uupl-historian credentials in 
-plaintext. `/tmp/ops-access.conf.bak` is world-readable.
+plaintext. `C:\Temp\ops-access.conf.bak` is world-readable.
 
 PowerShell history: includes the exact `Invoke-WebRequest` command with a Base64-encoded Basic auth header, which 
 decodes to `uupl-historian:Historian2015`.
@@ -105,8 +105,9 @@ Alternative: read the PowerShell history, decode the Base64 auth header, arrive 
 The win10shell is cosmetic: it presents a PowerShell-style prompt and provides an `ls`/`dir`, `cat`/`type`, and `cd` 
 approximation, but it is a thin Bash wrapper. Real Linux commands work if called directly.
 
-The `/tmp/ops-access.conf.bak` file is on the Linux filesystem, not in the virtual Windows profile. It is accessible 
-from a real shell (`docker exec`) or from a Linux-aware participant who drops out of the win10shell.
+The `C:\Temp\ops-access.conf.bak` file (`/opt/win10/C/Temp/ops-access.conf.bak`) is in the virtual C: drive tree
+but outside the user profile. It is accessible from the win10shell as `type C:\Temp\ops-access.conf.bak` or from a
+real shell (`docker exec`).
 
 The operational NIC (10.10.2.100) gives direct access to `ics_operational`. Combined with the credentials in the 
 profile, this machine is a complete pivot to the operational zone without touching the engineering workstation.

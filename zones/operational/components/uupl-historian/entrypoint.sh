@@ -2,7 +2,7 @@
 # uupl-historian entrypoint
 # Sets up SSH with Windows Server 2019 facade, seeds the database,
 # builds virtual Windows filesystem, then starts sshd and Flask.
-set -e
+set -euo pipefail
 
 DB_PATH="${DB_PATH:-/opt/historian/data/historian.db}"
 DATA_SOURCE="${DATA_SOURCE:-intelligent_electronic_device}"

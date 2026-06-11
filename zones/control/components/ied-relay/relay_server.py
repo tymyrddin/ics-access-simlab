@@ -32,6 +32,8 @@ import os
 import threading
 import time
 
+import paho.mqtt.client as mqtt
+
 from flask import Flask, request, render_template, redirect, url_for, session
 from pymodbus.client import ModbusTcpClient
 from pymodbus.datastore import (
@@ -74,7 +76,8 @@ RECLOSE_DELAY = 10.0
 app = Flask(__name__, template_folder="templates")
 app.secret_key = "hex1234unseen"
 
-_store = None  # set in main()
+_store = None       # set in main()
+_mqtt_client = None # set in main()
 _trip_log = []
 
 
@@ -95,7 +98,6 @@ def _make_store():
 
 def _update_trip_log_registers(store, cause, voltage, current, rpm):
     """Update HR[10:20] with latest trip events (5 events × 2 registers each)."""
-    import time
     timestamp = int(time.time())
     cause_codes = {
         "undervoltage": 1, "overcurrent": 2, "overspeed": 3,
@@ -130,9 +132,6 @@ def _plc_read(reg, count=1):
 def _mqtt_publish_trip(cause: str, voltage: int, current: int, rpm: int):
     """Publish a trip event to uupl/relay/{id}/trip. Best-effort, never raises."""
     try:
-        import paho.mqtt.client as mqtt
-        client = mqtt.Client()
-        client.connect(MQTT_BROKER_IP, 1883, keepalive=5)
         payload = json.dumps({
             "relay_id": RELAY_ID,
             "feeder":   FEEDER,
@@ -142,8 +141,7 @@ def _mqtt_publish_trip(cause: str, voltage: int, current: int, rpm: int):
             "rpm":      rpm,
             "time":     time.strftime("%Y-%m-%dT%H:%M:%S"),
         })
-        client.publish(f"uupl/relay/{RELAY_ID}/trip", payload, qos=0)
-        client.disconnect()
+        _mqtt_client.publish(f"uupl/relay/{RELAY_ID}/trip", payload, qos=0)
     except Exception:
         pass
 
@@ -165,7 +163,7 @@ def _breaker_write(state: int):
 async def poll_plc_loop(store):
     """Pull measurements from PLC and update local input registers."""
     while True:
-        regs = await asyncio.get_event_loop().run_in_executor(
+        regs = await asyncio.get_running_loop().run_in_executor(
             None, lambda: _plc_read(0, 11)
         )
         if len(regs) >= 11:
@@ -221,8 +219,8 @@ async def relay_logic_loop(store):
             store.setValues(FC_CO, COIL_TRIP, [1])
             store.setValues(FC_CO, COIL_BREAKER, [1])  # breaker open
             _update_trip_log_registers(store, cause, voltage, current, rpm)
-            await asyncio.get_event_loop().run_in_executor(None, lambda: _breaker_write(0))
-            await asyncio.get_event_loop().run_in_executor(
+            await asyncio.get_running_loop().run_in_executor(None, lambda: _breaker_write(0))
+            await asyncio.get_running_loop().run_in_executor(
                 None, lambda: _mqtt_publish_trip(cause, voltage, current, rpm)
             )
             tripped_at = time.monotonic()
@@ -244,8 +242,8 @@ async def relay_logic_loop(store):
                 _trip_log.pop(0)
             store.setValues(FC_CO, COIL_BREAKER, [1])  # breaker follows trip coil
             _update_trip_log_registers(store, cause, voltage, current, rpm)
-            await asyncio.get_event_loop().run_in_executor(None, lambda: _breaker_write(0))
-            await asyncio.get_event_loop().run_in_executor(
+            await asyncio.get_running_loop().run_in_executor(None, lambda: _breaker_write(0))
+            await asyncio.get_running_loop().run_in_executor(
                 None, lambda: _mqtt_publish_trip(cause, voltage, current, rpm)
             )
             tripped_at = time.monotonic()
@@ -255,7 +253,7 @@ async def relay_logic_loop(store):
             if time.monotonic() - tripped_at >= RECLOSE_DELAY:
                 store.setValues(FC_CO, COIL_TRIP, [0])
                 store.setValues(FC_CO, COIL_BREAKER, [0])  # breaker closed
-                await asyncio.get_event_loop().run_in_executor(None, lambda: _breaker_write(1))
+                await asyncio.get_running_loop().run_in_executor(None, lambda: _breaker_write(1))
                 reclosed = True
                 await asyncio.sleep(1.0)
                 # Re-check: if fault persists, re-trip and stop reclosing
@@ -266,7 +264,7 @@ async def relay_logic_loop(store):
                     store.setValues(FC_CO, COIL_TRIP, [1])
                     store.setValues(FC_CO, COIL_BREAKER, [1])  # breaker open again
                     _update_trip_log_registers(store, "reclose-failed", voltage, current, rpm)
-                    await asyncio.get_event_loop().run_in_executor(None, lambda: _breaker_write(0))
+                    await asyncio.get_running_loop().run_in_executor(None, lambda: _breaker_write(0))
                     _trip_log.append({
                         "time": time.strftime("%Y-%m-%dT%H:%M:%S"),
                         "cause": "reclose-failed",
@@ -345,9 +343,17 @@ def run_flask():
 
 
 async def main():
-    global _store
+    global _store, _mqtt_client
     _store = _make_store()
     context = ModbusServerContext(slaves=_store, single=True)
+
+    _mqtt_client = mqtt.Client()
+    _mqtt_client.reconnect_delay_set(min_delay=1, max_delay=30)
+    _mqtt_client.loop_start()
+    try:
+        _mqtt_client.connect(MQTT_BROKER_IP, 1883, keepalive=60)
+    except Exception:
+        pass  # loop_start retries in the background
 
     flask_thread = threading.Thread(target=run_flask, daemon=True)
     flask_thread.start()

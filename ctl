@@ -125,6 +125,61 @@ _ensure_keys() {
     fi
 }
 
+# Topology-aware NIC audit. Derives each node's expected in-lab address(es)
+# from the `ip addr add <ip>/<mask> dev ethN` lines in the clab topologies,
+# then checks the running container actually carries them. A missing secondary
+# NIC means the node came back single-homed after a restart (its clab veth was
+# not re-attached), which silently removes intended attack paths. See
+# docs/to-investigate.md, "DMZ veth lost when a clab node restarts".
+_audit_nics() {
+    local expect
+    expect="$(python3 - <<'PY'
+import glob, re, yaml
+pat = re.compile(r'ip addr add (\d+\.\d+\.\d+\.\d+)/\d+ dev (eth\d+)')
+for f in sorted(glob.glob('clab/*-zone.clab.yaml')):
+    try:
+        doc = yaml.safe_load(open(f)) or {}
+    except Exception:
+        continue
+    nodes = doc.get('topology', {}).get('nodes', {}) or {}
+    for name, cfg in nodes.items():
+        for cmd in (cfg or {}).get('exec', []) or []:
+            for ip, dev in pat.findall(str(cmd)):
+                print(f"{name}\t{ip}\t{dev}")
+PY
+)"
+    if [ -z "$expect" ]; then
+        echo "  (no clab topology NICs to audit)"
+        return 0
+    fi
+
+    local running degraded=0 name ip dev
+    running="$(docker ps --format '{{.Names}}' 2>/dev/null || true)"
+    while IFS=$'\t' read -r name ip dev; do
+        [ -z "$name" ] && continue
+        if ! printf '%s\n' "$running" | grep -qx "$name"; then
+            printf '  %-18s %-14s %-5s not running\n' "$name" "$ip" "$dev"
+            continue
+        fi
+        if docker exec "$name" ip -4 -o addr show 2>/dev/null | grep -qF "inet $ip/"; then
+            printf '  %-18s %-14s %-5s ok\n' "$name" "$ip" "$dev"
+        else
+            printf '  %-18s %-14s %-5s MISSING (single-homed)\n' "$name" "$ip" "$dev"
+            degraded=1
+        fi
+    done <<EOF
+$expect
+EOF
+
+    if [ "$degraded" -eq 1 ]; then
+        echo ""
+        echo "  One or more nodes are missing an in-lab NIC: a clab veth was not"
+        echo "  re-attached after a container restart, so the node is reachable on"
+        echo "  the management network but not its zone. Cycle the lab to restore:"
+        echo "      ./ctl down && ./ctl up"
+    fi
+}
+
 # ---------------------------------------------------------------------------
 # Commands
 # ---------------------------------------------------------------------------
@@ -236,6 +291,10 @@ case "$CMD" in
 
   verify)
     PORT="$(_ssh_port)"
+    echo ""
+    echo "NIC audit (expected in-lab addresses from clab topologies)"
+    echo "─────────────────────────────────────────────────────────"
+    _audit_nics
     cat <<EOF
 
 Step 2 verification
