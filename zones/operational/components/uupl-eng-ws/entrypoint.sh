@@ -315,6 +315,102 @@ cp "$PROFILE/Projects/RelayConfigs/relay_a_2019.txt" \
 sed -i 's/Relay A/Relay B/; s/Dolly Sisters/Nap Hill/; s/10\.10\.3\.31/10.10.3.32/' \
     "$PROFILE/Projects/RelayConfigs/relay_b_2019.txt"
 
+cat > "$PROFILE/Projects/RelayConfigs/trip_history_2024.txt" << 'TRIPS'
+UU P&L Relay IED Trip History, 2024 Annual Report
+Export generated: 2024-11-08  Engineer: P. Stibbons
+
+--- REL-200a (Dolly Sisters Feeder, 10.10.3.31) ---
+2024-01-08 14:22:44  TRIP    cause=undervoltage  V=183.2V  threshold=196V  duration=10s
+2024-01-08 14:22:54  RECLOSE auto
+2024-03-19 02:07:13  TRIP    cause=overcurrent   I=218.4A  threshold=200A  duration=10s
+2024-03-19 02:07:23  RECLOSE auto
+2024-05-02 11:33:06  TRIP    cause=remote        operator=engineer
+2024-05-02 11:33:16  RECLOSE auto
+2024-07-14 08:51:29  TRIP    cause=undervoltage  V=191.1V  threshold=196V  duration=10s
+2024-07-14 08:51:39  RECLOSE auto
+2024-09-03 16:04:55  TRIP    cause=overcurrent   I=203.7A  threshold=200A  duration=10s
+2024-09-03 16:05:05  RECLOSE auto
+
+--- REL-200b (Nap Hill Feeder, 10.10.3.32) ---
+2024-02-14 03:18:22  TRIP    cause=overcurrent   I=211.0A  threshold=200A  duration=10s
+2024-02-14 03:18:32  RECLOSE auto
+2024-04-07 19:42:01  TRIP    cause=undervoltage  V=188.3V  threshold=196V  duration=10s
+2024-04-07 19:42:11  RECLOSE auto
+2024-06-22 09:15:44  TRIP    cause=remote        operator=engineer
+2024-06-22 09:15:54  RECLOSE auto
+2024-10-11 22:30:17  TRIP    cause=overspeed     RPM=3347  threshold=3300  duration=10s
+2024-10-11 22:30:27  RECLOSE auto
+
+Total 2024: 9 events (REL-200a), 7 events (REL-200b).
+Previous year (2023): 12 events (REL-200a), 8 events (REL-200b).
+TRIPS
+
+cat > "$PROFILE/Projects/RelayConfigs/threshold_override_2023-09.txt" << 'THRESH'
+TEMPORARY THRESHOLD MODIFICATION RECORD
+========================================
+Date:     2023-09-14
+Engineer: P. Stibbons
+Relay:    REL-200b (Nap Hill feeder, 10.10.3.32)
+
+Overcurrent threshold (HR[2]) raised from 200 A to 240 A for the duration
+of the Nap Hill load test. Restored to 200 A on completion at 16:30.
+
+No firmware record was filed at the time (oversight). Entry added to relay
+maintenance log after the fact.
+
+Overspeed threshold (HR[1]) for REL-200b is due for a recalibration check
+per the 2021 commissioning schedule. Still outstanding.
+
+TODO: Chase Nobby at sorting-office about the gateway password rotation
+before the next annual audit. (Ticket: OPS-2024-0088)
+THRESH
+
+cat > "$PROFILE/Projects/RelayConfigs/relay_maintenance_log.txt" << 'MLOG'
+UU P&L Relay IED Maintenance Log
+===================================
+Author: Ponder Stibbons
+
+2019-04-07  REL-200a  Initial commissioning, Dolly Sisters feeder
+             UV=196V, OC=200A, OS=3300RPM, RECLOSE=10s
+             Signed off: P. Stibbons
+
+2019-04-07  REL-200b  Initial commissioning, Nap Hill feeder
+             UV=196V, OC=200A, OS=3300RPM, RECLOSE=10s
+             Signed off: P. Stibbons
+
+2021-02-19  REL-200a  Firmware upgrade 1.2.0 -> 2.0.1
+             No threshold changes.
+             Signed off: P. Stibbons
+
+2021-02-19  REL-200b  Firmware upgrade 1.2.0 -> 2.0.1
+             No threshold changes.
+             Signed off: P. Stibbons
+
+2023-09-14  REL-200b  Load test: OC threshold raised 200A -> 240A
+             Duration approx. 4 hours. Restored to 200A at 16:30.
+             See threshold_override_2023-09.txt for details.
+             OS threshold check skipped; ticket raised, still outstanding.
+             Signed off: P. Stibbons
+
+2024-05-02  REL-200a  Operational test (scheduled maintenance window)
+             Remote trip/reclose via engineer workstation, nominal.
+             Signed off: P. Stibbons
+
+2024-06-22  REL-200b  Operational test (scheduled maintenance window)
+             Remote trip/reclose via engineer workstation, nominal.
+             Signed off: P. Stibbons
+
+2025-04-09  REL-200a  Annual inspection
+             Thresholds verified: UV=196V, OC=200A, OS=3300RPM. No changes.
+             OS recalibration check deferred; parts on order.
+             Signed off: P. Stibbons
+
+2025-04-09  REL-200b  Annual inspection
+             Thresholds verified: UV=196V, OC=200A, OS=3300RPM. No changes.
+             OS threshold ticket (open since 2021): escalated to procurement.
+             Signed off: P. Stibbons
+MLOG
+
 cat > "$PROFILE/Projects/Firmware/README.txt" << 'FWREADME'
 PLC Firmware Update Procedure
 ==============================
@@ -424,6 +520,166 @@ HMI:
 Emergency contact: Ponder Stibbons ext 201, Igor ext 333 (out-of-hours)
 NOTES
 
+cat > "$PROFILE/Documents/mqtt_topics.txt" << 'TOPICS'
+UU P&L Control Zone MQTT Topics
+=================================
+Broker: uupl-mqtt at 10.10.3.60:1883 (no authentication)
+Author: P. Stibbons, 2019-03-11, updated 2021-07-08
+
+uupl/turbine/telemetry
+  Published every 5s by the turbine PLC (10.10.3.21).
+  Payload: JSON
+    rpm         integer  turbine shaft RPM
+    temp_c      integer  exhaust temperature, Celsius
+    pressure    integer  steam pressure, bar
+    voltage_a   integer  line voltage A, V
+    voltage_b   integer  line voltage B, V
+    current_a   integer  line current A, A
+    current_b   integer  line current B, A
+    freq_x10    integer  mains frequency * 10 (e.g. 483 = 48.3 Hz)
+    power_kw    integer  generated power, kW
+    estop       integer  0=running, 1=emergency stop active
+
+uupl/relay/a/trip
+  Published by REL-200a (Dolly Sisters) on trip or reclose.
+  Payload: JSON {relay_id, feeder, cause, timestamp, state}
+  cause: "undervoltage" | "overcurrent" | "overspeed" | "remote"
+
+uupl/relay/b/trip
+  Published by REL-200b (Nap Hill) on trip or reclose.
+  Same payload format.
+
+Note: the DMZ broker (clacks-relay, 10.10.5.12) receives a one-way
+bridge of all topics above, republished verbatim by mqtt_bridge.py
+running on this workstation.
+TOPICS
+
+cat > "$PROFILE/Documents/telemetry_sample_2024-01-20.log" << 'TELEM'
+# uupl/turbine/telemetry capture, 2024-01-20 09:00:00--09:02:05
+# mosquitto_sub -h 10.10.3.60 -t uupl/turbine/telemetry
+# Saved by: P. Stibbons
+{"rpm":2941,"temp_c":174,"pressure":84,"voltage_a":226,"voltage_b":224,"current_a":73,"current_b":71,"freq_x10":500,"power_kw":30,"estop":0}
+{"rpm":2958,"temp_c":175,"pressure":84,"voltage_a":227,"voltage_b":225,"current_a":74,"current_b":72,"freq_x10":500,"power_kw":31,"estop":0}
+{"rpm":2947,"temp_c":173,"pressure":84,"voltage_a":225,"voltage_b":223,"current_a":73,"current_b":71,"freq_x10":500,"power_kw":30,"estop":0}
+{"rpm":2939,"temp_c":176,"pressure":83,"voltage_a":226,"voltage_b":224,"current_a":73,"current_b":71,"freq_x10":499,"power_kw":30,"estop":0}
+{"rpm":2951,"temp_c":174,"pressure":84,"voltage_a":228,"voltage_b":226,"current_a":74,"current_b":72,"freq_x10":500,"power_kw":31,"estop":0}
+{"rpm":2944,"temp_c":177,"pressure":84,"voltage_a":225,"voltage_b":223,"current_a":73,"current_b":71,"freq_x10":500,"power_kw":30,"estop":0}
+{"rpm":2963,"temp_c":175,"pressure":84,"voltage_a":229,"voltage_b":227,"current_a":74,"current_b":72,"freq_x10":500,"power_kw":31,"estop":0}
+{"rpm":2937,"temp_c":173,"pressure":83,"voltage_a":224,"voltage_b":222,"current_a":72,"current_b":70,"freq_x10":499,"power_kw":30,"estop":0}
+{"rpm":2948,"temp_c":174,"pressure":84,"voltage_a":226,"voltage_b":224,"current_a":73,"current_b":71,"freq_x10":500,"power_kw":30,"estop":0}
+{"rpm":2955,"temp_c":175,"pressure":84,"voltage_a":227,"voltage_b":225,"current_a":73,"current_b":71,"freq_x10":500,"power_kw":30,"estop":0}
+{"rpm":2942,"temp_c":176,"pressure":84,"voltage_a":225,"voltage_b":223,"current_a":73,"current_b":71,"freq_x10":499,"power_kw":30,"estop":0}
+{"rpm":2961,"temp_c":174,"pressure":84,"voltage_a":228,"voltage_b":226,"current_a":74,"current_b":72,"freq_x10":500,"power_kw":31,"estop":0}
+{"rpm":2946,"temp_c":175,"pressure":84,"voltage_a":226,"voltage_b":224,"current_a":73,"current_b":71,"freq_x10":500,"power_kw":30,"estop":0}
+{"rpm":2932,"temp_c":173,"pressure":83,"voltage_a":223,"voltage_b":221,"current_a":72,"current_b":70,"freq_x10":499,"power_kw":29,"estop":0}
+{"rpm":2950,"temp_c":174,"pressure":84,"voltage_a":225,"voltage_b":223,"current_a":73,"current_b":71,"freq_x10":500,"power_kw":30,"estop":0}
+{"rpm":2957,"temp_c":175,"pressure":84,"voltage_a":227,"voltage_b":225,"current_a":74,"current_b":72,"freq_x10":500,"power_kw":31,"estop":0}
+{"rpm":2945,"temp_c":174,"pressure":84,"voltage_a":226,"voltage_b":224,"current_a":73,"current_b":71,"freq_x10":500,"power_kw":30,"estop":0}
+{"rpm":2939,"temp_c":176,"pressure":83,"voltage_a":224,"voltage_b":222,"current_a":72,"current_b":70,"freq_x10":499,"power_kw":30,"estop":0}
+{"rpm":2953,"temp_c":175,"pressure":84,"voltage_a":226,"voltage_b":224,"current_a":73,"current_b":71,"freq_x10":500,"power_kw":30,"estop":0}
+{"rpm":2941,"temp_c":173,"pressure":84,"voltage_a":225,"voltage_b":223,"current_a":73,"current_b":71,"freq_x10":500,"power_kw":30,"estop":0}
+{"rpm":2958,"temp_c":174,"pressure":84,"voltage_a":228,"voltage_b":226,"current_a":74,"current_b":72,"freq_x10":500,"power_kw":31,"estop":0}
+{"rpm":2949,"temp_c":175,"pressure":84,"voltage_a":226,"voltage_b":224,"current_a":73,"current_b":71,"freq_x10":500,"power_kw":30,"estop":0}
+{"rpm":2936,"temp_c":174,"pressure":83,"voltage_a":224,"voltage_b":222,"current_a":72,"current_b":70,"freq_x10":499,"power_kw":30,"estop":0}
+{"rpm":2952,"temp_c":175,"pressure":84,"voltage_a":226,"voltage_b":224,"current_a":73,"current_b":71,"freq_x10":500,"power_kw":30,"estop":0}
+TELEM
+
+cat > "$PROFILE/Documents/snmp_plc_2024-03-15.txt" << 'SNMPW'
+# snmpwalk -v 2c -c public 10.10.3.21
+# Captured: 2024-03-15  Engineer: P. Stibbons
+SNMPv2-MIB::sysDescr.0 = STRING: HEX-CPU-4000 Turbine PLC, Hex Computing Division, firmware 4.1.2
+SNMPv2-MIB::sysObjectID.0 = OID: SNMPv2-SMI::enterprises
+SNMPv2-MIB::sysUpTime.0 = Timeticks: (2741892) 7 days, 16:10:18.92
+SNMPv2-MIB::sysContact.0 = STRING: Ponder Stibbons <ponder@unseen.edu>
+SNMPv2-MIB::sysName.0 = STRING: hex-turbine-plc
+SNMPv2-MIB::sysLocation.0 = STRING: Hex Engine Room, Unseen University, Ankh-Morpork
+SNMPv2-MIB::sysServices.0 = INTEGER: 72
+SNMPv2-MIB::sysORLastChange.0 = Timeticks: (0) 0:00:00.00
+IF-MIB::ifNumber.0 = INTEGER: 2
+IF-MIB::ifIndex.1 = INTEGER: 1
+IF-MIB::ifDescr.1 = STRING: lo
+IF-MIB::ifType.1 = INTEGER: softwareLoopback(24)
+IF-MIB::ifMtu.1 = INTEGER: 65536
+IF-MIB::ifSpeed.1 = Gauge32: 10000000
+IF-MIB::ifPhysAddress.1 = STRING:
+IF-MIB::ifIndex.2 = INTEGER: 2
+IF-MIB::ifDescr.2 = STRING: eth1
+IF-MIB::ifType.2 = INTEGER: ethernetCsmacd(6)
+IF-MIB::ifMtu.2 = INTEGER: 1500
+IF-MIB::ifSpeed.2 = Gauge32: 10000000
+IF-MIB::ifPhysAddress.2 = STRING: 02:42:0a:0a:03:15
+IF-MIB::ifOperStatus.2 = INTEGER: up(1)
+IF-MIB::ifInOctets.2 = Counter32: 6843201
+IF-MIB::ifOutOctets.2 = Counter32: 4921037
+# Note: rwcommunity "private" also active. Write access enabled on all OIDs.
+SNMPW
+
+cat > "$PROFILE/Documents/grafana_turbine_panel.json" << 'GRAFANA'
+{
+  "title": "Turbine Overview",
+  "datasource": "uupl-historian-api",
+  "panels": [
+    {
+      "type": "graph",
+      "title": "Shaft RPM",
+      "targets": [
+        {
+          "measurement": "turbine_rpm",
+          "query": "SELECT mean(value) FROM turbine_rpm WHERE $timeFilter GROUP BY time($interval)",
+          "alias": "RPM"
+        }
+      ],
+      "yaxes": [{"min": 0, "max": 4000, "label": "RPM"}],
+      "thresholds": [
+        {"value": 3300, "op": "gt", "colorMode": "critical", "fill": true}
+      ]
+    },
+    {
+      "type": "graph",
+      "title": "Line Voltage A",
+      "targets": [
+        {
+          "measurement": "line_voltage_a",
+          "query": "SELECT mean(value) FROM line_voltage_a WHERE $timeFilter GROUP BY time($interval)"
+        }
+      ],
+      "yaxes": [{"min": 180, "max": 240, "label": "V"}],
+      "thresholds": [
+        {"value": 196, "op": "lt", "colorMode": "warning", "fill": false}
+      ]
+    },
+    {
+      "type": "singlestat",
+      "title": "Emergency Stop",
+      "targets": [{"measurement": "turbine_estop", "query": "SELECT last(value) FROM turbine_estop WHERE $timeFilter"}],
+      "valueMaps": [{"op": "=", "value": "0", "text": "Running"}, {"op": "=", "value": "1", "text": "STOPPED"}],
+      "colorBackground": true,
+      "colors": ["green", "red", "red"],
+      "thresholds": "0.5,0.5"
+    }
+  ],
+  "refresh": "5s",
+  "time": {"from": "now-1h", "to": "now"},
+  "__note": "Historian creds for datasource: historian / Historian2015. See engineering_notes.txt."
+}
+GRAFANA
+
+cat > "$PROFILE/Documents/alarm_history_2024-Q1.csv" << 'ALARMS'
+timestamp,asset,value,unit,limit,direction,state,ack_by,ack_time
+2024-01-08 14:22:31,line_voltage_a,183,V,196,below,ACK,pstibbons,2024-01-08 14:25:00
+2024-01-08 14:22:44,line_voltage_a,183,V,196,below,CLR,,
+2024-01-15 09:14:02,turbine_rpm,3312,RPM,3300,above,ACK,pstibbons,2024-01-15 09:16:44
+2024-01-15 09:15:12,turbine_rpm,2998,RPM,3300,above,CLR,,
+2024-02-03 11:00:00,turbine_estop,1,,,,ACK,pstibbons,2024-02-03 11:05:33
+2024-02-03 11:00:00,turbine_estop,0,,,,CLR,,
+2024-02-14 03:18:10,line_current_a,211,A,200,above,ACK,pstibbons,2024-02-14 08:02:17
+2024-02-14 03:18:32,line_current_a,73,A,200,above,CLR,,
+2024-03-04 16:47:55,turbine_temperature,221,C,210,above,ACK,pstibbons,2024-03-04 16:51:03
+2024-03-04 16:53:10,turbine_temperature,207,C,210,above,CLR,,
+2024-03-19 02:07:13,line_current_a,218,A,200,above,ACK,pstibbons,2024-03-19 08:14:52
+2024-03-19 02:07:23,line_current_a,74,A,200,above,CLR,,
+ALARMS
+
 # ── SSH key ───────────────────────────────────────────────────────────────────
 # Keep real SSH key at the real home path for SSH to work.
 # Copy to virtual profile for discoverability.
@@ -485,8 +741,14 @@ nmap -sV 10.10.3.0/24
 python Tools\modbus_read.py 10.10.3.51 502 holding 0
 python Tools\modbus_read.py 10.10.3.52 502 holding 0
 python Tools\mqtt_check.py
+cat Documents\mqtt_topics.txt
+cat Documents\alarm_history_2024-Q1.csv
+cat Projects\RelayConfigs\trip_history_2024.txt
+cat Projects\RelayConfigs\relay_maintenance_log.txt
 cd backups
 dir
+Expand-Archive .\backup_2022_final_v3.zip -DestinationPath .\backup_2022_expanded
+dir .\backup_2022_expanded
 HIST
 
 # ── 2019 backup archive ───────────────────────────────────────────────────────
@@ -556,6 +818,87 @@ BACKUP
 tar czf "$PROFILE/backups/PLC_Backup_2019.tar.gz" \
     -C "$BACKUP_TMP" PLC_Backup_2019/
 rm -rf "$BACKUP_TMP"
+
+# ── 2022 backup archive ───────────────────────────────────────────────────────
+
+python3 - << 'PYZIP'
+import zipfile, os
+
+PROFILE = "/opt/win10/C/Users/engineer"
+zippath = os.path.join(PROFILE, "backups", "backup_2022_final_v3.zip")
+
+plc_conf = """\
+# UU P&L, PLC and IED Access Configuration (2022 MAINTENANCE SNAPSHOT)
+# Archived: 2022-11-04 before annual service
+# Compare with current config\\plc-access.conf for changes
+
+[hex_turbine_controller]
+ip       = 10.10.3.21
+port     = 502
+protocol = modbus-tcp
+unit_id  = 1
+admin    = admin
+pass     = turbineadmin
+
+[uupl-relay-a]
+ip       = 10.10.3.31
+port     = 502
+protocol = modbus-tcp
+unit_id  = 1
+notes    = Dolly Sisters feeder. Web: admin/relay1234
+
+[uupl-relay-b]
+ip       = 10.10.3.32
+port     = 502
+protocol = modbus-tcp
+unit_id  = 1
+notes    = Nap Hill feeder. Web: admin/relay1234
+
+[uupl-hmi]
+ip       = 10.10.3.10
+port     = 502
+protocol = modbus-tcp
+notes    = SSH operator/operator. No web auth.
+
+[uupl-historian]
+ip       = 10.10.2.10
+port     = 8080
+db_user  = historian
+db_pass  = Historian2015
+notes    = SSH: hist_admin / Historian2015
+
+[scada_server]
+ip       = 10.10.2.20
+port     = 8080
+user     = admin
+pass     = admin
+notes    = SSH: scada_admin / W1nd0ws@2016
+"""
+
+setpoints = """\
+UU P&L Turbine Governor Setpoints, 2022 Annual Service
+=======================================================
+Recorded: 2022-11-04  Engineer: P. Stibbons
+
+PLC Holding Registers (FC3 read, FC16 write):
+  HR[0] governor_setpoint_rpm  = 3000  (normal operating speed)
+  HR[1] fuel_valve_position    = 65    (percent open, governor-controlled)
+  HR[2] cooling_pump_speed     = 100   (percent, always max)
+  HR[3] overcurrent_threshold  = 200   (amps, relay trip limit)
+
+Relay Holding Registers (HR[0-2] on both REL-200a and REL-200b):
+  HR[0] undervoltage_v         = 196   (trip if line V drops below this)
+  HR[1] overspeed_rpm          = 3300  (trip if shaft RPM exceeds this)
+  HR[2] overcurrent_a          = 200   (trip if line current exceeds this)
+
+All registers writable over Modbus TCP with no authentication.
+Thresholds unchanged since 2019 commissioning except brief REL-200b OC test 2023.
+"""
+
+with zipfile.ZipFile(zippath, "w", zipfile.ZIP_DEFLATED) as zf:
+    zf.writestr("plc-access-2022.conf", plc_conf)
+    zf.writestr("setpoints_2022.txt",   setpoints)
+PYZIP
 
 # ── Historian ingest script ───────────────────────────────────────────────────
 # Polls turbine PLC input registers and pushes readings to the uupl-historian.
@@ -658,6 +1001,133 @@ def main():
 if __name__ == "__main__":
     main()
 EOF
+
+    cat > "$PROFILE/Tools/mqtt_bridge.py" << 'EOF'
+#!/usr/bin/env python3
+"""
+UU P&L Engineering Workstation, control-zone to DMZ MQTT bridge.
+
+Subscribes to telemetry and relay event topics on uupl-mqtt (10.10.3.60)
+and republishes them on the DMZ broker (clacks-relay, 10.10.5.12) so that
+DMZ monitoring feeds see live process data without a direct path into the
+control zone.
+
+Written: Ponder Stibbons, 2019-03-11.
+"""
+import time
+import paho.mqtt.client as mqtt
+
+SRC_HOST = "10.10.3.60"
+DST_HOST = "10.10.5.12"
+TOPICS   = ["uupl/turbine/telemetry", "uupl/relay/#"]
+
+dst = mqtt.Client(client_id="eng-ws-bridge-dst")
+dst.reconnect_delay_set(min_delay=2, max_delay=30)
+
+def on_connect(src, userdata, flags, rc):
+    for t in TOPICS:
+        src.subscribe(t)
+
+def on_message(src, userdata, msg):
+    try:
+        dst.publish(msg.topic, msg.payload, qos=0, retain=False)
+    except Exception:
+        pass
+
+for _attempt in range(30):
+    try:
+        dst.connect(DST_HOST, 1883, 60)
+        break
+    except Exception:
+        time.sleep(5)
+dst.loop_start()
+
+src = mqtt.Client(client_id="eng-ws-bridge-src")
+src.on_connect = on_connect
+src.on_message = on_message
+src.reconnect_delay_set(min_delay=2, max_delay=30)
+src.connect_async(SRC_HOST, 1883, 60)
+src.loop_forever(retry_first_connection=True)
+EOF
+
+    cat > "$PROFILE/Tools/rtu_updater.py" << 'EOF'
+#!/usr/bin/env python3
+"""
+UU P&L Engineering Workstation, substation RTU state updater.
+
+Polls the relay IEDs and turbine PLC for live process values and pushes
+updates to the DMZ substation RTU management interface (substation-rtu,
+10.10.5.14) every ten seconds. The RTU's IEC-104 server picks up new
+values on the next periodic report, so SCADA clients watching IEC-104
+datapoint IO/20 see live process state.
+
+Written: Ponder Stibbons, 2021-07-08.
+"""
+import json
+import time
+import urllib.request
+
+from pymodbus.client import ModbusTcpClient
+
+PLC_IP     = "10.10.3.21"
+RELAY_A_IP = "10.10.3.31"
+RELAY_B_IP = "10.10.3.32"
+RTU_URL    = "http://10.10.5.14:8080/datapoints"
+INTERVAL   = 10
+
+# LV bus (220 V nominal) to 11-kV distribution feeder through the step-up
+# transformer. 220 V -> 11.0 kV; 196 V undervoltage trip -> 9.8 kV.
+VOLT_SCALE = 0.05
+
+
+def mb_coil(ip, addr):
+    c = ModbusTcpClient(ip, port=502, timeout=3)
+    if not c.connect():
+        return None
+    r = c.read_coils(addr, 1, slave=1)
+    c.close()
+    return None if r.isError() else bool(r.bits[0])
+
+
+def mb_ir(ip, addr):
+    c = ModbusTcpClient(ip, port=502, timeout=3)
+    if not c.connect():
+        return None
+    r = c.read_input_registers(addr, 1, slave=1)
+    c.close()
+    return None if r.isError() else r.registers[0]
+
+
+def rtu_post(dp_id, value):
+    body = json.dumps({"value": value}).encode()
+    req  = urllib.request.Request(
+        f"{RTU_URL}/{dp_id}",
+        data=body,
+        headers={"Content-Type": "application/json"},
+        method="POST",
+    )
+    urllib.request.urlopen(req, timeout=5)
+
+
+while True:
+    try:
+        trip_a    = mb_coil(RELAY_A_IP, 0)   # COIL[0]: 1=tripped, 0=closed
+        trip_b    = mb_coil(RELAY_B_IP, 0)
+        volt_a    = mb_ir(PLC_IP, 3)          # IR[3]: line_voltage_a, V
+        volt_b    = mb_ir(PLC_IP, 5)          # IR[5]: line_voltage_b, V
+        curr_a    = mb_ir(PLC_IP, 4)          # IR[4]: line_current_a, A
+        freq_raw  = mb_ir(PLC_IP, 7)          # IR[7]: frequency * 10
+
+        if trip_a   is not None: rtu_post(5, not trip_a)
+        if trip_b   is not None: rtu_post(6, not trip_b)
+        if volt_a   is not None: rtu_post(1, round(volt_a * VOLT_SCALE, 2))
+        if volt_b   is not None: rtu_post(2, round(volt_b * VOLT_SCALE, 2))
+        if curr_a   is not None: rtu_post(3, curr_a)
+        if freq_raw is not None: rtu_post(4, round(freq_raw / 10.0, 2))
+    except Exception:
+        pass
+    time.sleep(INTERVAL)
+EOF
 fi
 
 # ── Cron artifact ─────────────────────────────────────────────────────────────
@@ -678,8 +1148,12 @@ chmod 600 "$PROFILE/.ssh/id_rsa" "$PROFILE/.ssh/known_hosts"
 chmod 644 "$PROFILE/.ssh/id_rsa.pub"
 chmod 600 "$PROFILE/config/plc-access.conf"
 chmod 600 "$PROFILE/backups/PLC_Backup_2019.tar.gz"
+chmod 600 "$PROFILE/backups/backup_2022_final_v3.zip"
 chmod 750 "$PROFILE/Tools/send_alarm.ps1"
 chmod 644 "$PROFILE/Tools/modbus_read.py" "$PROFILE/Tools/modbus_write.py"
+if [ "$ICS_PROCESS" = "uupl_ied" ]; then
+    chmod 644 "$PROFILE/Tools/mqtt_bridge.py" "$PROFILE/Tools/rtu_updater.py"
+fi
 
 echo "[eng-ws] Waiting for PLC at 10.10.3.21:502..."
 until nc -z 10.10.3.21 502 2>/dev/null; do sleep 2; done
@@ -694,6 +1168,14 @@ WIN_PROFILE="/opt/win10/C/Users/engineer"
 touch "$WIN_PROFILE/plc_poll.log"
 chown engineer:engineer "$WIN_PROFILE/plc_poll.log"
 su engineer -s /bin/sh -c "/venv/bin/python3 $WIN_PROFILE/Tools/poll_and_ingest.py >> $WIN_PROFILE/plc_poll.log 2>&1" || true
+
+if [ "$ICS_PROCESS" = "uupl_ied" ]; then
+    touch "$WIN_PROFILE/mqtt_bridge.log" "$WIN_PROFILE/rtu_updater.log"
+    chown engineer:engineer "$WIN_PROFILE/mqtt_bridge.log" "$WIN_PROFILE/rtu_updater.log"
+    su -s /bin/sh engineer -c "nohup /venv/bin/python3 $WIN_PROFILE/Tools/mqtt_bridge.py >> $WIN_PROFILE/mqtt_bridge.log 2>&1 &"
+    su -s /bin/sh engineer -c "nohup /venv/bin/python3 $WIN_PROFILE/Tools/rtu_updater.py >> $WIN_PROFILE/rtu_updater.log 2>&1 &"
+    echo "[eng-ws] MQTT bridge and RTU updater started."
+fi
 
 cron
 /usr/sbin/sshd -D

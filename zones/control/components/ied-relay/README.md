@@ -107,8 +107,8 @@ registers from writable (`hr=ModbusSequentialDataBlock(...)`) to input registers
 
 To change SNMP community strings: edit `snmpd.conf.template`.
 
-To disable MQTT: remove the `_mqtt_publish_trip` call from `relay_logic_loop`
-and the paho-mqtt pip install.
+To disable MQTT: remove the `_mqtt_publish_trip` call from `relay_logic_loop`,
+the `_mqtt_client` setup in `main()`, and the paho-mqtt pip install.
 
 ## Hardening suggestions
 
@@ -120,9 +120,9 @@ a network route to port 502 on the relay IEDs.
 ## Observability and debugging
 
 ```bash
-docker logs ied-relay-a
-docker logs ied-relay-b
-docker exec -it ied-relay-a bash
+docker logs uupl-relay-a
+docker logs uupl-relay-b
+docker exec -it uupl-relay-a bash
 curl http://10.10.3.31:8081/      # relay A web UI
 curl http://10.10.3.32:8081/      # relay B web UI
 ```

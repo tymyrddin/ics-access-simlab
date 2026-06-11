@@ -8,7 +8,8 @@
 #                engineering_notes.txt (consolidated credential sheet),
 #                Projects/Firmware/README.txt (turbineadmin),
 #                Desktop/update_plc_firmware.ps1 (same)
-#   Backup: dir backups\ lists PLC_Backup_2019.tar.gz
+#   Backup: dir backups\ lists PLC_Backup_2019.tar.gz and backup_2022_final_v3.zip;
+#           zip contains plc-access-2022.conf and setpoints_2022.txt
 #   PLC tools: modbus_read.py reaches live PLC (input registers, holding registers)
 #   PSReadLine: history shows historian queries and Modbus commands
 #   Poll log: plc_poll.log has cron-driven ingest entries
@@ -101,8 +102,14 @@ echo "[uupl-eng-ws] Backup archive"
 
 BACKUP_OUT="$(ws 'dir backups\')"
 assert_contains "$BACKUP_OUT" "PLC_Backup_2019" "dir backups\ lists PLC_Backup_2019.tar.gz"
+assert_contains "$BACKUP_OUT" "backup_2022_final_v3" "dir backups\ lists backup_2022_final_v3.zip"
 assert_contains "$BACKUP_OUT" "[0-9][0-9]/[0-9][0-9]/[0-9][0-9][0-9][0-9]" \
     "dir backups\ shows real file timestamps (not hardcoded)"
+
+ZIP_OUT="$(in_container "$ENGWS" python3 -c \
+    "import zipfile; print(zipfile.ZipFile('/opt/win10/C/Users/engineer/backups/backup_2022_final_v3.zip').namelist())")"
+assert_contains "$ZIP_OUT" "plc-access-2022.conf" "backup_2022_final_v3.zip contains plc-access-2022.conf"
+assert_contains "$ZIP_OUT" "setpoints_2022.txt"   "backup_2022_final_v3.zip contains setpoints_2022.txt"
 
 # ── PLC tools: live readings ──────────────────────────────────────────────────
 

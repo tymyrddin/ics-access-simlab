@@ -44,3 +44,12 @@ def test_network_subnets_distinct(config):
     assert len(set(subnets)) == len(subnets), (
         f"duplicate subnets found: {subnets}"
     )
+
+
+def test_component_dirs_exist():
+    """Every COMPONENT_DIRS entry must resolve to a directory containing a Dockerfile."""
+    for name, path in gen.COMPONENT_DIRS.items():
+        assert path.exists() and path.is_dir(), \
+            f"COMPONENT_DIRS[{name!r}] path does not exist: {path}"
+        assert (path / "Dockerfile").exists(), \
+            f"COMPONENT_DIRS[{name!r}] has no Dockerfile: {path}"

@@ -42,8 +42,6 @@ PSReadLine history includes prior historian queries and SSH sessions.
 
 ## Attack chain summary
 
-See `runbook.md` for the full device runbook.
-
 ```
 default web creds admin/admin
     → /config endpoint: hist_read/history2017 + plantmail123

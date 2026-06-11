@@ -18,7 +18,7 @@ chmod 644 /nfs-export/*
 
 mkdir -p /run/rpcbind
 rpcbind -w
-for i in $(seq 1 20); do
+for i in {1..20}; do
     rpcinfo -p 127.0.0.1 >/dev/null 2>&1 && break
     sleep 0.2
 done

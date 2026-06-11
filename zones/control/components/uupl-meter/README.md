@@ -82,8 +82,8 @@ hosts that legitimately need it (uupl-historian, engineering workstation).
 ## Observability and debugging
 
 ```bash
-docker logs ied-meter
-docker exec -it ied-meter bash
+docker logs uupl-meter
+docker exec -it uupl-meter bash
 ```
 
 Read meter values:

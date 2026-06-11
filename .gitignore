@@ -43,10 +43,10 @@ challenges/
 challenges/*
 state.md
 to-investigate.md
-
-# author workspace directories inside component trees
-zones/internet/components/wizzards-retreat/vpn/
-zones/internet/components/wizzards-retreat/work/
+books/
+books/*
+plan.md
+CODE-AUDIT.md
 
 # captured traffic, too large for git
 data/pcap/

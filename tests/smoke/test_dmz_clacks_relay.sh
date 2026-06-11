@@ -17,9 +17,11 @@ source "$REPO/tests/smoke/lib.sh"
 
 RELAY="clacks-relay"
 ATTACKER="unseen-gate"
+ENGWS="uupl-eng-ws"
 
 require_running "$RELAY"
 require_running "$ATTACKER"
+require_running "$ENGWS"
 
 # ── Connectivity ──────────────────────────────────────────────────────────────
 
@@ -44,5 +46,23 @@ MQTT_OUT="$(docker exec "$RELAY" timeout 10 sh -c \
      mosquitto_pub -h 127.0.0.1 -t smoke/test -m smoke-ping
      wait' 2>/dev/null || true)"
 assert_contains "$MQTT_OUT" "smoke-ping" "anonymous publish/subscribe round-trip"
+
+# ── Live turbine telemetry from eng-ws bridge ─────────────────────────────────
+
+echo "[clacks-relay] Live turbine telemetry feed"
+
+TELEMETRY="$(docker exec "$RELAY" timeout 15 mosquitto_sub \
+    -h 127.0.0.1 -t 'uupl/turbine/telemetry' -C 1 2>/dev/null || true)"
+assert_contains "$TELEMETRY" '"rpm"'    "uupl/turbine/telemetry received from eng-ws bridge"
+assert_contains "$TELEMETRY" '"estop"'  "telemetry payload contains estop field"
+
+if echo "$TELEMETRY" | grep -q '"rpm"'; then
+    RPM=$(echo "$TELEMETRY" | sed -n 's/.*"rpm":[[:space:]]*\([0-9]*\).*/\1/p')
+    if [ "${RPM:-0}" -gt 0 ]; then
+        ok "bridged RPM ($RPM) is positive (turbine running)"
+    else
+        fail "bridged RPM is 0 or unparseable ('$RPM')"
+    fi
+fi
 
 summary

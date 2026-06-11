@@ -1,8 +1,8 @@
 # NTP server
 
 `guild-clock` provides NTP to the DMZ. It runs `cturra/ntp`, a lightweight
-NTP server container. There is no NTP authentication; `ntpq` and `ntpdc` queries
-are open to any host that reaches UDP port 123.
+NTP server container (uses `chronyd` internally). There is no NTP authentication;
+any host that reaches UDP port 123 can synchronise its clock from this server.
 
 Time is not glamorous. Attacks that manipulate it tend to be preconditions for
 other attacks: expired certificates begin to look valid, log timestamps become
@@ -37,14 +37,12 @@ NTP: UDP port 123. No authentication.
 
 ## Built-in vulnerabilities
 
-Unauthenticated NTP: `ntpq` and `ntpdc` queries are accepted without any key
-or authentication mode. Any host on the DMZ can query the server's status, peer
-list, and configuration.
+Unauthenticated NTP: the server accepts time synchronisation requests from any
+client without authentication. Any host on the DMZ can use this server as its
+time source, and an on-path attacker can substitute forged NTP responses.
 
-NTP amplification: an NTP server that responds to `monlist` requests (older NTP
-versions) provides a significant amplification factor for reflected UDP attacks.
-The cturra/ntp image uses a recent ntpd; `monlist` is disabled by default in
-modern NTP. However, other queries remain open.
+No NTP amplification: the `cturra/ntp` image runs `chronyd`, not ntpd. The
+`monlist` amplification vector is ntpd-specific and does not apply here.
 
 Time manipulation: an attacker who can poison NTP responses seen by DMZ hosts
 can shift their system clocks. Effects include: TLS certificates appearing
@@ -53,33 +51,33 @@ protection windows becoming exploitable.
 
 ## Modifying vulnerabilities
 
-To add NTP symmetric key authentication: generate a key file, configure `keys`
-and `trustedkey` directives in the NTP configuration, and distribute the key to
-authorised clients. This requires a custom configuration volume mount.
+To add NTP authentication: chrony supports NTP symmetric key authentication via
+the `key` and `authselectmode` directives. A custom `chrony.conf` volume mount
+is needed. Clients also need the matching key configured.
 
-To restrict queries: add `restrict` directives in the NTP configuration to limit
-which hosts can query the server.
+To restrict which clients can use the server: add `allow` directives in
+`chrony.conf` to limit the source range.
 
 ## Hardening suggestions
 
-Enable NTP symmetric key authentication. Restrict `ntpq` and `ntpdc` queries
-to management addresses. Ensure the NTP server is not accessible from the public
-internet to prevent amplification.
+Enable NTP symmetric key authentication. Restrict `allow` to the specific subnets
+that legitimately need time service. Ensure the NTP server is not accessible from
+the public internet.
 
 ## Observability and debugging
 
 ```bash
 docker logs guild-clock
-ntpq -p 10.10.5.30          # peer list query
-ntpdate -q 10.10.5.30       # query time offset without changing local clock
+docker exec guild-clock chronyc tracking    # server status (local only)
+ntpdate -q 10.10.5.30                       # query time offset without changing local clock
 ```
 
 ## Concrete attack paths
 
 From the internet zone:
 
-1. `ntpq -p 10.10.5.30` confirms the server is responding and shows its
-   upstream peers.
+1. `ntpdate -q 10.10.5.30` confirms the server is reachable and shows the
+   time offset and stratum.
 2. Forge NTP responses to a DMZ host: tools such as `ntpdate` in step-mode or
    a custom NTP packet forger can shift a vulnerable client's clock by several
    hours.
@@ -93,12 +91,15 @@ The `cturra/ntp` image is pinned by digest because there is no semver tag; the
 image has only a `latest` tag. The digest pins the exact image version at time
 of implementation.
 
+The image uses `chronyd`, not `ntpd`. Tools that target ntpd management
+interfaces (`ntpq`, `ntpdc`) do not apply. Use `ntpdate -q` for external time
+queries; `chronyc` only works locally inside the container.
+
 NTP responses traverse UDP, which is connectionless. An on-path attacker does
 not need to compromise the NTP server to substitute responses; they only need
 to intercept the UDP exchange between a client and the server.
 
 ## At a glance
 
-NTP server, UDP 123, no authentication. Open to `ntpq` / `ntpdc` queries.
-Useful for reconnaissance (peer list reveals NTP topology) and as a precondition
+NTP server (chronyd), UDP 123, no authentication. Useful as a precondition
 for time-manipulation attacks that affect TLS and log integrity.

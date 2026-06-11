@@ -70,7 +70,7 @@ topology:
     # uupl-eng-ws dual-homed operational + control.
     uupl-eng-ws:
       image: operational-uupl-eng-ws
-      cap-add: [NET_ADMIN]
+      cap-add: [NET_ADMIN, NET_RAW]
       env:
         ICS_PROCESS:    uupl_ied
         CONTROL_SUBNET: 10.10.3.0/24

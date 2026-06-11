@@ -1,7 +1,7 @@
 # OPC-UA server
 
-`guild-register` runs the thin-edge OPC-UA demo server, a Rust application that
-simulates an industrial pump with callable OPC-UA methods. Authentication is
+`guild-register` runs the thin-edge OPC-UA demo server, a Python application
+(asyncua) that simulates an industrial pump with callable OPC-UA methods. Authentication is
 anonymous. Security mode is None. Any OPC-UA client that reaches port 4840 can
 browse the node tree, read all values, and call all methods including
 `stopPump()`.
@@ -17,7 +17,7 @@ process-critical cooling pump has immediate physical consequences.
 
 ## Container details
 
-Base image: `ghcr.io/thin-edge/opc-ua-demo-server:0.0.8`. Rust application. https://github.com/thin-edge/opc-ua-demo-server
+Base image: `ghcr.io/thin-edge/opc-ua-demo-server:0.0.8`. Python/asyncua application. https://github.com/thin-edge/opc-ua-demo-server
 
 Exposed port: 4840/tcp (OPC-UA binary protocol).
 
@@ -109,7 +109,7 @@ Using the Python `asyncua` library:
 from asyncua.sync import Client
 
 with Client("opc.tcp://10.10.5.13:4840") as c:
-    pump = c.nodes.objects.get_child(["2:Pump01"])
+    pump = c.get_node("ns=2;i=6")  # Pump01
     pump.call_method("2:stopPump")
 ```
 

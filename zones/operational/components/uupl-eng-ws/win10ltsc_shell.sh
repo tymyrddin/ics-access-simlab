@@ -7,6 +7,8 @@
 VIRT_ROOT="/opt/win10/C"
 VIRT_CWD="Users/engineer"
 
+cd "$VIRT_ROOT/$VIRT_CWD" 2>/dev/null || true
+
 stty icrnl 2>/dev/null || true
 
 # ── path helpers ──────────────────────────────────────────────────────────────
@@ -107,13 +109,13 @@ cmd_dir() {
 cmd_cd() {
     local arg="${1:-}"
     if [[ -z "$arg" || "$arg" == "~" ]]; then
-        VIRT_CWD="Users/engineer"; return
+        VIRT_CWD="Users/engineer"; cd "$VIRT_ROOT/$VIRT_CWD" 2>/dev/null || true; return
     fi
     local v="${arg//\\//}"; v="${v#\"}"; v="${v%\"}"
     if [[ "$v" == ".." ]]; then
         local parent="${VIRT_CWD%/*}"
         [[ "$parent" == "$VIRT_CWD" ]] && parent=""
-        VIRT_CWD="$parent"; return
+        VIRT_CWD="$parent"; cd "$VIRT_ROOT/$VIRT_CWD" 2>/dev/null || true; return
     fi
     [[ "$v" == "." ]] && return
     local new_cwd
@@ -124,7 +126,7 @@ cmd_cd() {
         new_cwd="$VIRT_CWD/$v"
     fi
     if [[ -d "$VIRT_ROOT/$new_cwd" ]]; then
-        VIRT_CWD="$new_cwd"
+        VIRT_CWD="$new_cwd"; cd "$VIRT_ROOT/$VIRT_CWD" 2>/dev/null || true
     else
         printf "Set-Location: Cannot find path 'C:\\%s' because it does not exist.\n" \
             "${new_cwd//\//\\}"
@@ -293,14 +295,14 @@ cmd_ip() { /sbin/ip "$@"; }
 
 cmd_ssh()  { /usr/bin/ssh -o StrictHostKeyChecking=no "$@"; }
 cmd_curl() { /usr/bin/curl "$@"; }
-cmd_nmap() { /usr/bin/nmap "$@"; }
+cmd_nmap() { /usr/bin/nmap "$@" 2>&1 | grep -Ev '^(SF[:-]|={10}|[0-9]+ service.*(unrecognized|returning)|Service detection performed|Please report|https://nmap\.org|WARNING:|MAC Address:)'; }
 cmd_nc()   { /usr/bin/nc "$@"; }
 
 # Bash functions used by eval "$line" dispatch, handle quoted args correctly
 ssh()  { /usr/bin/ssh -o StrictHostKeyChecking=no "$@"; }
 curl() { /usr/bin/curl "$@"; printf '\n'; }
 wget() { /usr/bin/wget "$@"; printf '\n'; }
-nmap() { /usr/bin/nmap "$@"; }
+nmap() { /usr/bin/nmap "$@" 2>&1 | grep -Ev '^(SF[:-]|={10}|[0-9]+ service.*(unrecognized|returning)|Service detection performed|Please report|https://nmap\.org|WARNING:|MAC Address:)'; }
 nc()   { /usr/bin/nc "$@"; }
 
 cmd_schtasks() {

@@ -16,7 +16,7 @@ Base image: `ghcr.io/thin-edge/opc-ua-demo-server:0.0.8`. Same image as
 `guild-register` in the DMZ; the attack context is different. Here the attacker
 has already broken into the control network and is working at the PLC layer.
 
-Network: shares `hex-turbine-plc` network namespace via `network_mode: service:turbine-plc`.
+Network: shares `hex-turbine-plc` network namespace via `network_mode: service:hex-turbine-plc`.
 IP: 10.10.3.21 (same as PLC). Port: 4840/tcp.
 
 SecurityMode: None. Authentication: anonymous. No credentials required.

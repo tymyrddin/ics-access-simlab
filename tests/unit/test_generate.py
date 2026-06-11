@@ -39,6 +39,11 @@ def attacker_machine_output_path():
 
 
 @pytest.fixture(scope="module")
+def control_output_path():
+    return REPO_ROOT / "zones" / "control" / "docker-compose.yml"
+
+
+@pytest.fixture(scope="module")
 def dmz_output_path():
     return REPO_ROOT / "zones" / "dmz" / "docker-compose.yml"
 
@@ -100,7 +105,7 @@ def test_generate_operational_compose(config, operational_output_path):
 
     ops_net = gen._net(config, "operational")
     ctrl_net = gen._net(config, "control")
-    hist_ip = config["operational_zone"]["uupl-historian"]["ip"]
+    hist_ip = config["operational_zone"]["historian"]["ip"]
     scada_ip = config["operational_zone"]["scada_server"]["ip"]
     eng_ip = config["operational_zone"]["engineering_workstation"]["ip"]
     eng_ctrl_ip = config["operational_zone"]["engineering_workstation"]["ctrl_ip"]
@@ -126,6 +131,15 @@ def test_generate_operational_compose(config, operational_output_path):
     assert ctrl_net in eng["networks"]
     assert eng["networks"][ops_net]["ipv4_address"] == eng_ip
     assert eng["networks"][ctrl_net]["ipv4_address"] == eng_ctrl_ip
+
+    # Modbus gateway — dual-homed on ops and control
+    gw_cfg = config["operational_zone"]["stunnel_gateway"]
+    assert "uupl-modbus-gw" in services, "uupl-modbus-gw missing from operational compose"
+    gw = services["uupl-modbus-gw"]
+    assert ops_net  in gw["networks"], "uupl-modbus-gw missing operational network"
+    assert ctrl_net in gw["networks"], "uupl-modbus-gw missing control network"
+    assert gw["networks"][ops_net]["ipv4_address"]  == gw_cfg["ops_ip"]
+    assert gw["networks"][ctrl_net]["ipv4_address"] == gw_cfg["ctrl_ip"]
 
 
 # ---------------------------------------------------------------------------
@@ -205,4 +219,56 @@ def test_generate_attacker_machine_compose(config, attacker_machine_output_path)
     assert "adversary-keys" in volumes_str, "adversary-keys volume missing"
     assert "adversary-readme.txt" in volumes_str, "adversary-readme.txt volume missing"
 
+
+# ---------------------------------------------------------------------------
+# Internet zone — wizzards-retreat
+# ---------------------------------------------------------------------------
+
+def test_wizzards_retreat_in_internet_compose(config, attacker_machine_output_path):
+    """wizzards-retreat is triple-homed; unseen-gate depends on it."""
+    compose = gen.generate_internet_zone_compose(config, attacker_machine_output_path)
+    services = compose["services"]
+
+    inet_net = gen._net(config, "internet")
+    ent_net  = gen._net(config, "enterprise")
+    ops_net  = gen._net(config, "operational")
+    ah = config["internet_zone"]["admin_home"]
+
+    assert "wizzards-retreat" in services, "wizzards-retreat missing from internet zone"
+    wr = services["wizzards-retreat"]
+
+    assert inet_net in wr["networks"], "wizzards-retreat missing internet network"
+    assert ent_net  in wr["networks"], "wizzards-retreat missing enterprise network"
+    assert ops_net  in wr["networks"], "wizzards-retreat missing operational network"
+
+    assert wr["networks"][inet_net]["ipv4_address"] == ah["internet_ip"]
+    assert wr["networks"][ent_net]["ipv4_address"]  == ah["enterprise_ip"]
+    assert wr["networks"][ops_net]["ipv4_address"]  == ah["operational_ip"]
+
+    assert wr.get("privileged") is True, "wizzards-retreat needs privileged for NFS"
+    assert "wizzards-retreat" in services["unseen-gate"].get("depends_on", [])
+
+
+# ---------------------------------------------------------------------------
+# Control compose
+# ---------------------------------------------------------------------------
+
+def test_generate_control_compose(config, control_output_path):
+    """Key control zone devices present with correct IPs."""
+    compose = gen.generate_control_compose(config, control_output_path)
+    services = compose["services"]
+
+    ctrl_net = gen._net(config, "control")
+
+    dev_ip = {d["name"]: d["ip"] for d in config["control_zone"]["devices"]}
+
+    for svc_name in ("hex-turbine-plc", "uupl-relay-a", "uupl-relay-b",
+                     "uupl-hmi", "uupl-mqtt", "uupl-meter"):
+        assert svc_name in services, f"{svc_name} missing from control compose"
+        assert ctrl_net in services[svc_name]["networks"], \
+            f"{svc_name} missing control network"
+        assert services[svc_name]["networks"][ctrl_net]["ipv4_address"] == dev_ip[svc_name], \
+            f"{svc_name} IP mismatch"
+
+    assert "hex-turbine-opcua" in services, "hex-turbine-opcua sidecar missing"
 

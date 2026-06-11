@@ -1,7 +1,7 @@
 # Syslog relay
 
 `scribes-post` is a syslog-ng relay that accepts UDP syslog messages from any
-source on port 514 and appends them to `/var/log/syslog-relay.log`. No TLS.
+source on port 514 and appends them to `/var/log/syslog-relay/syslog.log`. No TLS.
 No source authentication. Any host that can reach UDP 514 can write log entries.
 
 In incident response, the log file is the record of what happened. A log relay
@@ -26,7 +26,7 @@ Exposed port: 514/udp.
 
 Configuration:
 - Source `s_udp`: UDP on port 514, accepts from any source
-- Destination `d_file`: appends to `/var/log/syslog-relay.log`
+- Destination `d_file`: appends to `/var/log/syslog-relay/syslog.log`
 - No TLS. No source filtering. No authentication.
 
 ## Connections
@@ -77,7 +77,7 @@ logs from general syslog to a destination that requires authentication.
 
 ```bash
 docker logs scribes-post
-docker exec -it scribes-post cat /var/log/syslog-relay.log
+docker exec -it scribes-post cat /var/log/syslog-relay/syslog.log
 ```
 
 Send a test syslog message:
@@ -116,7 +116,7 @@ The `keep-hostname(yes)` option in syslog-ng preserves the hostname field from
 incoming syslog messages. An attacker can set this field to any value; it is not
 validated against the source IP.
 
-The log file (`/var/log/syslog-relay.log`) is inside the container and is lost
+The log file (`/var/log/syslog-relay/syslog.log`) is inside the container and is lost
 on container restart unless volume-mounted. In a persistent deployment, mounting
 this to a host path or a volume preserves the log across restarts.
 

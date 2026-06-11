@@ -58,7 +58,7 @@ To change the SSH password: edit the `chpasswd` line in the Dockerfile.
 
 To restrict NFS access: add a `CLIENT { Clients = 10.10.0.5; ... }` block to `ganesha.conf` and rebuild.
 
-To add loot: place files in `loot/` and add COPY directives to the Dockerfile. The entrypoint copies `loot/` contents to the tmpfs at startup, so files added to `/home/rincewind/work` via the Dockerfile end up in the NFS export automatically.
+To add loot to the NFS share: place files in `work/` in this component directory and add a `COPY work/<file> /home/rincewind/work/<file>` line to the Dockerfile. The entrypoint copies `/home/rincewind/work/` to the tmpfs at startup, so anything there is served via NFS. The `loot/` directory in this component holds the post-login SSH keys (`.ssh-keys/`); those are not exported via NFS.
 
 ## Observability and debugging
 

@@ -37,17 +37,43 @@ Virtual Windows profile at `/opt/win10/C/Users/engineer/`. Key contents:
   register maps, alarm setpoints, and `admin_pass = turbineadmin`
 - `Projects\RelayConfigs\relay_a_2019.txt` and `relay_b_2019.txt`: relay
   register maps with notes that thresholds are writable with no authentication
+- `Projects\RelayConfigs\trip_history_2024.txt`: trip events for both relay IEDs
+  through 2024, including a REL-200b overspeed trip in October
+- `Projects\RelayConfigs\threshold_override_2023-09.txt`: record of a temporary
+  overcurrent threshold change on REL-200b during load testing, plus a reminder
+  to chase the sorting-office gateway password rotation
+- `Projects\RelayConfigs\relay_maintenance_log.txt`: commissioning and service
+  history for both relays, 2019 to 2024
 - `Projects\Firmware\README.txt`: firmware update procedure including PLC
   credentials in plaintext
 - `Desktop\update_plc_firmware.ps1`: PowerShell script with `turbineadmin` in a
   variable alongside a note about manual upload steps
 - `Tools\modbus_read.py` and `modbus_write.py`: working Modbus utilities
+- `Tools\mqtt_bridge.py`: subscribes to `uupl/turbine/telemetry` and `uupl/relay/#`
+  on the control-zone broker (`uupl-mqtt`, 10.10.3.60) and republishes verbatim to
+  `clacks-relay` in the DMZ (10.10.5.12). Runs as a background daemon from startup.
+- `Tools\rtu_updater.py`: polls relay IEDs and turbine PLC every 10 s and pushes
+  live feeder voltages, load current, frequency, and breaker states to the
+  `substation-rtu` management API at 10.10.5.14:8080. Runs as a background daemon.
 - `Tools\send_alarm.ps1`: SMTP alarm relay script containing `plantmail123`
 - `Documents\engineering_notes.txt`: operational notes listing credentials for
   uupl-historian, SCADA, HMI, and relay IEDs
+- `Documents\mqtt_topics.txt`: MQTT topic reference listing all published topics,
+  payload fields, and the DMZ bridge
+- `Documents\telemetry_sample_2024-01-20.log`: 24 lines of captured turbine
+  telemetry at steady-state, showing normal operating ranges
+- `Documents\snmp_plc_2024-03-15.txt`: snmpwalk output from the turbine PLC,
+  including sysDescr, sysLocation, and a note that `rwcommunity private` is active
+- `Documents\grafana_turbine_panel.json`: Grafana panel export with historian
+  credentials in a `__note` comment
+- `Documents\alarm_history_2024-Q1.csv`: alarm events for Q1 2024 across RPM,
+  voltage, temperature, and emergency stop
 - `backups\PLC_Backup_2019.tar.gz`: pre-upgrade archive containing an older
   credential list and a complete network map with all OT zone IPs and passwords
-- `.ssh\id_rsa`: RSA private key (copied to `/home/engineer/.ssh/` so SSH works)
+- `backups\backup_2022_final_v3.zip`: 2022 annual service snapshot containing
+  `plc-access-2022.conf` and `setpoints_2022.txt` with register maps and
+  threshold values
+- `.ssh\id_rsa`: RSA private key generated at startup; the public half is in `/home/engineer/.ssh/authorized_keys`, so holding this key allows inbound SSH as `engineer`
 
 PSReadLine history includes Modbus reads and writes to the turbine PLC, SSH to
 the HMI, and curl queries to uupl-historian and SCADA.
@@ -61,7 +87,13 @@ The `win10ltsc` facade shell honours `-c "<cmd>"`, so
 `ssh engineer@10.10.2.30 'cat config\plc-access.conf'` returns the file
 contents rather than the banner.
 
-Two Ed25519 keys are authorised for the `engineer` account:
+Three keys are in `/home/engineer/.ssh/authorized_keys`:
+
+The machine's own RSA key (`ponder@uupl-eng-ws`): generated at startup, private
+half in `.ssh\id_rsa` in the Windows profile. Finding the profile key yields
+inbound SSH access as `engineer`.
+
+Two external Ed25519 keys:
 - `uupl-admin@rincewind-home`: the private key is at `~/.ssh-keys/uupl_eng_key`
   on `wizzards-retreat` (10.10.0.10). Admin trust, accumulated over years.
 - `contract-admin@uupl-maintenance`: the private key is at `/root/.ssh/contractor_key`
@@ -74,6 +106,8 @@ Two Ed25519 keys are authorised for the `engineer` account:
 - `ics_control`: 10.10.3.100 (the control zone NIC)
 - Connects outbound to turbine PLC (10.10.3.21), relays (10.10.3.31/32), HMI
   (10.10.3.10), uupl-historian (10.10.2.10), SCADA (10.10.2.20)
+- Connects outbound to `uupl-mqtt` (10.10.3.60) for MQTT bridge and to DMZ targets
+  `clacks-relay` (10.10.5.12) and `substation-rtu` (10.10.5.14)
 - Reachable from `wizzards-retreat` (Ed25519 `uupl_eng_key`), from `contractors-gate`
   (Ed25519 `contractor_key`, via ProxyJump through `bursar-desk`), and from `distribution-scada`
 
@@ -81,6 +115,8 @@ Two Ed25519 keys are authorised for the `engineer` account:
 
 SSH: port 22.
 Modbus-TCP: outbound to control zone devices on port 502.
+MQTT: outbound to `uupl-mqtt` (10.10.3.60:1883) and `clacks-relay` (10.10.5.12:1883).
+HTTP: outbound to `substation-rtu` REST API (10.10.5.14:8080).
 
 ## Built-in vulnerabilities
 
@@ -90,12 +126,14 @@ duplicates them in prose form. `Desktop\update_plc_firmware.ps1` contains
 `turbineadmin` in a variable. `Tools\send_alarm.ps1` contains the SMTP
 credentials.
 
-Backup archive: `PLC_Backup_2019.tar.gz` contains a network map with IP
+Backup archives: `PLC_Backup_2019.tar.gz` contains a network map with IP
 addresses and credentials for the entire OT estate as of 2019. The SCADA
 password in the archive is stale, but the rest remain current.
+`backup_2022_final_v3.zip` contains the 2022 annual service credential snapshot
+and relay threshold register maps. Both archives carry `turbineadmin` and
+`relay1234`.
 
-Ed25519 authorised keys: two separate trust relationships, both present in
-`/home/engineer/.ssh/authorized_keys`.
+Authorised keys: three keys in `/home/engineer/.ssh/authorized_keys`: the machine's own RSA key (private half in the Windows profile) and two external Ed25519 keys representing two separate trust relationships.
 
 `uupl-admin@rincewind-home`: private key at `~/.ssh-keys/uupl_eng_key` on
 `wizzards-retreat`. Compromising Rincewind's home machine gives direct SSH
@@ -165,7 +203,7 @@ Via `contractors-gate` (vendor trust path):
 
 1. Compromise `contractors-gate` (`ssh root@10.10.5.20`, password `uupl2015`).
 2. `cat ~/.ssh/config` reveals the `eng-ws` ProxyJump stanza.
-3. `ssh eng-ws` — SSH proxies through `bursar-desk` (prompts for `bursardesk`
+3. `ssh eng-ws`: SSH proxies through `bursar-desk` (prompts for `bursardesk`
    password), then authenticates here with `contractor_key`. Lands as `engineer`.
 4. Same profile access as the wizzards-retreat path. Root is not available;
    reaching control zone devices requires the Modbus tools or a further pivot.
@@ -190,10 +228,11 @@ The cron job polling the PLC writes to `/home/engineer/plc_poll.log`. This file
 is on the real Linux filesystem. It confirms the PLC is reachable and provides
 a timestamp of the last successful poll.
 
-Two Ed25519 keys are in `/home/engineer/.ssh/authorized_keys`: `uupl_eng_key`
-from `wizzards-retreat`, and `contractor_key` from `contractors-gate`. The
-`wizzards-retreat` key is the admin trust path; the contractor key is the vendor
-trust path, routed via `bursar-desk` as a jump host.
+Three keys are in `/home/engineer/.ssh/authorized_keys`: the machine's own RSA
+key (`ponder@uupl-eng-ws`), `uupl_eng_key` from `wizzards-retreat` (admin trust
+path), and `contractor_key` from `contractors-gate` (vendor trust path, routed
+via `bursar-desk` as a jump host). The RSA private key is in the Windows profile
+at `.ssh\id_rsa`.
 
 ## At a glance
 

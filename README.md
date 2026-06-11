@@ -117,14 +117,14 @@ ssh hex@ctf01.root-me.org    -p 22222   (password: hex)
 
 Six host-side Linux bridges, each mapped to a Purdue model layer:
 
-| Bridge           | Subnet         | Zone                            |
-|------------------|----------------|---------------------------------|
-| `ics_internet`   | 10.10.0.0/24   | Internet / city network         |
-| `ics_enterprise` | 10.10.1.0/24   | Corporate IT (Purdue L4)        |
-| `ics_operational`| 10.10.2.0/24   | Site operations (Purdue L3)     |
-| `ics_control`    | 10.10.3.0/24   | Area supervisory + field (L1-2) |
-| `ics_dmz`        | 10.10.5.0/24   | DMZ: Guild Quarter              |
-| `ics_wan`        | 10.10.4.0/24   | OT/RTU WAN (placeholder)        |
+| Bridge            | Subnet       | Zone                            |
+|-------------------|--------------|---------------------------------|
+| `ics_internet`    | 10.10.0.0/24 | Internet / city network         |
+| `ics_enterprise`  | 10.10.1.0/24 | Corporate IT (Purdue L4)        |
+| `ics_operational` | 10.10.2.0/24 | Site operations (Purdue L3)     |
+| `ics_control`     | 10.10.3.0/24 | Area supervisory + field (L1-2) |
+| `ics_dmz`         | 10.10.5.0/24 | DMZ: Guild Quarter              |
+| `ics_wan`         | 10.10.4.0/24 | OT/RTU WAN (placeholder)        |
 
 The bridges are real Linux bridges (`ip link add ... type bridge`), created and destroyed by
 `infrastructure/clab-up.sh` / `clab-down.sh` (one sudo prompt per session). They have no host-side IPs,
@@ -250,9 +250,7 @@ Contributions welcome:
 - Hardening variants for existing components
 
 Each device component keeps its own `runbook.md` alongside the Dockerfile.
-Per-device runbooks are the canonical reference for that component; the
-top-level `books/` directory is author scratch space for cross-zone attack
-chains.
+Per-device runbooks are the canonical reference for that component.
 
 Before adding tests, read [tests/README.md](tests/README.md) for dependency ordering.
 Respect the layering: *fix the architecture, not the test*.

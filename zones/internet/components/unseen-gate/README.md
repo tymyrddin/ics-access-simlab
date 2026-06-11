@@ -6,10 +6,10 @@
 
 - Recon and pivot: nmap, curl, wget, smbclient, hydra, tcpdump, socat, ftp,
   showmount, sudo mount (nfs-common), ip
-- Protocol clients: dig (dnsutils), mosquitto_sub / mosquitto_pub
-  (mosquitto-clients), ntpq + ntpdate (ntp + ntpdate)
-- Python venv at `/opt/attacker-env` with pymodbus 3.6.9, paramiko, impacket,
-  opcua (the runbooks call `from opcua import Client` directly)
+- Protocol clients: dig (dnsutils); NTP recon via nmap scripts (ntp-info,
+  ntp-monlist)
+- Python venv at `/opt/attacker-env` with paramiko, impacket, scapy, dnslib,
+  ldap3 (generic red-team kit; ICS-protocol libraries are on the OT hosts)
 - Five accounts: `ponder`, `hex`, `ridcully`, `librarian`, `dean`
 - Mission briefing at `/run/adversary-readme.txt`
 
