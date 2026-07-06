@@ -1,5 +1,7 @@
 # ICS access and persistence SimLab
 
+![OT/ICS Simlab](assets/ot-ics-simlab-repo.png)
+
 A multi-zone Industrial Control System simulation built for realistic red team exercises and CTF scenarios. The
 environment models the operational infrastructure of Unseen University Power & Light Co., Ankh-Morpork's primary
 utility provider with an infrastructure assembled over decades, documentation patchy, cybersecurity posture: emergent.
