@@ -7,8 +7,8 @@ runs the governor loop, monitors process variables, enforces safety interlocks,
 and communicates with relays, actuators, and the HMI.
 
 The device is a Hex Computing Division HEX-CPU-4000, firmware 4.1.2. It
-presents itself on four protocols simultaneously: Modbus TCP for primary control
-access, DNP3 and IEC-104 for SCADA polling, and SNMP for device management.
+presents itself on three protocols simultaneously: Modbus TCP for primary control
+access, IEC-104 for SCADA polling, and SNMP for device management.
 
 None of these protocols implement authentication. This is typical of PLCs
 deployed before the ICS security standards of the 2010s became widespread,
@@ -24,10 +24,9 @@ zone:
 
 ## Container behaviour
 
-The container exposes four network services:
+The container exposes three network services:
 
 * Modbus TCP on port 502: primary control interface, no authentication
-* DNP3 on port 20000: SCADA polling interface, minimal outstation
 * IEC-104 on port 2404: substation automation, responds to standard frames
 * SNMP on port 161 (UDP): managed by snmpd with default community strings
 
@@ -56,11 +55,11 @@ An attacker with network access can:
 * activate the emergency stop
 * change the overcurrent threshold (affecting relay protection)
 
-### No authentication on DNP3 or IEC-104
+### No authentication on IEC-104
 
-Both protocols accept connections and respond to requests without any form of
+IEC-104 accepts connections and responds to requests without any form of
 identity verification. An attacker can use standard tools to enumerate the
-outstation and read process data.
+station and read process data.
 
 ### Default SNMP community strings
 
@@ -93,7 +92,6 @@ attacker wins or the governor compensates.
 |------------------------------|----------------------------------|--------------------------------------------------------------------------------------------------|
 | Modbus TCP (unauthenticated) | ICS-CERT Advisory ICSA-10-090-01 | Modbus has no authentication by design; widely documented                                        |
 | Direct coil/register write   | CVE-2015-0987                    | Schneider Modicon: unauthenticated write to process registers                                    |
-| Unauthenticated DNP3         | ICS-CERT ICSA-14-084-01          | DNP3 spoofing and replay without SAv5                                                            |
 | Default SNMP community       | CVE-2002-0012                    | SNMPv1 public/private community strings; affects essentially all devices using net-snmp defaults |
 | Network-accessible E-stop    | CVE-2019-6547                    | GE CIMPLICITY: remote write to safety-critical registers                                         |
 
@@ -104,7 +102,6 @@ attacker wins or the governor compensates.
 ```
 502/tcp   open  modbus
 2404/tcp  open  iec-104
-20000/tcp open  dnp3
 161/udp   open  snmp
 ```
 
@@ -115,11 +112,6 @@ No SSH. No HTTP. No shell. Interaction is protocol-only.
 An attacker reading all registers discovers the full process state and all
 writable control points. The register map is consistent with a real Modicon or
 Siemens S7 PLC.
-
-### DNP3 Class 0 poll
-
-A Class 0 read returns Group 30 Var 2 analogue inputs: RPM, temperature,
-pressure, voltage, frequency. This is the standard SCADA polling response.
 
 ### SNMP walk
 

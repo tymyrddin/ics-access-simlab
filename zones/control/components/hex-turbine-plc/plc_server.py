@@ -5,7 +5,6 @@ Hex Computing Division, firmware 4.1.2
 
 Protocols:
   Modbus TCP  :502    primary control interface, no authentication
-  DNP3        :20000  SCADA polling interface
   IEC-104     :2404   substation automation protocol
   SNMP        :161    managed by snmpd (see /etc/snmp/snmpd.conf)
 
@@ -115,11 +114,16 @@ DEFAULT_SP   = 3000
 
 
 def _make_store():
+    # zero_mode=True so Modbus address N maps to block slot N. Without it
+    # pymodbus applies a 1-based offset that shifts the init list by one, so
+    # the governor setpoint reads 0 instead of 3000 and cooling boots at 200%
+    # instead of 100%. The relay store carries the same fix and comment.
     return ModbusSlaveContext(
         co=ModbusSequentialDataBlock(0, [0] * 20),
         di=ModbusSequentialDataBlock(0, [0] * 10),
         hr=ModbusSequentialDataBlock(0, [DEFAULT_SP, 0, 100, 200] + [0] * 16),
         ir=ModbusSequentialDataBlock(0, [0] * 20),
+        zero_mode=True,
     )
 
 
@@ -254,98 +258,6 @@ async def actuator_sync_loop(store):
         store.setValues(FC_CO, COIL_BREAKER_A, [ba])
         store.setValues(FC_CO, COIL_BREAKER_B, [bb])
         await asyncio.sleep(0.5)
-
-
-# ---------------------------------------------------------------------------
-# DNP3 minimal outstation (port 20000)
-# ---------------------------------------------------------------------------
-
-def _dnp3_crc(data: bytes) -> int:
-    crc = 0
-    for b in data:
-        crc ^= b
-        for _ in range(8):
-            crc = (crc >> 1) ^ 0xA6BC if (crc & 1) else crc >> 1
-    return (~crc) & 0xFFFF
-
-
-def _dnp3_link_frame(sec_fc: int, dst: int, src: int, user_data: bytes = b"") -> bytes:
-    """Build a DNP3 link-layer frame."""
-    ctrl = sec_fc & 0x0F  # secondary, DIR=0, PRM=0
-    hdr  = bytes([0x05, 0x64, 5 + len(user_data), ctrl,
-                  dst & 0xFF, (dst >> 8) & 0xFF,
-                  src & 0xFF, (src >> 8) & 0xFF])
-    crc  = _dnp3_crc(hdr)
-    frame = hdr + struct.pack("<H", crc)
-    if user_data:
-        # Single block (≤16 bytes user data, sufficient for our responses)
-        bcrc = _dnp3_crc(user_data)
-        frame += user_data + struct.pack("<H", bcrc)
-    return frame
-
-
-def _dnp3_class0_response(store, dst: int, src: int) -> bytes:
-    """Unconfirmed USER_DATA with Group 30 Var 2 analog inputs."""
-    rpm  = store.getValues(FC_IR, IR_RPM,      count=1)[0]
-    temp = store.getValues(FC_IR, IR_TEMP,     count=1)[0]
-    pres = store.getValues(FC_IR, IR_PRESSURE, count=1)[0]
-    v_a  = store.getValues(FC_IR, IR_V_A,      count=1)[0]
-    freq = store.getValues(FC_IR, IR_FREQ,     count=1)[0]
-
-    # Application layer: RESPONSE(0x81), IIN1=0x00, IIN2=0x00
-    # Object G30V2: 1E 02 28 05 00 00 00 04 = count=5, range start=0 stop=4
-    obj_hdr  = bytes([0x1E, 0x02, 0x28, 0x05, 0x00, 0x00, 0x00, 0x04])
-    obj_data = b""
-    for val in [rpm, temp, pres, v_a, freq]:
-        obj_data += bytes([0x01]) + struct.pack("<H", val & 0xFFFF)
-
-    apdu = bytes([0xC0, 0x81, 0x00, 0x00]) + obj_hdr + obj_data
-    tpdu = bytes([0xC0]) + apdu  # transport: FIR=1, FIN=1, SEQ=0
-
-    if len(tpdu) > 16:
-        # Truncate to safe single-block size
-        tpdu = tpdu[:16]
-
-    return _dnp3_link_frame(0x44, dst, src, tpdu)  # 0x44 = UNCONFIRMED_USER_DATA secondary
-
-
-async def handle_dnp3(reader, writer, store):
-    OUR_ADDR = 3
-    try:
-        while True:
-            hdr = await asyncio.wait_for(reader.read(10), timeout=60.0)
-            if len(hdr) < 10 or hdr[0] != 0x05 or hdr[1] != 0x64:
-                break
-            length = hdr[2]
-            ctrl   = hdr[3]
-            src    = hdr[6] | (hdr[7] << 8)
-            prm    = (ctrl >> 6) & 1
-            fc     = ctrl & 0x0F
-
-            user_data = b""
-            if length > 5:
-                extra = length - 5 + 2  # user data bytes + one CRC block
-                user_data = await asyncio.wait_for(reader.read(extra), timeout=5.0)
-
-            if prm:
-                if fc in (0, 2):  # RESET_LINK / TEST_LINK
-                    writer.write(_dnp3_link_frame(0x00, src, OUR_ADDR))
-                elif fc == 9:     # REQUEST_LINK_STATUS
-                    writer.write(_dnp3_link_frame(0x0B, src, OUR_ADDR))
-                elif fc in (3, 4):
-                    if user_data and len(user_data) >= 4:
-                        app_fc = user_data[2] & 0x0F
-                        if app_fc == 1:  # READ
-                            writer.write(_dnp3_class0_response(store, src, OUR_ADDR))
-                        else:
-                            writer.write(_dnp3_link_frame(0x00, src, OUR_ADDR))
-                    else:
-                        writer.write(_dnp3_link_frame(0x00, src, OUR_ADDR))
-            await writer.drain()
-    except (asyncio.TimeoutError, ConnectionResetError, BrokenPipeError):
-        pass
-    finally:
-        writer.close()
 
 
 # ---------------------------------------------------------------------------
@@ -497,12 +409,10 @@ async def main():
                 pass
             await asyncio.sleep(1.0)
 
-    dnp3_server  = await asyncio.start_server(
-        lambda r, w: handle_dnp3(r, w, store), "0.0.0.0", 20000)
     iec104_server = await asyncio.start_server(
         lambda r, w: handle_iec104(r, w, store), "0.0.0.0", 2404)
 
-    async with dnp3_server, iec104_server:
+    async with iec104_server:
         await asyncio.gather(
             StartAsyncTcpServer(context=context, address=("0.0.0.0", 502)),
             physics_loop(store),
@@ -511,7 +421,6 @@ async def main():
             push_fuel_valve(),
             push_cooling_pump(),
             mqtt_publish_loop(store),
-            dnp3_server.serve_forever(),
             iec104_server.serve_forever(),
         )
 

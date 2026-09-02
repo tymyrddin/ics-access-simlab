@@ -60,7 +60,7 @@ Virtual Windows profile at `/opt/win10/C/Users/engineer/`. Key contents:
   uupl-historian, SCADA, HMI, and relay IEDs
 - `Documents\mqtt_topics.txt`: MQTT topic reference listing all published topics,
   payload fields, and the DMZ bridge
-- `Documents\telemetry_sample_2024-01-20.log`: 24 lines of captured turbine
+- `Documents\telemetry_sample_2026-01-20.log`: 24 lines of captured turbine
   telemetry at steady-state, showing normal operating ranges
 - `Documents\snmp_plc_2024-03-15.txt`: snmpwalk output from the turbine PLC,
   including sysDescr, sysLocation, and a note that `rwcommunity private` is active

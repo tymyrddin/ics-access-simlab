@@ -61,7 +61,7 @@ port     = 502
 protocol = modbus-tcp
 unit_id  = 1
 notes    = Main turbine PLC. Coil 0 = emergency stop.
-           Also: DNP3 :20000, IEC-104 :2404, SNMP :161 (community: public)
+           Also: IEC-104 :2404, SNMP :161 (community: public)
            DO NOT write coil 0 without coordination with the duty engineer.
 
 [uupl-relay-a]
@@ -805,7 +805,7 @@ Operational zone (10.10.2.0/24):
 
 Control zone (10.10.3.0/24):
   10.10.3.10   uupl-hmi        operator / operator (SSH + web :8080)
-  10.10.3.21   hex-turbine-plc admin / turbineadmin (Modbus :502, DNP3 :20000)
+  10.10.3.21   hex-turbine-plc admin / turbineadmin (Modbus :502, IEC-104 :2404)
   10.10.3.31   uupl-relay-a    admin / relay1234 (Modbus :502, web :8081)
   10.10.3.32   uupl-relay-b    admin / relay1234 (Modbus :502, web :8081)
   10.10.3.33   uupl-meter      (read-only, no auth)

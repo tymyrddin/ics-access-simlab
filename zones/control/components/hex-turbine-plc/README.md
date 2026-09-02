@@ -16,7 +16,7 @@ Industrial PLCs commonly expose Modbus TCP with no authentication: the network
 IS the access control, and the assumption is that the control network is
 isolated. In practice the isolation fails, and the result is that any host with
 a route to port 502 can read any register and write any setpoint. Multi-protocol
-devices (Modbus + DNP3 + IEC-104 + SNMP) are common in generation plant: each
+devices (Modbus + IEC-104 + SNMP) are common in generation plant: each
 protocol was added at a different time for a different integration, and none were
 decommissioned when the next one arrived.
 
@@ -31,7 +31,6 @@ control loops simultaneously.
 
 Exposed ports (on 10.10.3.21):
 - 502/tcp: Modbus TCP (no authentication)
-- 20000/tcp: DNP3 (minimal outstation, responds to Read FC)
 - 2404/tcp: IEC-104 (Type 9 periodic measurements, live register data)
 - 161/udp: SNMP (community `public` read, `private` read-write)
 - 4840/tcp: OPC-UA (sidecar `hex-turbine-opcua`, SecurityMode None, anonymous auth; see `../hex-turbine-opcua/README.md`)
@@ -69,7 +68,6 @@ MQTT: publishes telemetry to `uupl/turbine/telemetry` on the broker at
 ## Protocols
 
 Modbus TCP: port 502.
-DNP3: port 20000.
 IEC-104: port 2404 (live turbine data: RPM, temperature, voltage, frequency).
 OPC-UA: port 4840 (sidecar, see `opcua-sidecar/README.md`).
 SNMP: UDP port 161.
@@ -117,9 +115,8 @@ at the top of `plc_server.py`.
 
 Restrict network access to port 502 to the specific hosts that legitimately need
 it (engineering workstation, HMI). Change SNMP community strings. Disable the
-`private` (read-write) community entirely. Consider whether DNP3 and IEC-104
-need to be simultaneously active; each additional protocol surface increases
-exposure.
+`private` (read-write) community entirely. Consider whether IEC-104 needs to be active alongside Modbus; each additional
+protocol surface increases exposure.
 
 ## Observability and debugging
 
@@ -161,10 +158,6 @@ Read all input registers (plant state telemetry):
 ```bash
 python3 -c "from pymodbus.client import ModbusTcpClient; c=ModbusTcpClient('10.10.3.21',502); c.connect(); print(c.read_input_registers(0,11,slave=1).registers)"
 ```
-
-DNP3 class 0 read (requires a DNP3 client library such as OpenDNP3 or dnp3-python):
-connect to 20000/tcp and send a READ request; the outstation responds with RPM,
-temperature, voltage, and frequency.
 
 ## Edge cases
 

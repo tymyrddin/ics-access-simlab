@@ -2,7 +2,7 @@
 # Driver: run all control zone smoke tests.
 #
 # Covers the control zone hosts:
-#   hex-turbine-plc   10.10.3.21  turbine PLC (Modbus, IEC-104, DNP3, OPC-UA, SNMP)
+#   hex-turbine-plc   10.10.3.21  turbine PLC (Modbus, IEC-104, OPC-UA, SNMP)
 #   uupl-relay-a      10.10.3.31  protective relay IED A (Modbus, HTTP, SNMP, MQTT)
 #   uupl-relay-b      10.10.3.32  protective relay IED B (Modbus, HTTP, SNMP, MQTT)
 #   uupl-hmi          10.10.3.10  FUXA HMI (unauthenticated project read/write)

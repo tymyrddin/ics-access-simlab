@@ -7,7 +7,7 @@
 # attacker with a shell there would have.
 #
 # Coverage:
-#   Connectivity: Modbus :502, IEC-104 :2404, DNP3 :20000, OPC-UA :4840
+#   Connectivity: Modbus :502, IEC-104 :2404, OPC-UA :4840
 #   SNMP: sysDescr identifies as HEX-CPU-4000 Turbine PLC
 #   Modbus: turbine is running (RPM > 0); governor setpoint readable
 #   IEC-104: STARTDT handshake returns STARTDT_CON
@@ -29,7 +29,7 @@ require_running "$PLC"
 
 echo "[hex-turbine-plc] Connectivity"
 
-for port in 502 2404 20000 4840; do
+for port in 502 2404 4840; do
     if probe_tcp control "$PLC_IP" "$port"; then
         ok "port $port open on hex-turbine-plc"
     else

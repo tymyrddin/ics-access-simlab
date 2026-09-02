@@ -41,12 +41,12 @@ docs/
 docs/*
 challenges/
 challenges/*
-state.md
+docs/state.md
 to-investigate.md
 books/
 books/*
 plan.md
-CODE-AUDIT.md
+docs/code-audit.md
 
 # captured traffic, too large for git
 data/pcap/

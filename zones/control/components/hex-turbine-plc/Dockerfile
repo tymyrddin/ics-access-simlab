@@ -17,6 +17,6 @@ COPY plc_server.py /opt/plc/plc_server.py
 COPY entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 
-EXPOSE 502 20000 2404 161/udp
+EXPOSE 502 2404 161/udp
 
 ENTRYPOINT ["/entrypoint.sh"]

@@ -181,7 +181,7 @@ def test_eng_ws_document_artefacts():
     content = ENG_WS_ENTRYPOINT.read_text()
     assert "mqtt_topics.txt" in content, "mqtt_topics.txt heredoc missing"
     assert "freq_x10" in content, "mqtt_topics.txt explains freq_x10 scaling"
-    assert "telemetry_sample_2024-01-20.log" in content, "telemetry_sample heredoc missing"
+    assert "telemetry_sample_2026-01-20.log" in content, "telemetry_sample heredoc missing"
     assert "snmp_plc_2024-03-15.txt" in content, "snmp_walk heredoc missing"
     assert "rwcommunity" in content, "snmp_walk notes rwcommunity is active"
     assert "grafana_turbine_panel.json" in content, "grafana_turbine_panel heredoc missing"
