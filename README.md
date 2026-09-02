@@ -2,23 +2,23 @@
 
 ![OT/ICS Simlab](assets/ot-ics-simlab-repo.png)
 
-A multi-zone Industrial Control System simulation built for realistic red team exercises and CTF scenarios. The
-environment models the operational infrastructure of Unseen University Power & Light Co., Ankh-Morpork's primary
-utility provider with an infrastructure assembled over decades, documentation patchy, cybersecurity posture: emergent.
+A multi-zone industrial control system for red-team practice and CTFs. It models Unseen University
+Power & Light Co., Ankh-Morpork's electricity utility: infrastructure bolted together over decades,
+documentation patchy, security posture emergent.
 
-Five network zones (internet, enterprise, operational, control, dmz) are separated by FRR-routed boundaries with
-real iptables forwarding policy. Vulnerabilities are properties of the simulated systems, not configuration
-options. Consequences emerge from what players actually do.
+Five zones (internet, enterprise, operational, control, dmz) sit behind FRR-routed boundaries with
+real iptables forwarding policy. Vulnerabilities are properties of the devices, not switches in a
+config file. Nothing scripts the outcome. It follows from what a player does.
 
-The data plane runs on real Linux bridges with explicit veth links, orchestrated by
-[containerlab](https://containerlab.dev/). A top-level YAML config selects the topology and component variants;
-a code generator produces the per-zone topology files and the container-build manifests from this config. The
-environment runs on a single Linux host.
+The data plane is real Linux bridges wired with explicit veth links and driven by
+[containerlab](https://containerlab.dev/). One top-level YAML file picks the topology and the
+component variants, and a generator turns it into the per-zone topologies and build manifests. It
+all runs on a single Linux host.
 
 ## Dependencies
 
-Linux only. Docker's fixed-IP bridge networking requires Linux. Docker Desktop on macOS/Windows uses a VM and
-the zone topology will not behave as designed.
+Linux only. Fixed-IP bridge networking needs it. Docker Desktop on macOS or Windows runs in a VM,
+and the zone topology will not behave as designed there.
 
 | Dependency     | Version     | Notes                                                                |
 |----------------|-------------|----------------------------------------------------------------------|
@@ -32,7 +32,7 @@ the zone topology will not behave as designed.
 
 ## Hardware
 
-The full environment runs ~35 containers simultaneously.
+About 35 containers run at once.
 
 | Resource | Minimum    | Recommended |
 |----------|------------|-------------|
@@ -40,7 +40,7 @@ The full environment runs ~35 containers simultaneously.
 | CPU      | 2 cores    | 4 cores     |
 | Disk     | 10 GB free | 20 GB free  |
 
-A Hetzner CX32 (4 vCPU / 8 GB) runs the full stack comfortably.
+A Hetzner CX32 (4 vCPU / 8 GB) carries the full stack without complaint.
 
 ## Quickstart
 
@@ -51,15 +51,13 @@ A Hetzner CX32 (4 vCPU / 8 GB) runs the full stack comfortably.
 ./ctl down        # destroy clab labs, remove host bridges (sudo)
 ```
 
-On first `./ctl up`, a dedicated ed25519 keypair (`lab-key` / `lab-key.pub`) is generated in the repo root and
-registered for user `ponder`. Use `./ctl ssh [user]` to connect: it selects the lab key automatically, so
-participants with many keys in their SSH agent won't hit authentication failures.
+The first `./ctl up` generates an ed25519 keypair (`lab-key` / `lab-key.pub`) in the repo root and
+registers it for the `ponder` account. `./ctl ssh [user]` picks that key for you, so an agent full
+of other keys does not trip the login.
 
-`lab-key` is the operator key, never distributed to participants. For Hetzner deployments, run
-`./ctl cohort-keys` to generate a separate participant keypair and distribute `cohort-key` to the cohort.
-
-Both keypairs are gitignored. On a shared or cloud host, restrict repo directory permissions so other local
-users cannot read them (`chmod 700 .` or equivalent).
+`lab-key` is the operator key and never goes to participants. For a cohort, `./ctl cohort-keys`
+mints a separate `cohort-key` to hand out. Both keypairs are gitignored. On a shared or cloud host,
+lock the repo directory down (`chmod 700 .`) so other local users cannot read them.
 
 ### All `./ctl` commands
 
@@ -74,42 +72,43 @@ users cannot read them (`chmod 700 .` or equivalent).
 | `./ctl clean`            | `down` + remove generated files                                    |
 | `./ctl purge`            | `clean` + remove all images + prune build cache                    |
 
-The active config defaults to `orchestrator/ctf-config.yaml`. To run a different
-config, point `CONFIG` at it:
+The config defaults to `orchestrator/ctf-config.yaml`. Point `CONFIG` at another file to run a
+different one:
 ```bash
 CONFIG=path/to/other-config.yaml ./ctl up
 ```
 
 ## Authentication modes
 
-The attacker machine supports two auth modes, set via `auth_mode` in `ctf-config.yaml`:
+The attacker machine takes two auth modes, set by `auth_mode` in `ctf-config.yaml`.
 
 | Mode            | Use case                                              | How it works                                                                              |
 |-----------------|-------------------------------------------------------|-------------------------------------------------------------------------------------------|
 | `key` (default) | Self-hosted, Hetzner, local dev                       | Pubkey auth. Keys from `adversary-keys`. `./ctl ssh` selects the right key automatically. |
 | `password`      | Root-Me and platforms that publish connection strings | Password auth. Credentials set from `accounts:` in config, no key file needed.            |
 
-Key mode (default, local dev and Hetzner):
+Key mode is the default, for local dev and Hetzner. `./ctl up` handles the keys, as above.
+
 ```yaml
 attacker_machine:
   auth_mode: key
 ```
-`./ctl up` generates a dedicated `lab-key` / `lab-key.pub` and registers it for `ponder` (operator access).
-Connect with `./ctl ssh ponder`. For Hetzner, run `./ctl cohort-keys` to generate a separate participant
-keypair and distribute `cohort-key` to the cohort before deploying.
 
-Password mode (Root-Me):
+Password mode is for Root-Me and platforms that publish the connection string in the room info.
+
 ```yaml
 attacker_machine:
   auth_mode: password
   accounts:
-    ponder:   ponder
-    hex:      hex
+    ponder: ponder
+    hex: hex
     ridcully: wizzard
     librarian: books
-    dean:     dean
+    dean: dean
 ```
-Credentials are published in the room info on the CTF platform:
+
+For example:
+
 ```
 ssh ponder@ctf01.root-me.org -p 22222   (password: ponder)
 ssh hex@ctf01.root-me.org    -p 22222   (password: hex)
@@ -117,7 +116,7 @@ ssh hex@ctf01.root-me.org    -p 22222   (password: hex)
 
 ## Network topology
 
-Six host-side Linux bridges, each mapped to a Purdue model layer:
+Six host-side Linux bridges, one per Purdue layer:
 
 | Bridge            | Subnet       | Zone                            |
 |-------------------|--------------|---------------------------------|
@@ -128,24 +127,24 @@ Six host-side Linux bridges, each mapped to a Purdue model layer:
 | `ics_dmz`         | 10.10.5.0/24 | DMZ: Guild Quarter              |
 | `ics_wan`         | 10.10.4.0/24 | OT/RTU WAN (placeholder)        |
 
-The bridges are real Linux bridges (`ip link add ... type bridge`), created and destroyed by
-`infrastructure/clab-up.sh` / `clab-down.sh` (one sudo prompt per session). They have no host-side IPs,
-no docker-managed gateway, no NAT rule. Containers attach to them via explicit veth links declared in
-the per-zone clab topologies under [`clab/`](clab/).
+These are ordinary Linux bridges (`ip link add ... type bridge`), created and torn down by
+`infrastructure/clab-up.sh` and `clab-down.sh`, one sudo prompt a session. No host IP, no docker
+gateway, no NAT. Containers hang off them by the explicit veth links in the per-zone topologies
+under [`clab/`](clab/).
 
-Key dual-homed hosts: `wizzards-retreat` (internet + enterprise + operational), `bursar-desk`
-(enterprise + operational), `uupl-eng-ws` (operational + control),
-`uupl-modbus-gw` (operational + control), `contractors-gate` (dmz + enterprise).
+The dual-homed hosts are where one zone bleeds into the next: `wizzards-retreat` (internet +
+enterprise + operational), `bursar-desk` (enterprise + operational), `uupl-eng-ws` (operational +
+control), `uupl-modbus-gw` (operational + control), `contractors-gate` (dmz + enterprise).
 
 ## Inter-zone routing
 
-Zone isolation is enforced by five FRR + iptables router containers, one per trust boundary. Each
-router has two zone interfaces, runs FRR (zebra + staticd) for routing and iptables for forwarding
-policy, and exposes a visitor-discoverable SSH admin plane (`admin` / `admin` lands directly in
-`vtysh`; `enable` password `uupl-router` opens configure mode). The forwarding ACL still comes from
-`infrastructure/routers/generated/<router>-acl.sh`, deny-by-default.
+Five FRR + iptables routers hold the trust boundaries, one per boundary. Each has an interface in
+two zones, runs FRR (zebra + staticd) and iptables, and answers on an SSH admin plane a visitor can
+find: `admin` / `admin` drops straight into `vtysh`, and `enable` password `uupl-router` opens
+configure mode. Forwarding is deny-by-default, from
+`infrastructure/routers/generated/<router>-acl.sh`.
 
-The five gateways (interface IPs from `frr.conf`):
+Interface IPs from `frr.conf`:
 
 | Router         | A side                       | B side                          |
 |----------------|------------------------------|---------------------------------|
@@ -160,44 +159,34 @@ limitations (notably the upstream Scada-LTS schema migration bug).
 
 ## Hetzner deployment
 
-One-time host setup (run once as root on a fresh instance):
+Once, as root on a fresh box:
 ```bash
 bash zones/internet/components/unseen-gate/setup.sh
 ```
-This moves the host sshd to port 2222. Reconnect on 2222 for all future host admin.
+This moves the host sshd to port 2222. Reconnect there for host admin from then on.
 
-Generate a participant keypair before deploying:
+Mint the cohort key, then set the attacker SSH port to 22 (local dev uses 2222):
+
 ```bash
 ./ctl cohort-keys
 ```
-This creates `cohort-key` / `cohort-key.pub` in the repo root and writes the public key into
-`adversary-keys` for all five accounts. Distribute `cohort-key` (the private key) to participants
-via the briefing doc or a secure channel. Running `./ctl cohort-keys` again generates a fresh
-keypair and replaces the previous one cleanly, useful between cohorts.
 
-Restrict repo directory permissions so the deploy user's private key is not world-readable:
-```bash
-chmod 700 /path/to/ics-access-simlab
-```
+and 
 
-Set SSH port to 22 in `ctf-config.yaml` (default is 2222 for local dev):
 ```yaml
 attacker_machine:
   ssh_host_port: 22
 ```
 
-Deploy:
+`cohort-key` (the private key) goes to participants via the briefing or a secure channel. Running
+`./ctl cohort-keys` again rotates it cleanly between cohorts. Lock the repo directory so the key is
+not world-readable (`chmod 700 /path/to/ics-access-simlab`), then deploy:
+
 ```bash
 ./ctl up
 ```
-
-(`./ctl up` itself prompts for sudo once when it creates the host Linux bridges via
-`infrastructure/clab-up.sh`; no separate firewall step.)
-
-Participant access (Hetzner):
-```
-ssh ponder@<hetzner-ip>
-```
+Participants connect with `ssh ponder@<hetzner-ip>`. The only sudo prompt is `./ctl up` creating
+the host bridges.
 
 ## Testing
 
@@ -214,9 +203,8 @@ make test
 
 ### Lab smoke tests
 
-Once the lab is up (`./ctl up`), the smoke tests exercise each attack chain
-end-to-end against the running stack. There is one script per chain in
-`tests/smoke/`. Run them all:
+Once the lab is up, the smoke tests exercise each attack chain end-to-end against the running stack,
+one script per chain in `tests/smoke/`. Run them all:
 
 ```bash
 make test-smoke
@@ -229,17 +217,16 @@ bash tests/smoke/test_dmz_sorting_office.sh
 bash tests/smoke/test_hex_legacy_facade.sh
 ```
 
-Each test asserts on visitor-realistic behaviour: passwords authenticate, files
-leak via the documented paths, modbus / IEC-104 / OPC-UA / TLS probes complete,
-facade shells return command output. Helpers live in `tests/smoke/lib.sh`; SSH
-probes run inside `unseen-gate` (paramiko in its attacker venv) and chain through
-`wizzards-retreat` for enterprise and operational targets, so no test-only
-dependencies are added to lab containers.
+Each test asserts on visitor-realistic behaviour: passwords authenticate, files leak via the
+documented paths, modbus / IEC-104 / OPC-UA / TLS probes complete, facade shells return command
+output. Helpers live in `tests/smoke/lib.sh`. SSH probes run inside `unseen-gate` (paramiko in its
+attacker venv) and chain through `wizzards-retreat` for enterprise and operational targets, so no
+test-only dependencies leak into the lab containers.
 
 ## Configuration
 
-Edit `orchestrator/ctf-config.yaml` to change topology, addressing, or component variants, then run `./ctl up`.
-Compose files are always regenerated from the config; don't edit them directly.
+Edit `orchestrator/ctf-config.yaml` for topology, addressing, or component variants, then `./ctl
+up`. The compose files are regenerated on every run, so editing them by hand is wasted effort.
 
 ## Contributing
 
@@ -251,17 +238,14 @@ Contributions welcome:
 - Security rules and detection logic
 - Hardening variants for existing components
 
-Each device component keeps its own `runbook.md` alongside the Dockerfile.
-Per-device runbooks are the canonical reference for that component.
+Before adding tests, read [tests/README.md](tests/README.md) for
+dependency ordering, and fix the architecture, not the test.
 
-Before adding tests, read [tests/README.md](tests/README.md) for dependency ordering.
-Respect the layering: *fix the architecture, not the test*.
+## Licence and usage
 
-## License and usage
+Licensed under the [Polyform Noncommercial Licence](LICENSE).
 
-This project is licensed under the [Polyform Noncommercial Licence](LICENSE).
-
-You are welcome to use this software for:
+Fair game:
 
 - Learning and experimentation
 - Academic or independent research
@@ -270,23 +254,17 @@ You are welcome to use this software for:
 - Incident response exercises
 - Non-commercial red/blue team simulations
 
-You may not use this software for:
+Not without a commercial licence:
 
 - Paid workshops or training
 - Consultancy or advisory services
 - Internal corporate training
 - Commercial product development
 
-If you want to use this project in a paid or commercial context, a commercial licence is required.
-See [COMMERCIAL-LICENSE.md](COMMERCIAL-LICENSE.md) for details.
+For a paid or commercial context, a commercial licence is required. See
+[COMMERCIAL-LICENSE.md](COMMERCIAL-LICENSE.md). If the use case is a grey area,
+[ambiguity is solvable](https://tymyrddin.dev/contact/); silence is not.
 
-This project is actively developed and maintained to support realistic security research and training.
-The licence ensures that:
-
-- Security research remains accessible
-- Defensive knowledge can spread
-- Commercial exploitation is fair and sustainable
-
-If you are unsure whether your use case is commercial, ask. [Ambiguity is solvable](https://tymyrddin.dev/contact/); silence is not.
+---
 
 *"The thing about electricity is, once it's out of the bottle, you can't put it back."* ~ Archchancellor Ridcully (probably)

@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
-# ctl — ICS-SimLab lab control
+# ctl: ICS-SimLab lab control
 #
 # Usage:
 #   ./ctl <command>
-#   CONFIG=orchestrator/configs/smart-grid.yaml ./ctl <command>
+#   CONFIG=path/to/config.yaml ./ctl <command>
 #
 # Commands:
 #   up        generate + start everything, print SSH command
@@ -18,16 +18,12 @@ set -euo pipefail
 REPO="$(cd "$(dirname "$0")" && pwd)"
 cd "$REPO"
 
-# BuildKit attaches OCI provenance attestations to every image by default.
-# This requires fetching metadata from the registry and hangs in lab environments.
+# Disable OCI provenance attestations; the registry metadata fetch hangs in lab environments.
 export BUILDX_NO_DEFAULT_ATTESTATIONS=1
 
 CONFIG="${CONFIG:-orchestrator/ctf-config.yaml}"
 CMD="${1:-help}"
 
-# ---------------------------------------------------------------------------
-# Helpers
-# ---------------------------------------------------------------------------
 
 _ssh_port() {
     python3 -c "
@@ -69,8 +65,7 @@ _compose_purge() {
     [ -f "$f" ] && docker compose -f "$f" down --rmi all 2>/dev/null || true
 }
 
-# Build the application images for a zone via compose. clab/clab-up.sh
-# starts them later from the topology files; compose never does.
+# Builds zone images only; clab-up.sh starts them from the topology files.
 _compose_build() {
     local f="$1"
     [ -f "$f" ] || return 0
@@ -78,10 +73,8 @@ _compose_build() {
 }
 
 _reset_relay_state() {
-    # Smoke tests can leave entries in the relay trip log (HR[10:19]). Zero
-    # them so the lab presents a deterministic baseline regardless of prior
-    # runs. The relay's pymodbus server starts before the protection loop's
-    # 10-second startup grace, so this lands without contention.
+    # Zero the relay trip log (HR[10:19]) for a deterministic baseline. The relay's
+    # pymodbus server is up before the protection loop's 10-second grace, so this lands uncontended.
     for relay in uupl-relay-a uupl-relay-b; do
         if ! docker ps --format '{{.Names}}' | grep -q "^${relay}$"; then
             continue
@@ -104,19 +97,15 @@ c.close()
 
 _ensure_keys() {
     local keys="zones/internet/components/unseen-gate/adversary-keys"
-    # Fix Docker-created directory (happens on first run before file exists)
     [ -d "$keys" ] && rmdir "$keys" 2>/dev/null || true
 
-    # Generate a dedicated lab keypair if not present.
-    # This avoids conflicts with keys already in the user's ssh-agent.
+    # Dedicated lab keypair avoids conflicts with keys in the user's ssh-agent.
     if [ ! -f lab-key ]; then
         ssh-keygen -t ed25519 -f lab-key -N "" -C "ics-simlab-lab-key" -q
         echo "[ctl] Generated lab-key / lab-key.pub (gitignored)"
     fi
 
-    # Always ensure the lab key is present for ponder — idempotent.
-    # Checks key content, not file emptiness, so cohort or other entries are preserved.
-    # For Hetzner deployments, run ./ctl cohort-keys to generate participant keys.
+    # Idempotent: matches on key content, not file emptiness, so cohort entries survive.
     local pubkey
     pubkey=$(cat lab-key.pub)
     if ! grep -qF "$pubkey" "$keys" 2>/dev/null; then
@@ -125,12 +114,10 @@ _ensure_keys() {
     fi
 }
 
-# Topology-aware NIC audit. Derives each node's expected in-lab address(es)
-# from the `ip addr add <ip>/<mask> dev ethN` lines in the clab topologies,
-# then checks the running container actually carries them. A missing secondary
-# NIC means the node came back single-homed after a restart (its clab veth was
-# not re-attached), which silently removes intended attack paths. See
-# docs/to-investigate.md, "DMZ veth lost when a clab node restarts".
+# NIC audit: derives each node's expected addresses from the `ip addr add ... dev ethN`
+# lines in the clab topologies and checks the running container carries them. A missing NIC
+# means the node came back single-homed after a restart (clab veth not re-attached), which
+# silently removes attack paths.
 _audit_nics() {
     local expect
     expect="$(python3 - <<'PY'
@@ -180,9 +167,6 @@ EOF
     fi
 }
 
-# ---------------------------------------------------------------------------
-# Commands
-# ---------------------------------------------------------------------------
 
 case "$CMD" in
 
@@ -223,21 +207,18 @@ case "$CMD" in
     ;;
 
   down)
-    # Tear clab labs down first. Use the generated helper if it exists,
-    # otherwise iterate the topology files directly so we still clean up
-    # if generate.py has not been run since the last edit.
+    # Use the generated helper if present, else iterate topology files directly so
+    # teardown still works when generate.py has not run since the last edit.
     if [ -x infrastructure/clab-down.sh ]; then
         echo "[ctl] Tearing clab zones down ..."
         bash infrastructure/clab-down.sh
     else
-        # Fallback path: clab-down.sh has not been generated yet. Use the
-        # same --cleanup flag so a stale state dir cannot block redeploy.
+        # --cleanup so a stale state dir cannot block redeploy.
         for t in clab/*-zone.clab.yaml; do
             [ -f "$t" ] && containerlab destroy --cleanup --topo "$t" 2>/dev/null || true
         done
     fi
-    # Defensive compose-down for anything that compose might have started
-    # (host port mappings, leftover services from earlier hybrid runs).
+    # Defensive compose-down for anything compose may have started (host ports, hybrid-run leftovers).
     echo "[ctl] Stopping zones ..."
     _compose_down zones/internet/docker-compose.yml
     _compose_down zones/dmz/docker-compose.yml
@@ -271,8 +252,7 @@ case "$CMD" in
 
     COHORT_PUB=$(cat "$REPO/cohort-key.pub")
 
-    # Rebuild adversary-keys: operator entry (lab-key) + fresh cohort entry per account.
-    # Running again replaces the previous cohort key cleanly.
+    # Rebuild adversary-keys: operator lab-key + fresh cohort key per account (rerun replaces cleanly).
     : > "$KEYS"
     if [ -f "$REPO/lab-key.pub" ]; then
         printf 'ponder %s\n' "$(cat "$REPO/lab-key.pub")" >> "$KEYS"
@@ -314,7 +294,7 @@ Step 2 verification
    # SSH path (rincewind / wizzard)
    ssh rincewind@10.10.0.10
 
-   # After SSH login — loot should be present:
+   # After SSH login, loot should be present:
    ls ~/.vpn/ ~/.ssh-keys/ ~/notes.txt
 
    # Use the loot key to reach eng-workstation:
@@ -322,10 +302,10 @@ Step 2 verification
 
 3. Firewall checks (from inside unseen-gate):
 
-   # Must FAIL — attacker machine is blocked from enterprise:
+   # Must FAIL, attacker machine is blocked from enterprise:
    nc -zv 10.10.1.10 22
 
-   # Must SUCCEED — run from wizzards-retreat (10.10.0.10):
+   # Must SUCCEED, run from wizzards-retreat (10.10.0.10):
    ssh rincewind@10.10.0.10
    nc -zv 10.10.1.10 22
 
@@ -387,7 +367,7 @@ Usage: ./ctl <command>
   clean         down + remove generated files
   purge         clean + remove all images
 
-  CONFIG=orchestrator/configs/smart-grid.yaml ./ctl up
+  CONFIG=path/to/config.yaml ./ctl up
 EOF
     ;;
 

@@ -52,11 +52,11 @@ async def poll_loop(store):
         try:
             regs = await asyncio.get_running_loop().run_in_executor(None, _read_plc)
             if regs:
-                v      = regs[3]   # line_voltage_a
-                i      = regs[4]   # line_current_a
-                freq   = regs[7]   # frequency_x10
-                power  = max(0, int(v * i * 0.95 / 1000))
-                pf     = 95        # fixed 0.95 power factor (simplified)
+                v = regs[3]  # line_voltage_a
+                i = regs[4]  # line_current_a
+                freq = regs[7]  # frequency_x10
+                power = max(0, int(v * i * 0.95 / 1000))
+                pf = 95  # fixed 0.95 power factor (simplified)
                 store.setValues(FC_IR, 0, [v, i, freq, power, pf])
         except Exception:
             pass
@@ -76,10 +76,10 @@ def _read_plc():
 
 
 async def main():
-    store   = _make_store()
+    store = _make_store()
     context = ModbusServerContext(slaves=store, single=True)
     await asyncio.gather(
-        StartAsyncTcpServer(context=context, address=("0.0.0.0", 502)),
+        StartAsyncTcpServer(context=context, address=('0.0.0.0', 502)),
         poll_loop(store),
     )
 

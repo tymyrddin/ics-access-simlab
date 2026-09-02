@@ -5,8 +5,8 @@ def set_initial(resources):
 
 
 def update_values(resources):
-    trip  = resources.get("trip_command")
-    close = resources.get("close_command")
+    trip  = resources.get('trip_command')
+    close = resources.get('close_command')
     state = resources.get("breaker_state")
     if trip.get_value():
         state.set_value(0)

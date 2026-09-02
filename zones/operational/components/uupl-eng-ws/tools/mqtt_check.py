@@ -1,8 +1,7 @@
 #!/usr/bin/env python3
-"""
-MQTT telemetry subscriber.
-Usage: python3 mqtt_check.py [broker_ip [topic]]
-Default: 10.10.3.60, topic uupl/turbine/telemetry
+"""Subscribe to an MQTT topic and print messages.
+
+Usage: python3 mqtt_check.py [broker_ip [topic]]  (default 10.10.3.60, uupl/turbine/telemetry)
 """
 import sys, warnings
 warnings.filterwarnings('ignore')

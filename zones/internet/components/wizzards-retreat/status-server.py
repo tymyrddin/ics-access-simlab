@@ -1,8 +1,5 @@
 #!/usr/bin/env python3
-"""
-Simple status endpoint for admin home VPN box.
-Provides basic system info for recon purposes.
-"""
+"""Status endpoint for the admin-home VPN box."""
 from flask import Flask, request
 import subprocess
 import datetime
@@ -12,12 +9,11 @@ app = Flask(__name__)
 
 @app.route('/status')
 def status():
-    # Basic auth check (weak creds: admin/admin)
+    # weak creds: admin/admin
     auth = request.authorization
     if not auth or auth.username != 'admin' or auth.password != 'admin':
         return 'Authentication required', 401, {'WWW-Authenticate': 'Basic realm="Admin Status"'}
 
-    # Gather basic system info
     try:
         uptime = subprocess.check_output(['uptime'], text=True).strip()
     except:
@@ -37,7 +33,6 @@ def status():
         'services': ['ssh', 'nfs', 'vpn']
     }
 
-    # Return as simple text for basic recon
     lines = [f"{k}: {v}" for k, v in status_info.items()]
     return '\n'.join(lines) + '\n', 200, {'Content-Type': 'text/plain'}
 

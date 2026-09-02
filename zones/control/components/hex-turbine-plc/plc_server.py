@@ -58,66 +58,64 @@ from pymodbus.client import AsyncModbusTcpClient
 
 logging.basicConfig(level=logging.WARNING)
 
-FUEL_VALVE_IP   = os.environ.get("ACTUATOR_FUEL_VALVE_IP",   "10.10.3.51")
-COOLING_PUMP_IP = os.environ.get("ACTUATOR_COOLING_PUMP_IP", "10.10.3.52")
-BREAKER_A_IP    = os.environ.get("ACTUATOR_BREAKER_A_IP",    "10.10.3.53")
-BREAKER_B_IP    = os.environ.get("ACTUATOR_BREAKER_B_IP",    "10.10.3.54")
-MQTT_BROKER_IP  = os.environ.get("MQTT_BROKER_IP",           "10.10.3.60")
+FUEL_VALVE_IP = os.environ.get("ACTUATOR_FUEL_VALVE_IP", '10.10.3.51')
+COOLING_PUMP_IP = os.environ.get('ACTUATOR_COOLING_PUMP_IP', "10.10.3.52")
+BREAKER_A_IP = os.environ.get('ACTUATOR_BREAKER_A_IP', "10.10.3.53")
+BREAKER_B_IP = os.environ.get("ACTUATOR_BREAKER_B_IP", "10.10.3.54")
+MQTT_BROKER_IP = os.environ.get('MQTT_BROKER_IP', "10.10.3.60")
 
 # Function codes
-FC_CO = 1   # coils
-FC_HR = 3   # holding registers
-FC_IR = 4   # input registers
+FC_CO = 1  # coils
+FC_HR = 3  # holding registers
+FC_IR = 4  # input registers
 
 # Coil addresses
-COIL_ESTOP       = 0
-COIL_ALM_SPEED   = 1
-COIL_ALM_TEMP    = 2
-COIL_ALM_PRESS   = 3
-COIL_ALM_VOLT    = 4
-COIL_BREAKER_A   = 5
-COIL_BREAKER_B   = 6
+COIL_ESTOP = 0
+COIL_ALM_SPEED = 1
+COIL_ALM_TEMP = 2
+COIL_ALM_PRESS = 3
+COIL_ALM_VOLT = 4
+COIL_BREAKER_A = 5
+COIL_BREAKER_B = 6
 
 # Holding register addresses
-HR_SETPOINT   = 0
+HR_SETPOINT = 0
 HR_FUEL_VALVE = 1
-HR_COOLING    = 2
-HR_OC_THRESH  = 3
+HR_COOLING = 2
+HR_OC_THRESH = 3
 
 # Input register addresses
-IR_RPM      = 0
-IR_TEMP     = 1
+IR_RPM = 0
+IR_TEMP = 1
 IR_PRESSURE = 2
-IR_V_A      = 3
-IR_I_A      = 4
-IR_V_B      = 5
-IR_I_B      = 6
-IR_FREQ     = 7
-IR_POWER    = 8
-IR_OIL      = 9
-IR_VIB      = 10
+IR_V_A = 3
+IR_I_A = 4
+IR_V_B = 5
+IR_I_B = 6
+IR_FREQ = 7
+IR_POWER = 8
+IR_OIL = 9
+IR_VIB = 10
 
 # Physics
-RPM_NOM      = 3000
-RPM_MAX      = 3600
-RPM_TRIP     = 3300
-TEMP_NOM     = 420
-TEMP_COLD    = 20
-TEMP_TRIP    = 490
-PRESS_NOM    = 85
-PRESS_TRIP   = 95
-VOLT_NOM     = 230
-CURR_NOM     = 150
-FREQ_NOM     = 50.0
-KP           = 0.8
-DEFAULT_SP   = 3000
+RPM_NOM = 3000
+RPM_MAX = 3600
+RPM_TRIP = 3300
+TEMP_NOM = 420
+TEMP_COLD = 20
+TEMP_TRIP = 490
+PRESS_NOM = 85
+PRESS_TRIP = 95
+VOLT_NOM = 230
+CURR_NOM = 150
+FREQ_NOM = 50.0
+KP = 0.8
+DEFAULT_SP = 3000
 
 
 def _make_store():
-    # zero_mode=True so Modbus address N maps to block slot N. Without it
-    # pymodbus applies a 1-based offset that shifts the init list by one, so
-    # the governor setpoint reads 0 instead of 3000 and cooling boots at 200%
-    # instead of 100%. The relay store carries the same fix and comment.
+    # zero_mode=True so Modbus address N maps to block slot N; without it
+    # pymodbus's 1-based offset shifts the init list (setpoint reads 0, cooling 200%).
     return ModbusSlaveContext(
         co=ModbusSequentialDataBlock(0, [0] * 20),
         di=ModbusSequentialDataBlock(0, [0] * 10),
@@ -130,8 +128,8 @@ def _make_store():
 async def physics_loop(store):
     """Turbine physics at 10 Hz. Startup ramp before entering steady loop."""
     state = {
-        "rpm": 0.0, "temp": float(TEMP_COLD),
-        "pressure": 0.0, "oil": 0.0, "vib": 1.0,
+        "rpm": 0.0, 'temp': float(TEMP_COLD),
+        "pressure": 0.0, "oil": 0.0, "vib": 1.0
     }
 
     # Ramp fuel valve from 0 to 60% over ~30 s
@@ -140,61 +138,54 @@ async def physics_loop(store):
         await asyncio.sleep(1.0)
 
     while True:
-        fuel   = store.getValues(FC_HR, HR_FUEL_VALVE, count=1)[0] / 100.0
-        cool   = store.getValues(FC_HR, HR_COOLING,    count=1)[0] / 100.0
-        ba     = store.getValues(FC_CO, COIL_BREAKER_A, count=1)[0]
-        bb     = store.getValues(FC_CO, COIL_BREAKER_B, count=1)[0]
-        estop  = store.getValues(FC_CO, COIL_ESTOP,     count=1)[0]
-        sp     = store.getValues(FC_HR, HR_SETPOINT,    count=1)[0] or DEFAULT_SP
+        fuel = store.getValues(FC_HR, HR_FUEL_VALVE, count=1)[0] / 100.0
+        cool = store.getValues(FC_HR, HR_COOLING,    count=1)[0] / 100.0
+        ba = store.getValues(FC_CO, COIL_BREAKER_A, count=1)[0]
+        bb = store.getValues(FC_CO, COIL_BREAKER_B, count=1)[0]
+        estop = store.getValues(FC_CO, COIL_ESTOP,     count=1)[0]
+        sp = store.getValues(FC_HR, HR_SETPOINT,    count=1)[0] or DEFAULT_SP
 
         if estop:
             fuel = 0.0
 
         rpm = state["rpm"]
 
-        # RPM: steam scales with governor setpoint so raising HR[0] above RPM_NOM
-        # actually drives the shaft above the overspeed trip threshold.
-        steam   = fuel * sp
-        drag    = (ba + bb) * 0.5 * rpm * 0.015
+        # raising setpoint HR[0] above RPM_NOM drives overspeed (attack path)
+        steam = fuel * sp
+        drag = (ba + bb) * 0.5 * rpm * 0.015
         rpm    += (steam - rpm) * 0.08 - drag * 0.05
-        rpm     = max(0.0, min(float(RPM_MAX), rpm + random.gauss(0, 5)))
+        rpm = max(0.0, min(float(RPM_MAX), rpm + random.gauss(0, 5)))
 
-        # Temperature
-        tload  = (rpm / RPM_NOM) * fuel * (1.0 - cool * 0.3)
-        t_tgt  = TEMP_COLD + tload * (TEMP_NOM - TEMP_COLD)
+        tload = (rpm / RPM_NOM) * fuel * (1.0 - cool * 0.3)
+        t_tgt = TEMP_COLD + tload * (TEMP_NOM - TEMP_COLD)
         state["temp"] += (t_tgt - state["temp"]) * 0.02 + random.gauss(0, 0.5)
 
-        # Pressure
         state["pressure"] += (fuel * PRESS_NOM - state["pressure"]) * 0.15
-        state["pressure"]  = max(0.0, state["pressure"] + random.gauss(0, 0.3))
+        state['pressure']  = max(0.0, state['pressure'] + random.gauss(0, 0.3))
 
-        # Oil pressure
-        state["oil"] += (cool * 8.0 - state["oil"]) * 0.1
-        state["oil"]  = max(0.0, state["oil"] + random.gauss(0, 0.05))
+        state['oil'] += (cool * 8.0 - state['oil']) * 0.1
+        state["oil"]  = max(0.0, state['oil'] + random.gauss(0, 0.05))
 
-        # Vibration
         dev = abs(rpm - RPM_NOM) / RPM_NOM if rpm > 0 else 0
         state["vib"] += (1.0 + dev * 15.0 - state["vib"]) * 0.05
         state["vib"]  = max(0.0, state["vib"] + random.gauss(0, 0.02))
 
         state["rpm"] = rpm
 
-        # Line values
-        frac   = rpm / RPM_NOM
-        freq   = int(FREQ_NOM * frac * 10)
-        v_a    = max(0, int(VOLT_NOM * frac * ba  + random.gauss(0, 1)))
-        v_b    = max(0, int(VOLT_NOM * frac * bb  + random.gauss(0, 1)))
-        i_a    = max(0, int(frac * CURR_NOM * ba  * 0.5 + random.gauss(0, 0.5)))
-        i_b    = max(0, int(frac * CURR_NOM * bb  * 0.5 + random.gauss(0, 0.5)))
-        n      = ba + bb
-        v_avg  = (v_a * ba + v_b * bb) / n if n else 0
-        power  = max(0, int(v_avg * (i_a + i_b) * 0.95 / 1000))
+        frac = rpm / RPM_NOM
+        freq = int(FREQ_NOM * frac * 10)
+        v_a = max(0, int(VOLT_NOM * frac * ba  + random.gauss(0, 1)))
+        v_b = max(0, int(VOLT_NOM * frac * bb  + random.gauss(0, 1)))
+        i_a = max(0, int(frac * CURR_NOM * ba  * 0.5 + random.gauss(0, 0.5)))
+        i_b = max(0, int(frac * CURR_NOM * bb  * 0.5 + random.gauss(0, 0.5)))
+        n = ba + bb
+        v_avg = (v_a * ba + v_b * bb) / n if n else 0
+        power = max(0, int(v_avg * (i_a + i_b) * 0.95 / 1000))
 
-        # Alarms
-        o_spd  = rpm > RPM_TRIP
-        o_tmp  = state["temp"] > TEMP_TRIP
-        o_prs  = state["pressure"] > PRESS_TRIP
-        u_vlt  = (v_a < VOLT_NOM * 0.85 or v_b < VOLT_NOM * 0.85) and n > 0
+        o_spd = rpm > RPM_TRIP
+        o_tmp = state["temp"] > TEMP_TRIP
+        o_prs = state["pressure"] > PRESS_TRIP
+        u_vlt = (v_a < VOLT_NOM * 0.85 or v_b < VOLT_NOM * 0.85) and n > 0
 
         if o_spd or o_tmp or o_prs:
             store.setValues(FC_CO, COIL_ESTOP, [1])
@@ -206,7 +197,7 @@ async def physics_loop(store):
 
         store.setValues(FC_IR, IR_RPM,      [max(0, int(rpm))])
         store.setValues(FC_IR, IR_TEMP,     [max(0, int(state["temp"]))])
-        store.setValues(FC_IR, IR_PRESSURE, [max(0, int(state["pressure"]))])
+        store.setValues(FC_IR, IR_PRESSURE, [max(0, int(state['pressure']))])
         store.setValues(FC_IR, IR_V_A,      [v_a])
         store.setValues(FC_IR, IR_I_A,      [i_a])
         store.setValues(FC_IR, IR_V_B,      [v_b])
@@ -227,7 +218,7 @@ async def governor_loop(store):
         if estop:
             store.setValues(FC_HR, HR_FUEL_VALVE, [0])
         else:
-            sp  = store.getValues(FC_HR, HR_SETPOINT,   count=1)[0] or DEFAULT_SP
+            sp = store.getValues(FC_HR, HR_SETPOINT,   count=1)[0] or DEFAULT_SP
             rpm = store.getValues(FC_IR, IR_RPM,         count=1)[0]
             cur = store.getValues(FC_HR, HR_FUEL_VALVE,  count=1)[0]
             err = sp - rpm
@@ -260,19 +251,15 @@ async def actuator_sync_loop(store):
         await asyncio.sleep(0.5)
 
 
-# ---------------------------------------------------------------------------
-# IEC-104 minimal server (port 2404)
-# ---------------------------------------------------------------------------
-
 _STARTDT_CON = bytes([0x68, 0x04, 0x0B, 0x00, 0x00, 0x00])
-_TESTFR_CON  = bytes([0x68, 0x04, 0x83, 0x00, 0x00, 0x00])
+_TESTFR_CON = bytes([0x68, 0x04, 0x83, 0x00, 0x00, 0x00])
 
 
 def _iec104_asdu(store, tx_seq: int) -> bytes:
     """Build a Type 9 (M_ME_NB_1) ASDU with RPM, temp, voltage, frequency."""
-    rpm  = store.getValues(FC_IR, IR_RPM,  count=1)[0]
+    rpm = store.getValues(FC_IR, IR_RPM,  count=1)[0]
     temp = store.getValues(FC_IR, IR_TEMP, count=1)[0]
-    v_a  = store.getValues(FC_IR, IR_V_A,  count=1)[0]
+    v_a = store.getValues(FC_IR, IR_V_A,  count=1)[0]
     freq = store.getValues(FC_IR, IR_FREQ, count=1)[0]
 
     # Each element: 2-byte normalized value (int16) + 1-byte quality
@@ -280,7 +267,7 @@ def _iec104_asdu(store, tx_seq: int) -> bytes:
     for val in [rpm, temp, v_a, freq]:
         # Normalize to -1.0..+1.0 range scaled to 0x0000..0x7FFF
         norm = min(0x7FFF, val * 10) & 0xFFFF
-        elements += struct.pack("<H", norm) + b"\x00"
+        elements += struct.pack('<H', norm) + b"\x00"
 
     # ASDU header: TypeID=9, VSQ=4 objects, COT=1 (periodic), OA=0, CA=1
     asdu = bytes([0x09, 0x04, 0x01, 0x00, 0x01, 0x00]) + \
@@ -292,10 +279,11 @@ def _iec104_asdu(store, tx_seq: int) -> bytes:
     return apci + asdu
 
 
+# FIXME: ASDU framing is minimal, not fully 60870-5-104 conformant
 async def handle_iec104(reader, writer, store):
     tx_seq = 0
     try:
-        # Send STARTDT_CON on connect (some masters send it first; we always accept)
+        # Send STARTDT_CON on connect; we always accept
         writer.write(_STARTDT_CON)
         await writer.drain()
 
@@ -310,7 +298,7 @@ async def handle_iec104(reader, writer, store):
             c1 = hdr[2]
             # U-frame detection: bits [1:0] of c1 == 11
             if (c1 & 0x03) == 0x03:
-                if c1 == 0x07:   # STARTDT_ACT
+                if c1 == 0x07:  # STARTDT_ACT
                     writer.write(_STARTDT_CON)
                 elif c1 == 0x43: # TESTFR_ACT
                     writer.write(_TESTFR_CON)
@@ -327,17 +315,8 @@ async def handle_iec104(reader, writer, store):
         writer.close()
 
 
-# ---------------------------------------------------------------------------
-# MQTT telemetry publisher
-# ---------------------------------------------------------------------------
-
 async def mqtt_publish_loop(store):
-    """Publish turbine telemetry to uupl/turbine/telemetry every 5 s.
-
-    Persistent paho connection with automatic reconnect (backoff 1-30 s).
-    Best-effort: MQTT unavailability does not stop the PLC.
-    allow_anonymous=true on the broker, no credentials required.
-    """
+    """Publish turbine telemetry to uupl/turbine/telemetry every 5 s (anonymous, best-effort)."""
     client = mqtt.Client()
     client.reconnect_delay_set(min_delay=1, max_delay=30)
     client.loop_start()
@@ -350,16 +329,16 @@ async def mqtt_publish_loop(store):
     while True:
         try:
             payload = json.dumps({
-                "rpm":       store.getValues(FC_IR, IR_RPM,      count=1)[0],
-                "temp_c":    store.getValues(FC_IR, IR_TEMP,     count=1)[0],
-                "pressure":  store.getValues(FC_IR, IR_PRESSURE, count=1)[0],
+                'rpm': store.getValues(FC_IR, IR_RPM,      count=1)[0],
+                "temp_c": store.getValues(FC_IR, IR_TEMP,     count=1)[0],
+                "pressure": store.getValues(FC_IR, IR_PRESSURE, count=1)[0],
                 "voltage_a": store.getValues(FC_IR, IR_V_A,      count=1)[0],
                 "voltage_b": store.getValues(FC_IR, IR_V_B,      count=1)[0],
                 "current_a": store.getValues(FC_IR, IR_I_A,      count=1)[0],
                 "current_b": store.getValues(FC_IR, IR_I_B,      count=1)[0],
-                "freq_x10":  store.getValues(FC_IR, IR_FREQ,     count=1)[0],
-                "power_kw":  store.getValues(FC_IR, IR_POWER,    count=1)[0],
-                "estop":     store.getValues(FC_CO, COIL_ESTOP,  count=1)[0],
+                'freq_x10': store.getValues(FC_IR, IR_FREQ,     count=1)[0],
+                'power_kw': store.getValues(FC_IR, IR_POWER,    count=1)[0],
+                "estop": store.getValues(FC_CO, COIL_ESTOP,  count=1)[0]
             })
             client.publish("uupl/turbine/telemetry", payload, qos=0)
         except Exception:
@@ -367,22 +346,15 @@ async def mqtt_publish_loop(store):
         await asyncio.sleep(5.0)
 
 
-# ---------------------------------------------------------------------------
-# Main
-# ---------------------------------------------------------------------------
-
 async def main():
-    store   = _make_store()
+    store = _make_store()
     context = ModbusServerContext(slaves=store, single=True)
 
-    # Initialise breakers as closed, estop clear
     store.setValues(FC_CO, COIL_ESTOP,    [0])
     store.setValues(FC_CO, COIL_BREAKER_A, [1])
     store.setValues(FC_CO, COIL_BREAKER_B, [1])
 
-    # Periodic data push to uupl-fuel-valve and uupl-cooling-pump.
-    # The PLC holding registers are the source of truth; these writes keep the
-    # actuator containers in sync so attackers who read them see the live values.
+    # Push HR values to the actuator containers so attackers reading them see live state.
     async def push_fuel_valve():
         await asyncio.sleep(20.0)
         while True:
@@ -414,7 +386,7 @@ async def main():
 
     async with iec104_server:
         await asyncio.gather(
-            StartAsyncTcpServer(context=context, address=("0.0.0.0", 502)),
+            StartAsyncTcpServer(context=context, address=('0.0.0.0', 502)),
             physics_loop(store),
             governor_loop(store),
             actuator_sync_loop(store),

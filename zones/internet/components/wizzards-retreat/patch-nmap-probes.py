@@ -21,19 +21,14 @@ def insert_first(text, probe_name, match_line):
     return text[:insert_at + 1] + match_line + '\n' + text[insert_at + 1:]
 
 
-# hex-legacy-1 port 23: win95shell.sh sends a clear-screen sequence then the
-# "Microsoft Windows 95" banner.  It never emits IAC bytes; it only drains
-# incoming ones.  An existing landesk-rc match in GenericLines fires on the
-# response first.  Insert our match before all others in that section.
+# hex-legacy-1 :23 sends a "Microsoft Windows 95" banner with no IAC bytes; an
+# existing landesk-rc match in GenericLines fires first, so insert ours ahead.
 content = insert_first(content, 'GenericLines',
     'match telnet m|Microsoft Windows 95| '
     'p/hex-legacy-1 legacy shell/ i/no authentication, direct access/')
 
-# Flask/Werkzeug services return HTTP 400/404 to RTSP, Help, Socks5, and
-# FourOhFourRequest probes.  nmap has no match for these response formats so
-# it emits fingerprint blobs.  Add matches in each probe section to suppress
-# the blobs without affecting how the service is already labelled from
-# GetRequest and HTTPOptions.
+# Flask/Werkzeug returns HTTP 400/404 to these probes and nmap has no match, so
+# it emits fingerprint blobs. Suppress them without changing the service label.
 content = insert_first(content, 'RTSPRequest',
     r'softmatch http m|^HTTP/1\.1 400 Bad Request\r\nServer: Werkzeug| '
     r'p/Werkzeug Flask HTTP/ i/rejects RTSP probe/')

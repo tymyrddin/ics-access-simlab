@@ -1,9 +1,5 @@
 #!/usr/bin/env python3
-"""
-ICS-Access-SimLab, Orchestrator
-
-Reads ctf-config.yaml and generates the per-zone artefacts the clab fabric
-consumes:
+"""Generate the per-zone clab artefacts from ctf-config.yaml.
 
   zones/enterprise/docker-compose.yml          application image builds
   zones/operational/docker-compose.yml         application image builds
@@ -15,11 +11,7 @@ consumes:
   infrastructure/clab-down.sh                  reverses clab-up.sh
   infrastructure/routers/generated/*-acl.sh    per-router iptables ACL scripts
 
-The compose files build images only; clab brings the containers up from the
-per-zone topologies under clab/.
-
-Usage:
-    python orchestrator/generate.py [ctf-config.yaml]
+Usage: python orchestrator/generate.py [ctf-config.yaml]
 """
 
 import os
@@ -34,63 +26,55 @@ logging.basicConfig(level=logging.INFO, format="%(levelname)s - %(message)s")
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 ORCHESTRATOR_DIR = Path(__file__).resolve().parent
-ZONES_DIR = REPO_ROOT / "zones"
+ZONES_DIR = REPO_ROOT / 'zones'
 INFRA_DIR = REPO_ROOT / "infrastructure"
-ADVERSARY_README = ORCHESTRATOR_DIR / "adversary-readme.txt"
-ROUTERS_DIR = INFRA_DIR / "routers"
+ADVERSARY_README = ORCHESTRATOR_DIR / 'adversary-readme.txt'
+ROUTERS_DIR = INFRA_DIR / 'routers'
 
-# Maps implementation names to the directory containing their Dockerfile.
-# Adding a new component variant means adding an entry here and a Dockerfile.
 COMPONENT_DIRS = {
     # internet zone
-    "wizzards-retreat":        ZONES_DIR / "internet" / "components" / "wizzards-retreat",
+    'wizzards-retreat': ZONES_DIR / "internet" / 'components' / 'wizzards-retreat',
     # enterprise zone
-    "hex-legacy-1":            ZONES_DIR / "enterprise" / "components" / "hex-legacy-1",
-    "bursar-desk":             ZONES_DIR / "enterprise" / "components" / "bursar-desk",
+    "hex-legacy-1": ZONES_DIR / "enterprise" / 'components' / "hex-legacy-1",
+    "bursar-desk": ZONES_DIR / "enterprise" / "components" / 'bursar-desk',
     # operational zone
-    "uupl-historian":          ZONES_DIR / "operational" / "components" / "uupl-historian",
-    "distribution-scada":      ZONES_DIR / "operational" / "components" / "distribution-scada",
-    "uupl-eng-ws":             ZONES_DIR / "operational" / "components" / "uupl-eng-ws",
+    "uupl-historian": ZONES_DIR / 'operational' / "components" / 'uupl-historian',
+    "distribution-scada": ZONES_DIR / 'operational' / "components" / "distribution-scada",
+    "uupl-eng-ws": ZONES_DIR / 'operational' / "components" / "uupl-eng-ws",
     # control zone devices
-    "hex-turbine-plc":         ZONES_DIR / "control" / "components" / "hex-turbine-plc",
-    "ied-relay":               ZONES_DIR / "control" / "components" / "ied-relay",          # 1:N (relay-a + relay-b), generic
-    "uupl-meter":              ZONES_DIR / "control" / "components" / "uupl-meter",
-    "actuator-modbus-sim":     ZONES_DIR / "control" / "components" / "actuator-modbus-sim",# 1:N (4 actuators), generic
-    "uupl-mqtt":               ZONES_DIR / "control" / "components" / "uupl-mqtt",
-    "uupl-modbus-gw":          ZONES_DIR / "control" / "components" / "uupl-modbus-gw",
-    "uupl-hmi":                ZONES_DIR / "control" / "components" / "uupl-hmi",
-    "hex-turbine-opcua":       ZONES_DIR / "control" / "components" / "hex-turbine-opcua",
-    # field devices (deferred, vendor-specific builds)
-    # dmz zone (all 1:1 with their container, dir == container name)
-    "guild-exchange":   ZONES_DIR / "dmz" / "components" / "guild-exchange",
-    "sorting-office":   ZONES_DIR / "dmz" / "components" / "sorting-office",
-    "clacks-relay":     ZONES_DIR / "dmz" / "components" / "clacks-relay",
-    "guild-register":   ZONES_DIR / "dmz" / "components" / "guild-register",
-    "substation-rtu":   ZONES_DIR / "dmz" / "components" / "substation-rtu",
-    "contractors-gate": ZONES_DIR / "dmz" / "components" / "contractors-gate",
-    "dispatch-box":     ZONES_DIR / "dmz" / "components" / "dispatch-box",
-    "guild-clock":      ZONES_DIR / "dmz" / "components" / "guild-clock",
-    "city-directory":   ZONES_DIR / "dmz" / "components" / "city-directory",
-    "scribes-post":     ZONES_DIR / "dmz" / "components" / "scribes-post",
+    'hex-turbine-plc': ZONES_DIR / 'control' / 'components' / "hex-turbine-plc",
+    'ied-relay': ZONES_DIR / "control" / "components" / "ied-relay",  # 1:N (relay-a + relay-b), generic
+    "uupl-meter": ZONES_DIR / "control" / "components" / "uupl-meter",
+    'actuator-modbus-sim': ZONES_DIR / "control" / 'components' / 'actuator-modbus-sim',  # 1:N (4 actuators), generic
+    "uupl-mqtt": ZONES_DIR / "control" / "components" / "uupl-mqtt",
+    'uupl-modbus-gw': ZONES_DIR / "control" / "components" / "uupl-modbus-gw",
+    "uupl-hmi": ZONES_DIR / "control" / "components" / "uupl-hmi",
+    'hex-turbine-opcua': ZONES_DIR / 'control' / "components" / 'hex-turbine-opcua',
+    # dmz zone (dir == container name)
+    'guild-exchange': ZONES_DIR / "dmz" / "components" / "guild-exchange",
+    "sorting-office": ZONES_DIR / "dmz" / "components" / 'sorting-office',
+    'clacks-relay': ZONES_DIR / 'dmz' / "components" / "clacks-relay",
+    'guild-register': ZONES_DIR / "dmz" / "components" / "guild-register",
+    'substation-rtu': ZONES_DIR / "dmz" / 'components' / "substation-rtu",
+    'contractors-gate': ZONES_DIR / "dmz" / 'components' / "contractors-gate",
+    "dispatch-box": ZONES_DIR / "dmz" / "components" / "dispatch-box",
+    "guild-clock": ZONES_DIR / "dmz" / 'components' / "guild-clock",
+    'city-directory': ZONES_DIR / 'dmz' / 'components' / 'city-directory',
+    "scribes-post": ZONES_DIR / 'dmz' / 'components' / "scribes-post"
 }
 
-
-# ---------------------------------------------------------------------------
-# Config loading
-# ---------------------------------------------------------------------------
 
 def load_config(config_path: Path) -> dict:
     with open(config_path) as f:
         raw = f.read()
-    # First pass: parse to get values for template resolution
+    # two passes: parse for values, resolve {{ }} refs, parse again
     partial = yaml.safe_load(raw)
-    # Second pass: resolve {{ key.path }} references, then re-parse
     rendered = _render_templates(raw, partial)
     return yaml.safe_load(rendered)
 
 
 def _render_templates(text: str, config: dict) -> str:
-    """Replace {{ dotted.key.path }} references with resolved values from config."""
+    """Resolve {{ dotted.key.path }} references against config."""
     def resolve(match):
         path = match.group(1).strip().split(".")
         val = config
@@ -98,55 +82,14 @@ def _render_templates(text: str, config: dict) -> str:
             if isinstance(val, dict) and key in val:
                 val = val[key]
             else:
-                return match.group(0)  # leave unresolved rather than fail
+                raise ValueError(f"unresolved template reference: {{{{ {match.group(1).strip()} }}}}")
         return str(val)
     return re.sub(r"\{\{([^}]+)\}\}", resolve, text)
 
 
-# ---------------------------------------------------------------------------
-# Path helpers
-# ---------------------------------------------------------------------------
-
 def _rel(abs_path, base_dir: Path) -> str:
-    """Relative path from base_dir to abs_path."""
     return os.path.relpath(str(abs_path), str(base_dir))
 
-
-def _relativize_services(services: dict, base_dir: Path, resolve_base: Path = None) -> None:
-    """Convert build contexts and bind-mount host paths to relative to base_dir.
-
-    If resolve_base is given, existing relative paths are resolved against it
-    before being made relative to base_dir, enabling re-relativization from
-    one base directory to another.
-    """
-    def _fix(path_str: str) -> str:
-        if not os.path.isabs(path_str):
-            if resolve_base is None:
-                return path_str
-            path_str = str((resolve_base / path_str).resolve())
-        return _rel(path_str, base_dir)
-
-    for svc in services.values():
-        # build: "/abs/path"  or  build: {context: "/abs/path"}
-        if isinstance(svc.get("build"), str):
-            svc["build"] = _fix(svc["build"])
-        elif isinstance(svc.get("build"), dict) and "context" in svc["build"]:
-            svc["build"]["context"] = _fix(svc["build"]["context"])
-        # volumes: ["host_path:container_path", ...]
-        fixed = []
-        for vol in svc.get("volumes", []):
-            if isinstance(vol, str) and ":" in vol:
-                host, rest = vol.split(":", 1)
-                fixed.append(f"{_fix(host)}:{rest}")
-            else:
-                fixed.append(vol)
-        if fixed:
-            svc["volumes"] = fixed
-
-
-# ---------------------------------------------------------------------------
-# Network helpers
-# ---------------------------------------------------------------------------
 
 def _net(config: dict, key: str) -> str:
     return config["networks"][key]["docker_name"]
@@ -157,56 +100,50 @@ def _subnet(config: dict, key: str) -> str:
 
 
 def _external_net(name: str) -> dict:
-    return {"external": True, "name": name}
+    return {'external': True, "name": name}
 
 
-# Each clab zone runs from clab/<zone>-zone.clab.yaml. Application services
-# are still built via the per-zone docker-compose.yml files (compose stays
-# the build tool); they are never started by compose. Routers come from
-# clab/frr/ and the per-zone topology's bind to /acl.sh.
-_CLAB_ZONES = ("internet", "enterprise", "operational", "control", "dmz")
+# compose builds these images; clab (not compose) starts them
+_CLAB_ZONES = ("internet", "enterprise", 'operational', "control", "dmz")
 
 
-# ---------------------------------------------------------------------------
-# Enterprise zone
-# ---------------------------------------------------------------------------
+def _service(impl, base_dir, name, hostname, networks, *, cap_add=True, **extra):
+    """Build the compose service skeleton shared by every zone; extras layer on top."""
+    _check_impl(impl)
+    svc = {
+        "build": {"context": _rel(COMPONENT_DIRS[impl], base_dir)},
+        "container_name": name,
+        "hostname": hostname,
+        "restart": "unless-stopped",
+        "networks": networks,
+    }
+    if cap_add:
+        svc["cap_add"] = ["NET_ADMIN"]
+    for key, val in extra.items():
+        if val is not None:
+            svc[key] = val
+    return svc
+
 
 def generate_enterprise_compose(config: dict, output_path: Path) -> dict:
     ez = config["enterprise_zone"]
     ent_net = _net(config, "enterprise")
     ops_net = _net(config, "operational")
     base_dir = output_path.parent
-    services = {}
 
-    # Legacy workstation, enterprise network only.
-    # Runs its own services as-built; attack surface is a property of the
-    # implementation, not of this config.
     lw = ez["legacy_workstation"]
-    _check_impl(lw["implementation"])
-    services["hex-legacy-1"] = {
-        "build": {"context": _rel(COMPONENT_DIRS[lw["implementation"]], base_dir)},
-        "container_name": "hex-legacy-1",
-        "hostname": lw["hostname"],
-        "restart": "unless-stopped",
-        "networks": {ent_net: {"ipv4_address": lw["ip"]}},
-        "cap_add": ["NET_ADMIN"],
-    }
-
-    # Enterprise workstation, sits on enterprise AND operational networks.
-    # This is the IT/OT convergence point. Dual-homed by design (or rather,
-    # by the gradual accumulation of "temporary" network access never revoked).
     ew = ez["enterprise_workstation"]
-    _check_impl(ew["implementation"])
-    services["bursar-desk"] = {
-        "build": {"context": _rel(COMPONENT_DIRS[ew["implementation"]], base_dir)},
-        "container_name": "bursar-desk",
-        "hostname": ew["hostname"],
-        "restart": "unless-stopped",
-        "networks": {
-            ent_net: {"ipv4_address": ew["ip"]},
-            ops_net: {"ipv4_address": ew["ops_ip"]},
-        },
-        "cap_add": ["NET_ADMIN"],
+    # bursar-desk dual-homed by accretion: temporary ops access nobody revoked
+    services = {
+        "hex-legacy-1": _service(
+            lw["implementation"], base_dir, "hex-legacy-1", lw["hostname"],
+            {ent_net: {"ipv4_address": lw["ip"]}},
+        ),
+        "bursar-desk": _service(
+            ew["implementation"], base_dir, "bursar-desk", ew["hostname"],
+            {ent_net: {"ipv4_address": ew["ip"]},
+             ops_net: {"ipv4_address": ew["ops_ip"]}},
+        ),
     }
 
     return {
@@ -218,27 +155,18 @@ def generate_enterprise_compose(config: dict, output_path: Path) -> dict:
     }
 
 
-# ---------------------------------------------------------------------------
-# TLS certificate generation (for uupl-modbus-gw / scada-lts)
-# ---------------------------------------------------------------------------
-
 def generate_certs(repo_root: Path) -> Path:
-    """Generate CA, server, and client certs in <repo_root>/certs/.
+    """Generate CA, server and client certs in <repo_root>/certs/ (gitignored).
 
-    Certs are NOT committed to the repo (.gitignore excludes certs/).
-    Anyone who runs generate.py gets fresh certs. Containers mount them
-    as read-only volumes; the client key is intentionally chmod 644 by
-    the distribution-scada entrypoint (CTF vulnerability HEX-5103).
-
-    Returns the certs/ directory path.
+    The client key is later chmod 644 by distribution-scada: CTF vuln HEX-5103.
     """
     certs_dir = repo_root / "certs"
-    ca_key  = certs_dir / "ca.key"
-    ca_crt  = certs_dir / "ca.crt"
+    ca_key = certs_dir / "ca.key"
+    ca_crt = certs_dir / "ca.crt"
     srv_key = certs_dir / "server.key"
     srv_crt = certs_dir / "server.crt"
-    cli_key = certs_dir / "client.key"
-    cli_crt = certs_dir / "client.crt"
+    cli_key = certs_dir / 'client.key'
+    cli_crt = certs_dir / 'client.crt'
 
     if all(p.exists() for p in [ca_crt, srv_crt, cli_crt]):
         logging.info("Certs already exist, skipping generation.")
@@ -246,7 +174,7 @@ def generate_certs(repo_root: Path) -> Path:
 
     certs_dir.mkdir(exist_ok=True)
 
-    subj_ca  = "/CN=UUPL-ModbusCA/O=Unseen University Power and Light Co/C=AM"
+    subj_ca = '/CN=UUPL-ModbusCA/O=Unseen University Power and Light Co/C=AM'
     subj_srv = "/CN=uupl-modbus-gw/O=Unseen University Power and Light Co/C=AM"
     subj_cli = "/CN=scadalts-client/O=Unseen University Power and Light Co/C=AM"
 
@@ -256,32 +184,31 @@ def generate_certs(repo_root: Path) -> Path:
     logging.info("Generating TLS certs in certs/ ...")
 
     # CA
-    run(["openssl", "genrsa", "-out", str(ca_key), "2048"])
+    run(["openssl", 'genrsa', "-out", str(ca_key), '2048'])
     run(["openssl", "req", "-new", "-x509", "-days", "3650",
          "-key", str(ca_key), "-out", str(ca_crt), "-subj", subj_ca])
 
-    # Server cert (uupl-modbus-gw)
+    # server cert (uupl-modbus-gw)
     srv_csr = certs_dir / "server.csr"
     run(["openssl", "genrsa", "-out", str(srv_key), "2048"])
     run(["openssl", "req", "-new", "-key", str(srv_key),
          "-out", str(srv_csr), "-subj", subj_srv])
-    run(["openssl", "x509", "-req", "-days", "730",
-         "-in", str(srv_csr), "-CA", str(ca_crt), "-CAkey", str(ca_key),
+    run(["openssl", "x509", '-req', "-days", "730",
+         '-in', str(srv_csr), '-CA', str(ca_crt), "-CAkey", str(ca_key),
          "-CAcreateserial", "-out", str(srv_crt)])
     srv_csr.unlink()
 
-    # Client cert (distribution-scada)
+    # client cert (distribution-scada)
     cli_csr = certs_dir / "client.csr"
     run(["openssl", "genrsa", "-out", str(cli_key), "2048"])
     run(["openssl", "req", "-new", "-key", str(cli_key),
          "-out", str(cli_csr), "-subj", subj_cli])
-    run(["openssl", "x509", "-req", "-days", "3650",
-         "-in", str(cli_csr), "-CA", str(ca_crt), "-CAkey", str(ca_key),
+    run(["openssl", "x509", '-req', '-days', '3650',
+         '-in', str(cli_csr), "-CA", str(ca_crt), "-CAkey", str(ca_key),
          "-CAcreateserial", "-out", str(cli_crt)])
     cli_csr.unlink()
 
-    # Restrict key permissions (gateway entrypoint will chmod server.key; client
-    # entrypoint intentionally widens client.key to 644 as the CTF vulnerability)
+    # client entrypoint later widens client.key to 644 (CTF vuln HEX-5103)
     srv_key.chmod(0o600)
     cli_key.chmod(0o600)
 
@@ -289,164 +216,96 @@ def generate_certs(repo_root: Path) -> Path:
     return certs_dir
 
 
-# ---------------------------------------------------------------------------
-# Operational zone
-# ---------------------------------------------------------------------------
-
 def generate_operational_compose(config: dict, output_path: Path) -> dict:
     oz = config["operational_zone"]
     ops_net = _net(config, "operational")
     ctrl_net = _net(config, "control")
     base_dir = output_path.parent
     certs_dir = REPO_ROOT / "certs"
-    services = {}
-    named_volumes = {}
 
-    # Historian, operational network only, reachable from bursar-desk
-    # via its dual-homed ops_ip.
     hist = oz["historian"]
-    _check_impl(hist["implementation"])
-    services["uupl-historian"] = {
-        "build": {"context": _rel(COMPONENT_DIRS[hist["implementation"]], base_dir)},
-        "container_name": "uupl-historian",
-        "hostname": hist["hostname"],
-        "restart": "unless-stopped",
-        "networks": {ops_net: {"ipv4_address": hist["ip"]}},
-        "cap_add": ["NET_ADMIN"],
-        "environment": {
-            # Tells the historian which ICS process data to seed at startup.
-            # Affects what time-series data is available and what queries return.
-            "DATA_SOURCE": hist.get("data_source", config["ics_process"]),
-        },
+    services = {
+        "uupl-historian": _service(
+            hist["implementation"], base_dir, "uupl-historian", hist["hostname"],
+            {ops_net: {"ipv4_address": hist["ip"]}},
+            environment={"DATA_SOURCE": hist.get("data_source", config["ics_process"])},
+        ),
     }
 
-    # SCADA server: distribution-scada, Flask SCADA with Windows Server 2016
-    # facade and stunnel Modbus-TLS client. Certs volume-mounted from certs/.
-    # World-readable client.key is HEX-5103 (risk accepted 2020).
+    # world-readable client.key is HEX-5103 (risk accepted 2020)
     scada = oz["scada_server"]
-    _check_impl(scada["implementation"])
-
     gw_ops_ip = oz.get("stunnel_gateway", {}).get("ops_ip", "10.10.2.50")
-    scada_svc = {
-        "build": {"context": _rel(COMPONENT_DIRS[scada["implementation"]], base_dir)},
-        "container_name": "distribution-scada",
-        "hostname": scada["hostname"],
-        "restart": "unless-stopped",
-        "networks": {ops_net: {"ipv4_address": scada["ip"]}},
-        "cap_add": ["NET_ADMIN"],
-        "environment": {
-            "HISTORIAN_IP":  scada.get("historian_ip", hist["ip"]),
+    services["distribution-scada"] = _service(
+        scada["implementation"], base_dir, "distribution-scada", scada["hostname"],
+        {ops_net: {"ipv4_address": scada["ip"]}},
+        environment={
+            "HISTORIAN_IP": scada.get("historian_ip", hist["ip"]),
             "STUNNEL_GW_IP": gw_ops_ip,
         },
-        "volumes": [
+        volumes=[
             f"{_rel(certs_dir / 'client.crt', base_dir)}:/run/stunnel-certs/client.crt",
             f"{_rel(certs_dir / 'client.key', base_dir)}:/run/stunnel-certs/client.key",
-            f"{_rel(certs_dir / 'ca.crt',     base_dir)}:/run/stunnel-certs/ca.crt",
+            f"{_rel(certs_dir / 'ca.crt', base_dir)}:/run/stunnel-certs/ca.crt",
         ],
-    }
+    )
 
-    services["distribution-scada"] = scada_svc
-
-    # uupl-modbus-gw, TLS termination proxy between SCADA and control zone PLCs.
-    # Dual-homed: operational (accepts TLS from SCADA) + control (plain Modbus to PLC).
-    # Only present when stunnel_gateway is defined in config.
+    # stunnel gateway: TLS from SCADA on ops, plain Modbus to the PLC on control
     gw_cfg = oz.get("stunnel_gateway")
     if gw_cfg:
-        _check_impl(gw_cfg["implementation"])
         gw_component = COMPONENT_DIRS[gw_cfg["implementation"]]
-        services["uupl-modbus-gw"] = {
-            "build": {"context": _rel(gw_component, base_dir)},
-            "container_name": "uupl-modbus-gw",
-            "hostname": gw_cfg["hostname"],
-            "restart": "unless-stopped",
-            "cap_add": ["NET_ADMIN"],
-            "networks": {
-                ops_net:  {"ipv4_address": gw_cfg["ops_ip"]},
-                ctrl_net: {"ipv4_address": gw_cfg["ctrl_ip"]},
-            },
-            "environment": {
-                "FORWARD_TARGET": gw_cfg.get("forward_to", "10.10.3.21:502"),
-            },
-            # Mount stunnel.conf template and certs from generated certs/ directory.
-            "volumes": [
-                f"{_rel(gw_component / 'stunnel.conf',  base_dir)}:/run/stunnel/stunnel.conf:ro",
-                f"{_rel(certs_dir / 'ca.crt',           base_dir)}:/run/stunnel/ca.crt:ro",
-                f"{_rel(certs_dir / 'server.crt',       base_dir)}:/run/stunnel/server.crt:ro",
-                f"{_rel(certs_dir / 'server.key',       base_dir)}:/run/stunnel/server.key:ro",
+        services["uupl-modbus-gw"] = _service(
+            gw_cfg["implementation"], base_dir, "uupl-modbus-gw", gw_cfg["hostname"],
+            {ops_net: {"ipv4_address": gw_cfg["ops_ip"]},
+             ctrl_net: {"ipv4_address": gw_cfg["ctrl_ip"]}},
+            environment={"FORWARD_TARGET": gw_cfg.get("forward_to", "10.10.3.21:502")},
+            volumes=[
+                f"{_rel(gw_component / 'stunnel.conf', base_dir)}:/run/stunnel/stunnel.conf:ro",
+                f"{_rel(certs_dir / 'ca.crt', base_dir)}:/run/stunnel/ca.crt:ro",
+                f"{_rel(certs_dir / 'server.crt', base_dir)}:/run/stunnel/server.crt:ro",
+                f"{_rel(certs_dir / 'server.key', base_dir)}:/run/stunnel/server.key:ro",
             ],
-        }
+        )
 
-    # Engineering workstation, sits on BOTH operational AND control networks.
-    # The pivot point into the control zone.
+    # the pivot into the control zone (dual-homed ops + control)
     eng = oz["engineering_workstation"]
-    _check_impl(eng["implementation"])
-    services["uupl-eng-ws"] = {
-        "build": {"context": _rel(COMPONENT_DIRS[eng["implementation"]], base_dir)},
-        "container_name": "uupl-eng-ws",
-        "hostname": eng["hostname"],
-        "restart": "unless-stopped",
-        "networks": {
-            ops_net: {"ipv4_address": eng["ip"]},
-            ctrl_net: {"ipv4_address": eng["ctrl_ip"]},
+    services["uupl-eng-ws"] = _service(
+        eng["implementation"], base_dir, "uupl-eng-ws", eng["hostname"],
+        {ops_net: {"ipv4_address": eng["ip"]},
+         ctrl_net: {"ipv4_address": eng["ctrl_ip"]}},
+        environment={
+            "ICS_PROCESS": eng.get("ics_process", config["ics_process"]),
+            "CONTROL_SUBNET": eng.get("control_network_subnet", _subnet(config, "control")),
         },
-        "environment": {
-            # ICS_PROCESS and CONTROL_SUBNET drive what the uupl-eng-ws
-            # has configured: which device IPs are in its config files, what
-            # tools are set up, etc.
-            "ICS_PROCESS":      eng.get("ics_process", config["ics_process"]),
-            "CONTROL_SUBNET":   eng.get("control_network_subnet", _subnet(config, "control")),
-        },
-        "cap_add": ["NET_ADMIN"],
-    }
+    )
 
-    compose = {
+    return {
         "services": services,
         "networks": {
-            ops_net:  _external_net(ops_net),
+            ops_net: _external_net(ops_net),
             ctrl_net: _external_net(ctrl_net),
         },
     }
-    if named_volumes:
-        compose["volumes"] = named_volumes
-    return compose
 
-
-# ---------------------------------------------------------------------------
-# Control zone (native, no external simulator dependency)
-# ---------------------------------------------------------------------------
 
 def generate_control_compose(config: dict, output_path: Path) -> dict:
     ctrl_net = _net(config, "control")
     base_dir = output_path.parent
-    certs_dir = REPO_ROOT / "certs"
     services = {}
-    named_volumes = {}
 
     for dev in config.get("control_zone", {}).get("devices", []):
-        impl = dev["implementation"]
-        _check_impl(impl)
         svc_name = dev["name"].replace("_", "-")
+        services[svc_name] = _service(
+            dev["implementation"], base_dir, dev["name"], dev.get("hostname", dev["name"]),
+            {ctrl_net: {"ipv4_address": dev["ip"]}},
+            environment=dev.get("env") or None,
+        )
 
-        svc = {
-            "build": {"context": _rel(COMPONENT_DIRS[impl], base_dir)},
-            "container_name": dev["name"],
-            "hostname": dev.get("hostname", dev["name"]),
-            "restart": "unless-stopped",
-            "cap_add": ["NET_ADMIN"],
-            "networks": {ctrl_net: {"ipv4_address": dev["ip"]}},
-        }
-        if dev.get("env"):
-            svc["environment"] = dev["env"]
-
-        services[svc_name] = svc
-
-        # Sidecars: share parent network namespace (no ip) or get their own IP.
+        # sidecar shares the parent netns when it has no ip, else takes its own
         for sidecar in dev.get("sidecars", []):
-            sc_impl = sidecar["implementation"]
-            _check_impl(sc_impl)
+            _check_impl(sidecar["implementation"])
             sc_name = sidecar["name"].replace("_", "-")
             sc_svc = {
-                "build": {"context": _rel(COMPONENT_DIRS[sc_impl], base_dir)},
+                "build": {"context": _rel(COMPONENT_DIRS[sidecar["implementation"]], base_dir)},
                 "container_name": sidecar["name"],
                 "restart": "unless-stopped",
             }
@@ -460,25 +319,14 @@ def generate_control_compose(config: dict, output_path: Path) -> dict:
                 sc_svc["environment"] = sidecar["env"]
             services[sc_name] = sc_svc
 
-    compose = {
+    return {
         "services": services,
         "networks": {ctrl_net: _external_net(ctrl_net)},
     }
-    if named_volumes:
-        compose["volumes"] = named_volumes
-    return compose
 
-
-# ---------------------------------------------------------------------------
-# DMZ zone
-# ---------------------------------------------------------------------------
 
 def generate_dmz_compose(config: dict, output_path: Path) -> dict:
-    """Generate zones/dmz/docker-compose.yml.
-
-    Iterates dmz_zone.devices. Devices with an enterprise_ip are dual-homed
-    on both ics_dmz and ics_enterprise (simulates contractor pivot path).
-    """
+    """Generate zones/dmz/docker-compose.yml; an enterprise_ip dual-homes a device (contractor pivot)."""
     dmz_net = _net(config, "dmz")
     ent_net = _net(config, "enterprise")
     base_dir = output_path.parent
@@ -486,26 +334,17 @@ def generate_dmz_compose(config: dict, output_path: Path) -> dict:
     networks_used = {dmz_net}
 
     for dev in config.get("dmz_zone", {}).get("devices", []):
-        impl = dev["implementation"]
-        _check_impl(impl)
         svc_name = dev["name"].replace("_", "-")
-
         networks = {dmz_net: {"ipv4_address": dev["ip"]}}
         if "enterprise_ip" in dev:
             networks[ent_net] = {"ipv4_address": dev["enterprise_ip"]}
             networks_used.add(ent_net)
 
-        svc = {
-            "build": {"context": _rel(COMPONENT_DIRS[impl], base_dir)},
-            "container_name": dev["name"],
-            "hostname": dev.get("hostname", dev["name"]),
-            "restart": "unless-stopped",
-            "cap_add": ["NET_ADMIN"],
-            "networks": networks,
-        }
-        if dev.get("env"):
-            svc["environment"] = dev["env"]
-
+        svc = _service(
+            dev["implementation"], base_dir, dev["name"], dev.get("hostname", dev["name"]),
+            networks,
+            environment=dev.get("env") or None,
+        )
         if dev.get("syslog_logging"):
             svc["logging"] = {
                 "driver": "syslog",
@@ -523,10 +362,6 @@ def generate_dmz_compose(config: dict, output_path: Path) -> dict:
         "networks": {n: _external_net(n) for n in networks_used},
     }
 
-
-# ---------------------------------------------------------------------------
-# Helpers
-# ---------------------------------------------------------------------------
 
 def _check_impl(name: str) -> None:
     if name not in COMPONENT_DIRS:
@@ -549,24 +384,17 @@ def write_text(path: Path, content: str) -> None:
     logging.info(f"Wrote: {path}")
 
 
-# ---------------------------------------------------------------------------
-# Internet zone (wizzards-retreat and any future internet-facing infrastructure)
-# ---------------------------------------------------------------------------
-
 def generate_internet_zone_compose(config: dict, output_path: Path) -> dict:
-    """Generate zones/internet/docker-compose.yml.
-
-    Contains all internet-zone nodes: attacker machine (unseen-gate) and any
-    additional nodes defined in internet_zone (admin_home, future DMZ pivot, etc.).
-    """
+    """Generate zones/internet/docker-compose.yml: attacker machine plus any internet_zone nodes."""
     inet_net = _net(config, "internet")
-    ent_net  = _net(config, "enterprise")
-    ops_net  = _net(config, "operational")
+    ent_net = _net(config, "enterprise")
+    ops_net = _net(config, "operational")
     base_dir = output_path.parent
     services = {}
     networks_used = {inet_net}
 
-    # Attacker machine, always present (defined under attacker_machine in config)
+    # attacker machine: fixed build dir (no implementation key), privileged not cap_add,
+    # so it is built by hand rather than through _service
     jh = config["attacker_machine"]
     ssh_host_port = jh.get("ssh_host_port", 22)
     auth_mode = jh.get("auth_mode", "key")
@@ -580,53 +408,37 @@ def generate_internet_zone_compose(config: dict, output_path: Path) -> dict:
         "restart": "unless-stopped",
         "networks": {inet_net: {"ipv4_address": jh["internet_ip"]}},
         "ports": [f"{ssh_host_port}:22"],
-        # adversary-readme is useful in both modes (mission briefing)
+        # mounted in both auth modes
         "volumes": [f"./{attacker_rel}/adversary-readme.txt:/run/adversary-readme.txt:ro"],
     }
-
     if auth_mode == "password":
-        # Password mode: set credentials from config, no key file needed.
-        # Used for Root-Me and platforms that publish connection strings.
+        # password mode: credentials from config (Root-Me and similar platforms)
         accounts = jh.get("accounts", {})
         account_str = " ".join(f"{u}:{p}" for u, p in accounts.items())
-        svc["environment"] = {
-            "AUTH_MODE": "password",
-            "AUTH_ACCOUNTS": account_str,
-        }
+        svc["environment"] = {"AUTH_MODE": "password", "AUTH_ACCOUNTS": account_str}
     else:
-        # Key mode (default): pubkey auth, keys mounted at runtime.
-        # Used for self-hosted / Hetzner deployments.
-        svc["volumes"].insert(
-            0, f"./{attacker_rel}/adversary-keys:/run/adversary-keys:ro"
-        )
-
+        # key mode (default): pubkey auth, keys mounted at runtime
+        svc["volumes"].insert(0, f"./{attacker_rel}/adversary-keys:/run/adversary-keys:ro")
     svc["privileged"] = True  # required to issue mount(2) from inside the container
     services["unseen-gate"] = svc
 
-    # Additional internet-zone nodes (admin_home, etc.)
-    iz = config.get("internet_zone", {})
-    ah = iz.get("admin_home")
+    # optional admin_home node (wizzards-retreat): privileged for a tmpfs mount, no cap_add
+    ah = config.get("internet_zone", {}).get("admin_home")
     if ah:
-        _check_impl(ah["implementation"])
         ah_networks = {
             inet_net: {"ipv4_address": ah["internet_ip"]},
-            ent_net:  {"ipv4_address": ah["enterprise_ip"]},
+            ent_net: {"ipv4_address": ah["enterprise_ip"]},
         }
+        networks_used.add(ent_net)
         if "operational_ip" in ah:
             ah_networks[ops_net] = {"ipv4_address": ah["operational_ip"]}
             networks_used.add(ops_net)
-        services["wizzards-retreat"] = {
-            "build": {"context": _rel(COMPONENT_DIRS[ah["implementation"]], base_dir)},
-            "container_name": "wizzards-retreat",
-            "hostname": ah["hostname"],
-            "restart": "unless-stopped",
-            "privileged": True,  # tmpfs mount inside container (OverlayFS has no name_to_handle_at)
-            "networks": ah_networks,
-        }
-        networks_used.add(ent_net)
-        # unseen-gate (NFS client) must stop before wizzards-retreat (NFS server).
-        # Compose down reverses depends_on order, so declaring unseen-gate depends on
-        # wizzards-retreat means the attacker stops first.
+        services["wizzards-retreat"] = _service(
+            ah["implementation"], base_dir, "wizzards-retreat", ah["hostname"],
+            ah_networks, cap_add=False, privileged=True,
+        )
+        # unseen-gate (NFS client) stops before wizzards-retreat (NFS server):
+        # compose down reverses depends_on order.
         services["unseen-gate"]["depends_on"] = ["wizzards-retreat"]
 
     return {
@@ -635,95 +447,36 @@ def generate_internet_zone_compose(config: dict, output_path: Path) -> dict:
     }
 
 
-# ---------------------------------------------------------------------------
-# Attacker machine
-# ---------------------------------------------------------------------------
+def generate_adversary_readme() -> str:
+    # static briefing; deliberately withholds enterprise addressing from a freshly-landed attacker
+    return ADVERSARY_README.read_text()
 
-def generate_adversary_readme(config: dict) -> str:
-    addrs = {
-        "enterprise_subnet": config["networks"]["enterprise"]["subnet"],
-        "legacy_ws_ip":      config["enterprise_zone"]["legacy_workstation"]["ip"],
-        "ent_ws_ip":         config["enterprise_zone"]["enterprise_workstation"]["ip"],
-    }
-    return ADVERSARY_README.read_text().format_map(addrs)
-
-
-def generate_jump_host_compose(config: dict, output_path: Path) -> dict:
-    inet_net = _net(config, "internet")
-    jh = config["attacker_machine"]
-    ssh_host_port = jh.get("ssh_host_port", 22)
-    return {
-        "services": {
-            "unseen-gate": {
-                "build": {"context": "."},   # relative to compose file dir
-                "container_name": "unseen-gate",
-                "hostname": jh["hostname"],
-                "restart": "unless-stopped",
-                "networks": {
-                    inet_net: {"ipv4_address": jh["internet_ip"]},
-                },
-                "ports": [f"{ssh_host_port}:22"],
-                "volumes": [
-                    "./adversary-keys:/run/adversary-keys:ro",
-                    "./adversary-readme.txt:/run/adversary-readme.txt:ro",
-                ],
-            }
-        },
-        "networks": {
-            inet_net: _external_net(inet_net),
-        },
-    }
-
-
-# ---------------------------------------------------------------------------
-# Zone routers
-# ---------------------------------------------------------------------------
 
 def _router_ip(subnet: str, host: int) -> str:
-    """Derive a host address from a /24 subnet (e.g. 10.10.0.0/24 + 200 → 10.10.0.200)."""
-    prefix = subnet.split("/")[0].rsplit(".", 1)[0]
+    prefix = subnet.split('/')[0].rsplit('.', 1)[0]
     return f"{prefix}.{host}"
 
 
 def generate_routers(config: dict) -> None:
-    """Generate infrastructure/routers/generated/.
-
-    Produces:
-      docker-compose.yml , five router services, each dual-homed on two zone networks
-      <name>-acl.sh      , per-router iptables FORWARD policy + static transit routes
-
-    Router IP convention: .200-series host addresses within each zone.
-      inet-dmz-fw:    internet .200,  dmz .200
-      dmz-ent-fw:     dmz .201,       enterprise .201
-      ent-ops-fw:     enterprise .202, operational .202
-      ops-ctrl-fw:    operational .203, control .203
-      ops-wan-router: operational .204, wan .204
-
-    The Dockerfile and entrypoint.sh in infrastructure/routers/ are static (committed).
-    Only the generated/ subdirectory changes per config.
-    """
+    """Write per-router iptables ACL scripts to infrastructure/routers/generated/."""
     nets = config["networks"]
-    out  = ROUTERS_DIR / "generated"
+    out = ROUTERS_DIR / "generated"
     out.mkdir(parents=True, exist_ok=True)
 
     def subnet(key):  return nets[key]["subnet"]
     def netname(key): return nets[key]["docker_name"]
     def rip(key, h):  return _router_ip(subnet(key), h)
 
-    # Resolved addresses used across ACL scripts
-    historian = config["operational_zone"]["historian"]["ip"]
-    scada     = config["operational_zone"]["scada_server"]["ip"]
-    eng_ws    = config["operational_zone"]["engineering_workstation"]["ip"]
+    historian = config["operational_zone"]['historian']["ip"]
+    scada = config["operational_zone"]['scada_server']['ip']
+    eng_ws = config['operational_zone']["engineering_workstation"]['ip']
     bastion_ip = next(
         (d["ip"] for d in config.get("dmz_zone", {}).get("devices", [])
-         if d.get("implementation") == "contractors-gate"),
+         if d.get("implementation") == 'contractors-gate'),
         "0.0.0.0/32"
     )
 
-    # ── ACL scripts ──────────────────────────────────────────────────────────
 
-    # inet-dmz-fw: internet ↔ dmz
-    # Routes all internet→dmz traffic via dmz-ent-fw for symmetric conntrack.
     (out / "inet-dmz-fw-acl.sh").write_text(
         f"#!/usr/bin/env sh\n"
         f"# inet-dmz-fw: {netname('internet')} {rip('internet',200)} "
@@ -736,8 +489,6 @@ def generate_routers(config: dict) -> None:
         f"iptables -A FORWARD -s {subnet('internet')} -d {subnet('dmz')} -j ACCEPT\n"
     )
 
-    # dmz-ent-fw: dmz ↔ enterprise
-    # Acts as the central DMZ hub: routes internet↔dmz, dmz↔operational, eng-ws↔dmz.
     (out / "dmz-ent-fw-acl.sh").write_text(
         f"#!/usr/bin/env sh\n"
         f"# dmz-ent-fw: {netname('dmz')} {rip('dmz',201)} "
@@ -760,7 +511,6 @@ def generate_routers(config: dict) -> None:
         f"# All else: DROP (default policy)\n"
     )
 
-    # ent-ops-fw: enterprise ↔ operational
     (out / "ent-ops-fw-acl.sh").write_text(
         f"#!/usr/bin/env sh\n"
         f"# ent-ops-fw: {netname('enterprise')} {rip('enterprise',202)} "
@@ -784,7 +534,6 @@ def generate_routers(config: dict) -> None:
         f"# All else: DROP (default policy)\n"
     )
 
-    # ops-ctrl-fw: operational ↔ control
     (out / "ops-ctrl-fw-acl.sh").write_text(
         f"#!/usr/bin/env sh\n"
         f"# ops-ctrl-fw: {netname('operational')} {rip('operational',203)} "
@@ -797,7 +546,6 @@ def generate_routers(config: dict) -> None:
         f"# All else: DROP (default policy)\n"
     )
 
-    # ops-wan-router: operational ↔ wan
     (out / "ops-wan-router-acl.sh").write_text(
         f"#!/usr/bin/env sh\n"
         f"# ops-wan-router: {netname('operational')} {rip('operational',204)} "
@@ -813,57 +561,39 @@ def generate_routers(config: dict) -> None:
         f"# All else: DROP (default policy)\n"
     )
 
-    # Make ACL scripts executable; clab binds them as /acl.sh.
+    # clab binds these as /acl.sh
     for acl in out.glob("*-acl.sh"):
         acl.chmod(0o755)
 
-    # The previous compose-managed router stack is retired. If a stale
-    # docker-compose.yml lingers from an older generate run, drop it.
+    # drop a stale docker-compose.yml from the retired compose-managed router stack
     compose_path = out / "docker-compose.yml"
     if compose_path.exists():
         compose_path.unlink()
     logging.info(f"Router ACL scripts written to {out}")
 
 
-# ---------------------------------------------------------------------------
-# Clab orchestration helpers
-# ---------------------------------------------------------------------------
-# The data plane is real Linux bridges referenced by every topology as
-# kind: bridge nodes. Bridge lifecycle (create on up, delete on down)
-# lives in these helpers so clab itself never owns them.
+# host-owned Linux bridges (created on up, deleted on down); clab never owns them
 
-_CLAB_BRIDGES = ("ics_internet", "ics_enterprise", "ics_operational",
-                 "ics_control", "ics_dmz", "ics_wan")
+_CLAB_BRIDGES = ("ics_internet", 'ics_enterprise', "ics_operational",
+                 'ics_control', "ics_dmz", 'ics_wan')
 
 
 def generate_clab_helpers(config: dict) -> None:
-    """Write infrastructure/clab-up.sh and clab-down.sh.
-
-    up: pre-create the host Linux bridges with sudo, build the FRR image,
-        deploy each per-zone topology in order.
-    down: destroy each topology in reverse order, then drop the host
-          bridges with sudo.
-    """
-    bridges = " ".join(_CLAB_BRIDGES)
+    """Write infrastructure/clab-up.sh and clab-down.sh."""
+    bridges = ' '.join(_CLAB_BRIDGES)
 
     deploy = "\n".join(
         f'containerlab deploy --topo "$REPO/clab/{z}-zone.clab.yaml"'
         for z in _CLAB_ZONES
     )
-    # Do not silence clab's stderr; the per-container "Removed container"
-    # lines are how operators verify the teardown actually happened.
-    # --cleanup wipes the clab state dir under clab/clab-uupl-<zone>/ so
-    # the next deploy is not blocked by a stale "lab already deployed"
-    # registration when image content changes.
+    # --cleanup wipes the clab state dir so the next deploy is not blocked by a
+    # stale "lab already deployed" registration.
     destroy_topos = "\n".join(
         f'containerlab destroy --cleanup --topo "$REPO/clab/{z}-zone.clab.yaml"'
         for z in reversed(_CLAB_ZONES)
     )
-    # Belt-and-braces: drop any docker container still tagged with our
-    # lab labels after the topology-driven destroy. Catches nodes that
-    # were removed from a YAML file between deploys (the topology
-    # destroy only sees nodes still listed). Without this, the next
-    # deploy aborts with "lab already deployed".
+    # drop containers still labelled from a node removed between deploys, else
+    # the next deploy aborts with "lab already deployed".
     destroy_labels = "\n".join(
         (
             f'leftover=$(docker ps -aq --filter "label=containerlab=uupl-{z}" 2>/dev/null) && '
@@ -876,27 +606,18 @@ def generate_clab_helpers(config: dict) -> None:
         + destroy_labels
     )
 
-    # Host-side plumbing for the SSH entry point. unseen-gate runs
-    # with `network-mode: none` so its only interface is eth1 at
-    # 10.10.0.5; docker port-publish would not work. Instead the host
-    # gets 10.10.0.1/24 on the ics_internet bridge (looks like an
-    # upstream gateway from the visitor's view) and DNATs host:2222 to
-    # 10.10.0.5:22. INPUT-DROP keeps containers from reaching host
-    # services through that bridge IP.
-    # ./ctl ssh connects directly to the container IP (10.10.0.5:22) via the
-    # ics_internet bridge, so no DNAT is needed for local dev. The bridge IP
-    # (10.10.0.1/24) is required for host routing to the container subnet.
-    # INPUT-DROP prevents containers from reaching host services through the
-    # bridge IP.
+    # Host gets 10.10.0.1/24 on ics_internet so it can route to the container
+    # subnet; ./ctl ssh reaches 10.10.0.5:22 directly. INPUT DROP stops
+    # containers reaching host services via the bridge IP.
     bridge_setup = (
         "ip addr show dev ics_internet | grep -q '10\\.10\\.0\\.1/24' "
-        "|| ip addr add 10.10.0.1/24 dev ics_internet; "
-        "iptables -C INPUT -i ics_internet -j DROP 2>/dev/null "
-        "|| iptables -A INPUT -i ics_internet -j DROP"
+        '|| ip addr add 10.10.0.1/24 dev ics_internet; '
+        'iptables -C INPUT -i ics_internet -j DROP 2>/dev/null '
+        '|| iptables -A INPUT -i ics_internet -j DROP'
     )
     bridge_teardown = (
         "iptables -D INPUT -i ics_internet -j DROP 2>/dev/null; "
-        "ip addr flush dev ics_internet 2>/dev/null"
+        'ip addr flush dev ics_internet 2>/dev/null'
     )
 
     up = INFRA_DIR / "clab-up.sh"
@@ -910,13 +631,9 @@ def generate_clab_helpers(config: dict) -> None:
         f'for b in {bridges}; do '
         'ip link show "$b" >/dev/null 2>&1 || ip link add "$b" type bridge; '
         'ip link set "$b" up; '
-        # STP on by default, realistic OT switch posture. BPDU guard is
-        # intentionally absent: that is the attack surface (root takeover).
+        # BPDU guard intentionally absent: STP root takeover is the attack surface
         'ip link set "$b" type bridge stp_state 1; '
-        # IGMP snooping off so unsolicited multicast (OSPF Hello to
-        # 224.0.0.5, etc.) floods between ports. With snooping on and no
-        # IGMP querier the bridge drops it, breaking routing-protocol
-        # adjacency. Realistic for an unmanaged OT switch.
+        # mcast snooping off so OSPF Hello multicast floods (unmanaged OT switch)
         'ip link set "$b" type bridge mcast_snooping 0; '
         'done; '
         f"{bridge_setup}'\n\n"
@@ -948,61 +665,51 @@ def generate_clab_helpers(config: dict) -> None:
     logging.info(f"Wrote: {down}")
 
 
-# ---------------------------------------------------------------------------
-# Entry point
-# ---------------------------------------------------------------------------
-
 def main() -> None:
     config_path = (
         Path(sys.argv[1]) if len(sys.argv) > 1
-        else ORCHESTRATOR_DIR / "ctf-config.yaml"
+        else ORCHESTRATOR_DIR / 'ctf-config.yaml'
     )
 
     logging.info(f"Loading config: {config_path}")
     config = load_config(config_path)
 
-    # Generate TLS certs if any zone uses uupl-modbus-gw or a SCADA with stunnel.
-    oz = config.get("operational_zone", {})
-    ctrl_devices = config.get("control_zone", {}).get("devices", [])
-    needs_certs = bool(oz.get("stunnel_gateway"))
+    # certs only needed when the stunnel gateway is present
+    oz = config.get('operational_zone', {})
+    needs_certs = bool(oz.get('stunnel_gateway'))
     if needs_certs:
         generate_certs(REPO_ROOT)
 
-    # The shared networks compose is gone: the data plane runs on real
-    # Linux bridges created by infrastructure/clab-up.sh, not docker
-    # user-defined networks. Drop the file if a previous generate left it.
-    legacy_networks = INFRA_DIR / "networks" / "docker-compose.yml"
+    # data plane is real Linux bridges now; drop a legacy networks compose if present
+    legacy_networks = INFRA_DIR / "networks" / 'docker-compose.yml'
     if legacy_networks.exists():
         legacy_networks.unlink()
 
-    enterprise_path  = ZONES_DIR / "enterprise"  / "docker-compose.yml"
+    enterprise_path = ZONES_DIR / "enterprise"  / "docker-compose.yml"
     operational_path = ZONES_DIR / "operational" / "docker-compose.yml"
-    control_path     = ZONES_DIR / "control"     / "docker-compose.yml"
+    control_path = ZONES_DIR / "control"     / "docker-compose.yml"
 
     write_compose(enterprise_path,  generate_enterprise_compose(config, enterprise_path))
     write_compose(operational_path, generate_operational_compose(config, operational_path))
     write_compose(control_path,     generate_control_compose(config, control_path))
 
-    internet_path = ZONES_DIR / "internet" / "docker-compose.yml"
+    internet_path = ZONES_DIR / 'internet' / "docker-compose.yml"
     write_compose(internet_path, generate_internet_zone_compose(config, internet_path))
-    write_text(ZONES_DIR / "internet" / "components" / "unseen-gate" / "adversary-readme.txt", generate_adversary_readme(config))
+    write_text(ZONES_DIR / "internet" / "components" / "unseen-gate" / 'adversary-readme.txt', generate_adversary_readme())
 
     if config.get("dmz_zone"):
-        dmz_path = ZONES_DIR / "dmz" / "docker-compose.yml"
+        dmz_path = ZONES_DIR / 'dmz' / "docker-compose.yml"
         write_compose(dmz_path, generate_dmz_compose(config, dmz_path))
 
     generate_routers(config)
     generate_clab_helpers(config)
 
-    # Drop stale files left by previous generator iterations. firewall.sh was
-    # the docker-bridge gateway-hiding workaround; .fabric was the per-zone
-    # fabric-toggle marker; start.sh / stop.sh drove the old compose-only
-    # zone start-up before clab-up.sh took over.
+    # drop stale artefacts from earlier generator iterations
     for stale in (
-        INFRA_DIR / "firewall.sh",
+        INFRA_DIR / 'firewall.sh',
         INFRA_DIR / ".fabric",
         REPO_ROOT / "start.sh",
-        REPO_ROOT / "stop.sh",
+        REPO_ROOT / 'stop.sh',
     ):
         if stale.exists():
             stale.unlink()

@@ -1,8 +1,5 @@
 #!/usr/bin/env python3
-"""
-Simple mbpoll replacement using pymodbus
-Implements the most common mbpoll functionality for the lab
-"""
+"""Minimal mbpoll replacement using pymodbus."""
 import sys
 import argparse
 

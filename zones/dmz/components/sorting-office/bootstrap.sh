@@ -6,8 +6,7 @@
 # PID 1 down with it: a container restart destroys the netns, and clab does not
 # re-attach eth1 on restart (the host veth is gone), leaving the node
 # single-homed and unreachable on 10.10.5.0/24. Keeping PID 1 alive across a
-# Neuron crash preserves the netns and its eth1. See docs/to-investigate.md,
-# "DMZ veth lost when a clab node restarts".
+# Neuron crash preserves the netns and its eth1.
 # Idempotent: if the password has already been changed, the login with the
 # factory default returns a non-token response and the config step is skipped.
 

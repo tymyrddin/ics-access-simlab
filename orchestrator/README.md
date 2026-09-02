@@ -1,263 +1,109 @@
 # Orchestrator
 
-`generate.py` reads `ctf-config.yaml` and produces every generated file in the
-repository. Nothing outside this directory should be edited directly: change
-the config, run `make generate`, and the rest follows.
+`generate.py` reads `ctf-config.yaml` and writes every generated file in the repo: the per-zone
+docker-compose build files, the router ACL scripts, and the clab up/down helpers. The generated
+files are not edited by hand. Change the config, run `./ctl generate`, and the rest follows.
 
 ```
 orchestrator/
   ctf-config.yaml         single source of truth for topology and addressing
-  generate.py             code generator
+  generate.py             the generator
   firewall-rules.txt      historical iptables-policy reference (no longer consumed)
-  adversary-readme.txt    attacker machine README template (placeholders resolved by generate.py)
+  adversary-readme.txt    the static briefing dropped on the attacker machine
 ```
 
----
+## ctf-config.yaml
 
-## ctf-config.yaml structure
+The top-level keys:
 
 ```
-meta                      display name, description, version
-ics_process               which ICS physical process to run in the control zone
-networks                  subnet + docker network name for each of the five zones
-enterprise_zone           hex-legacy-1, bursar-desk
-operational_zone          uupl-historian, distribution-scada, uupl-eng-ws
-control_zone              device list for the IED network (patched into configuration.json)
-field_devices_zone        city RTUs on ics_wan (the OT/RTU network)
-attacker_machine          hostname, internet IP, SSH port, and auth mode for the attacker machine
+meta               display name, description, version
+ics_process        which control-zone process to run
+networks           subnet + host bridge name for each zone
+enterprise_zone    hex-legacy-1, bursar-desk
+operational_zone   uupl-historian, distribution-scada, uupl-eng-ws, uupl-modbus-gw
+control_zone       the turbine, relays, meter, actuators, HMI, broker
+dmz_zone           the Guild Quarter devices
+internet_zone      wizzards-retreat (the attacker machine is its own key below)
+attacker_machine   hostname, internet IP, SSH port, auth mode
 ```
-
----
 
 ## networks
 
-Six host-side Linux bridges. Each has a `subnet` and a `docker_name`. The
-`docker_name` is the bridge name on the host (`ip link show ics_internet`).
-`subnet` documents the IPAM range; with the clab fabric there is no docker
-IPAM involved, so addresses are assigned per-container by the topology's
-`exec:` lines instead.
+Six host-side Linux bridges, each with a `subnet` and a `docker_name`. The `docker_name` is the
+bridge on the host (`ip link show ics_internet`). The `subnet` documents the range; with the clab
+fabric there is no docker IPAM, so addresses are assigned per container by the topology's `exec:`
+lines.
 
 ```yaml
 networks:
-  internet:     subnet: 10.10.0.0/24   docker_name: ics_internet
-  enterprise:   subnet: 10.10.1.0/24   docker_name: ics_enterprise
-  operational:  subnet: 10.10.2.0/24   docker_name: ics_operational
-  control:      subnet: 10.10.3.0/24   docker_name: ics_control
-  wan:          subnet: 10.10.4.0/24   docker_name: ics_wan
-  dmz:          subnet: 10.10.5.0/24   docker_name: ics_dmz
+  internet:     { subnet: 10.10.0.0/24, docker_name: ics_internet }
+  enterprise:   { subnet: 10.10.1.0/24, docker_name: ics_enterprise }
+  operational:  { subnet: 10.10.2.0/24, docker_name: ics_operational }
+  control:      { subnet: 10.10.3.0/24, docker_name: ics_control }
+  wan:          { subnet: 10.10.4.0/24, docker_name: ics_wan }
+  dmz:          { subnet: 10.10.5.0/24, docker_name: ics_dmz }
 ```
 
-The bridges are created and destroyed by `infrastructure/clab-up.sh` /
-`clab-down.sh` (`sudo ip link add ... type bridge`). Each per-zone clab
-topology under `clab/` declares its bridges as `kind: bridge` nodes;
-multiple topologies referencing the same name attach to the same host
-bridge.
-
-`ics_internet` is the public network / internet. The attacker machine is
-always here (`internet_ip`), single-homed. `ics_wan` is the OT/RTU
-placeholder; the `ops-wan-router` boundary is in place but no field
-devices are deployed yet.
-
----
+`infrastructure/clab-up.sh` creates the bridges and `clab-down.sh` removes them, one sudo prompt a
+session. Each per-zone topology under `clab/` declares its bridges as `kind: bridge` nodes, and
+topologies naming the same bridge share it. `ics_wan` is the OT/RTU placeholder: the `ops-wan-router`
+boundary exists, but no field devices are deployed there yet.
 
 ## ics_process
 
-Selects the physical process that runs in the control zone:
+Names the control-zone process. It is `uupl_ied`: the UU P&L Hex steam turbine with its protective
+relay IEDs. The value threads through to the seed data the uupl-historian loads at startup
+(`DATA_SOURCE`) and the config the engineering workstation expects (`ICS_PROCESS`), both as template
+references.
 
-| Value | Description |
-|---|---|
-| `uupl_ied` | **Default.** UU P&L Hex Steam Turbine + protective relay IEDs |
-| `intelligent_electronic_device` | Curtin ICS-SimLab built-in generic IED demo |
-| `water_bottle_factory` | Curtin ICS-SimLab built-in |
-| `smart_grid` | Curtin ICS-SimLab built-in |
+## How a zone entry becomes a container
 
-Changing `ics_process` affects three things:
-- Which `configuration.json` is patched and passed to ICS-SimLab
-- Which seed data the uupl-historian loads at startup (`DATA_SOURCE` env var)
-- What device names and logic the engineering workstation expects
-
-The config dir for each process is resolved in `generate.py:ICS_PROCESS_CONFIGS`.
-The `uupl_ied` config lives in `zones/control/config/uupl_ied/`.
-The Curtin built-ins live in `curtin-ics-simlab/config/`.
-
----
-
-## enterprise_zone
-
-Two machines. Adversaries can reach this zone by pivoting from the attacker machine via wizzards-retreat.
-
-### legacy_workstation
+Every device entry carries an `implementation` (or `vendor`, for RTUs) that names a directory of
+`COMPONENT_DIRS` in `generate.py`, which is where the Dockerfile lives. The generator turns each
+entry into one compose build service on the right bridge. Attack surface is baked into the image,
+not set here. A control-zone device with a sidecar looks like this:
 
 ```yaml
-legacy_workstation:
-  hostname: hex-legacy-1
-  ip: 10.10.1.10
-  implementation: win95-era
+- name: hex-turbine-plc
+  hostname: hex-turbine-plc
+  ip: 10.10.3.21
+  implementation: hex-turbine-plc
+  env:
+    ACTUATOR_FUEL_VALVE_IP: "10.10.3.51"
+    MQTT_BROKER_IP: "10.10.3.60"
+  sidecars:
+    - name: hex-turbine-opcua
+      implementation: hex-turbine-opcua
 ```
 
-Single-homed on `ics_enterprise`. The `implementation` key selects the
-Dockerfile from `zones/enterprise/components/`. The `win95-era` implementation
-is a Samba null-session / FTP anon / Telnet era machine: attack surface is
-baked into the image, not configured here.
+A sidecar with no `ip` shares its parent's network namespace; one with an `ip` gets its own address
+on the control bridge. The per-zone device lists and their roles live in each zone's README, for
+example [zones/control/README.md](../zones/control/README.md).
 
-### enterprise_workstation
+Two hosts carry a second NIC, and the generator wires both:
 
 ```yaml
-enterprise_workstation:
-  hostname: bursar-desk
-  ip: 10.10.1.20
-  ops_ip: 10.10.2.100
-  implementation: enterprise-generic
+enterprise_workstation:      # bursar-desk
+  ip: 10.10.1.20             # enterprise
+  ops_ip: 10.10.2.100        # operational
 ```
 
-Dual-homed: `ip` on `ics_enterprise`, `ops_ip` on `ics_operational`. This is
-the IT/OT boundary pivot. The dual-homing is not a security feature, it is
-the accumulated result of "temporary" network access never revoked.
+The dual-homing is not a security feature. It is the accumulated result of temporary access that
+nobody got round to revoking.
 
----
+## Templates
 
-## operational_zone
-
-Three machines. Not directly reachable from the enterprise zone (firewall),
-but reachable via the enterprise_workstation's `ops_ip`.
-
-### uupl-historian
+A value can reference another with `{{ key.path }}`:
 
 ```yaml
-uupl-historian:
-  hostname: uupl-historian
-  ip: 10.10.2.10
-  implementation: historian-v1
-  data_source: "{{ ics_process }}"
+data_source: "{{ ics_process }}"                         # -> uupl_ied
+control_network_subnet: "{{ networks.control.subnet }}"  # -> 10.10.3.0/24
 ```
 
-Single-homed on `ics_operational`. Runs a Flask + SQLite service. The
-`data_source` template resolves to the `ics_process` value, telling the
-uupl-historian which time-series seed data to load at startup.
-`{{ ics_process }}` is a template reference: `generate.py` resolves
-`{{ key.path }}` patterns from the config before writing compose files.
-
-### scada_server
-
-```yaml
-scada_server:
-  hostname: distribution-scada
-  ip: 10.10.2.20
-  implementation: scada-generic
-  historian_ip: 10.10.2.10
-```
-
-Single-homed on `ics_operational`. `historian_ip` is passed as an environment
-variable so the SCADA server knows where to pull aggregated data from. If you
-change the uupl-historian's IP, update `historian_ip` here too.
-
-### engineering_workstation
-
-```yaml
-engineering_workstation:
-  hostname: uupl-eng-ws
-  ip: 10.10.2.30
-  ctrl_ip: 10.10.3.100
-  implementation: engineering-workstation-generic
-  ics_process: "{{ ics_process }}"
-  control_network_subnet: "{{ networks.control.subnet }}"
-```
-
-Dual-homed: `ip` on `ics_operational`, `ctrl_ip` on `ics_control`. The pivot
-into the control zone. `ics_process` and `control_network_subnet` are passed as
-environment variables so the workstation's config files reference the correct
-device IPs and process type. Both use template references that resolve
-automatically.
-
----
-
-## control_zone
-
-```yaml
-control_zone:
-  devices:
-    - { name: uupl-hmi,               ip: 10.10.3.10 }
-    - { name: hex_turbine_controller,  ip: 10.10.3.21 }
-    ...
-```
-
-This list is the authoritative IP assignment for every device in the IED
-network. `generate.py:generate_control_config()` reads this list, compares it
-to the current IPs in `configuration.json`, builds an `old_ip → new_ip` map,
-and rewrites the JSON, patching device `network.ip` fields, all
-`outbound_connections` and `inbound_connections` IPs, and the `ip_networks`
-subnet entry. This runs before ICS-SimLab is invoked so the simulation always
-starts with the addresses from the config.
-
-**What the devices are:**
-
-| Name | Type | IP | Role |
-|---|---|---|---|
-| `uupl-hmi` | HMI | 10.10.3.10 | Operator display. Polls PLC and IEDs. Accepts governor setpoint and emergency stop commands. |
-| `hex_turbine_controller` | PLC | 10.10.3.21 | Runs `hex-turbine-plc.py`. Reads RPM/temp/pressure from sensors, commands throttle valve and governor. Raises overspeed/overtemp/overpressure alarms. |
-| `uupl-relay-a` | IED | 10.10.3.31 | Protective relay, Dolly Sisters feeder. Monitors line A voltage and current. Trips `breaker_a` on overcurrent. |
-| `uupl-relay-b` | IED | 10.10.3.32 | Protective relay, Nap Hill feeder. Same logic as relay_a on line B. |
-| `uupl-meter` | IED | 10.10.3.33 | Revenue meter. Reads voltage and current from line A sensors, computes kW. No actuation. |
-| `turbine_rpm_sensor` | Sensor | 10.10.3.41 | Modbus TCP endpoint. Publishes `turbine_rpm` from the HIL. |
-| `turbine_temp_sensor` | Sensor | 10.10.3.42 | Publishes `turbine_temperature`. |
-| `turbine_pressure_sensor` | Sensor | 10.10.3.43 | Publishes `turbine_pressure`. |
-| `line_voltage_sensor_a` | Sensor | 10.10.3.44 | Publishes `line_voltage_a`. Used by both `uupl-relay-a` and `uupl-meter`. |
-| `line_current_sensor_a` | Sensor | 10.10.3.45 | Publishes `line_current_a`. Used by both `uupl-relay-a` and `uupl-meter`. |
-| `line_voltage_sensor_b` | Sensor | 10.10.3.46 | Publishes `line_voltage_b`. Used by `uupl-relay-b`. |
-| `line_current_sensor_b` | Sensor | 10.10.3.47 | Publishes `line_current_b`. Used by `uupl-relay-b`. |
-| `throttle_valve` | Actuator | 10.10.3.51 | Accepts `throttle_position` from the PLC. Feeds the HIL. |
-| `governor_actuator` | Actuator | 10.10.3.52 | Accepts `governor_setpoint`. Feeds the HIL. |
-| `breaker_a` | Actuator | 10.10.3.53 | Accepts `breaker_a_state` (open/closed) from `uupl-relay-a`. |
-| `breaker_b` | Actuator | 10.10.3.54 | Accepts `breaker_b_state` from `uupl-relay-b`. |
-
-**What does NOT go here:** `uupl-eng-ws` (`ctrl_ip: 10.10.3.100`) is on the
-control network but is managed by `operational_zone`. It is not an ICS field
-device and does not get a `configuration.json` entry.
-
-**What does NOT change when you edit this list:** register maps, logic files
-(`hex-turbine-plc.py`, `relay_logic.py`, `meter_logic.py`), and the physics
-simulation (`turbine_hil.py`) all live in `zones/control/config/uupl_ied/` and
-are not generated. Only the IP addresses in `configuration.json` are patched.
-
----
-
-## field_devices_zone
-
-```yaml
-field_devices_zone:
-  city_rtus:
-    - name: dolly-sisters-substation
-      hostname: rtu-dolly-1
-      ip: 10.10.4.10
-      vendor: generic-rtu-v1
-      location: "Dolly Sisters Substation, Ankh-Morpork"
-    ...
-```
-
-City RTUs live on `ics_wan` (10.10.4.0/24), the WAN / city network, separate from
-the control zone. They get their own compose file: `zones/field-devices/docker-compose.yml`.
-Each RTU has a WAN-facing IP: this is the exposure. SCADA's outbound Modbus poll
-crosses from `ics_operational` to `ics_wan` via cross-network Docker routing, correctly
-modelling a SCADA head-end polling internet-routable RTU addresses.
-
-Each entry has:
-
-| Field | Purpose |
-|---|---|
-| `name` | Logical identifier used in RTU environment (`RTU_NAME`) |
-| `hostname` | Docker container hostname and service name in the compose file |
-| `ip` | Static IP on `ics_wan` |
-| `vendor` | Selects the Dockerfile from `COMPONENT_DIRS` in `generate.py` |
-| `location` | Passed as `RTU_LOCATION` env var (appears in SNMP sysDescr, banners) |
-
-`downstream_devices` per RTU (reclosers, smart meters, per-substation inner networks)
-is reserved for future expansion.
-
-The `generic-rtu-v1` vendor implementation runs Modbus TCP (port 502) and SNMP
-(port 161, community `public`). Attack surface is baked into the image.
-Add entries to expand the distribution network; each gets its own container.
-
----
+`generate.py` loads the YAML twice: once to read the values, then again after substituting the
+references. An unresolved reference raises rather than shipping literal braces into a generated file,
+so a mistyped key fails the run instead of surfacing later as a broken container.
 
 ## attacker_machine
 
@@ -269,77 +115,34 @@ attacker_machine:
   auth_mode: key
 ```
 
-The public entry point. A container on `ics_internet` only (`internet_ip`).
-Five adversary accounts (`ponder`, `hex`, `ridcully`, `librarian`, `dean`).
-Compose file generated into `zones/internet/`.
+The public entry point, single-homed on `ics_internet`, with five accounts (`ponder`, `hex`,
+`ridcully`, `librarian`, `dean`). Its compose file is generated into `zones/internet/`. See the
+top-level README for the two auth modes.
 
----
+## Extending it
 
-## Templates
+Add a component variant:
 
-Values in `ctf-config.yaml` can reference other values using `{{ key.path }}`
-syntax:
+1. Drop a Dockerfile into the zone's `components/` directory.
+2. Map the variant name to it in `COMPONENT_DIRS` in `generate.py`.
+3. Set `implementation: <variant>` on a device in `ctf-config.yaml`.
+4. Run `./ctl generate`.
 
-```yaml
-data_source: "{{ ics_process }}"           # resolves to "uupl_ied"
-ics_process: "{{ ics_process }}"           # same
-control_network_subnet: "{{ networks.control.subnet }}"  # resolves to "10.10.3.0/24"
-```
+Change an address: edit the `ip:` field and run `./ctl generate`. The compose files are rewritten
+with the new address.
 
-`generate.py:_render_templates()` does a two-pass YAML load: parse first to
-get values, then substitute `{{ }}` references, then parse again. Unresolved
-references are left intact rather than raising an error.
+## firewall-rules.txt
 
----
-
-## firewall-rules.txt (historical, no longer consumed)
-
-`firewall-rules.txt` was the source for the host-side `infrastructure/firewall.sh`
-that hid Docker bridge gateway IPs (`10.10.X.1`) from container nmap scans on
-the old fabric. With clab + Linux bridges those host-side gateway IPs do not
-exist, so the script and the rules file are no longer used.
-
-The active forwarding policy lives in
-`infrastructure/routers/generated/<router>-acl.sh` (still generated by
-`generate.py`); each FRR + iptables router container binds its file as
-`/acl.sh` and applies it on startup. See `clab/README.md`.
-
-The `firewall-rules.txt` file is left in the tree as historical reference for
-the previous policy shape.
-
----
+Left in the tree as a record of the old policy shape. It fed `infrastructure/firewall.sh`, which hid
+docker bridge gateway IPs from container scans on the previous fabric. With clab and real Linux
+bridges those gateway IPs do not exist, so neither the script nor the file is consumed any more. The
+live forwarding policy is the per-router `infrastructure/routers/generated/<router>-acl.sh`, still
+generated here. See [clab/README.md](../clab/README.md).
 
 ## adversary-readme.txt
 
-Template for the file placed in each adversary's home directory on the attacker
-machine. Resolved by `generate.py:generate_adversary_readme()` using the same
-`{placeholder}` substitution as the firewall rules.
-
-| Placeholder | Resolves to |
-|---|---|
-| `{enterprise_subnet}` | `networks.enterprise.subnet` |
-| `{legacy_ws_ip}` | `enterprise_zone.legacy_workstation.ip` |
-| `{ent_ws_ip}` | `enterprise_zone.enterprise_workstation.ip` |
-
-The resolved file is written to `zones/internet/components/unseen-gate/adversary-readme.txt`
-(gitignored) and mounted read-only into the attacker machine container at runtime.
-
-## Adding a new component variant
-
-1. Create a Dockerfile in the appropriate zone's `components/` directory.
-2. Add an entry to `COMPONENT_DIRS` in `generate.py` mapping the variant name to that directory.
-3. Set `implementation: <your-variant>` (or `vendor: <your-variant>` for RTUs) in `ctf-config.yaml`.
-4. Run `make generate`.
-
-## Adding a city RTU
-
-Add an entry under `field_devices_zone.city_rtus` in `ctf-config.yaml`.
-Pick an unused IP on `10.10.4.0/24`. Run `make generate`. The new container
-appears in `zones/field-devices/docker-compose.yml` automatically.
-
-## Changing an IP address
-
-Edit the relevant `ip:` field in `ctf-config.yaml`. Run `make generate`.
-For control zone devices, `generate.py` patches `configuration.json` and
-rewrites all connection references that pointed to the old IP. For all zones,
-the compose files are regenerated with the new address.
+The briefing dropped into each adversary's home directory on the attacker machine. It is static
+prose, and deliberately vague: a freshly-landed attacker is told they are on the city network and
+to check `~/loot`, not handed the enterprise subnet. `generate.py` copies it to
+`zones/internet/components/unseen-gate/adversary-readme.txt` (gitignored) and mounts it read-only
+into the container at runtime.
